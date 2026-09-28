@@ -15,6 +15,7 @@ export declare const zh: {
     'panel.empty': string;
     'row.untitled': string;
     'row.unread': string;
+    'row.markedUnread': string;
     'row.running': string;
     'row.attention': string;
     'row.pinned': string;

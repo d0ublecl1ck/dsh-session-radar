@@ -65,6 +65,12 @@ export interface ActivityInputs<Id extends string = string> {
    * somewhere else, so this carries the completions watched live as well.
    */
   readonly completedSince?: ReadonlySet<Id>
+  /**
+   * Sessions the operator marked unread by hand in the browsing region. The
+   * mark lives in that region's own persisted view store, not in the Session
+   * status stream, so it arrives as a set of its own.
+   */
+  readonly manualUnread?: ReadonlySet<Id>
 }
 
 /** Pending-interaction kinds that carry a dedicated row marker. */
@@ -90,8 +96,10 @@ export interface ActivityRow<Id extends string = string> {
   /** Owning Workspace title, or the working-directory basename; empty when neither is known. */
   readonly folder: string
   readonly updatedAt: number
-  /** Finished and not yet opened: the green "done" dot. */
+  /** Finished or marked, and not yet opened: the green "done" dot. */
   readonly unread: boolean
+  /** The operator's own "mark unread", the one reminder an open Session can carry. */
+  readonly manual: boolean
   readonly running: boolean
   readonly pending: ActivityAttention | undefined
   /** In the registry-global pin set. */
@@ -168,6 +176,24 @@ function folderIndex<Id extends string>(
   return index
 }
 
+/**
+ * Whether one Session still asks for the operator.
+ *
+ * Three sources union here: the framework's completion flag, the completions
+ * the surface watched itself, and the operator's own "mark unread". The manual
+ * mark is an explicit request, so it holds even while the Session runs.
+ */
+function isUnread<Id extends string>(
+  id: Id,
+  status: ActivityStatus | undefined,
+  completedSince: ReadonlySet<Id> | undefined,
+  manualUnread: ReadonlySet<Id> | undefined,
+): boolean {
+  return status?.completionUnread === true
+    || completedSince?.has(id) === true
+    || manualUnread?.has(id) === true
+}
+
 function pendingKind(kind: string | undefined): ActivityAttention | undefined {
   switch (kind) {
     case 'approval':
@@ -210,19 +236,22 @@ export function buildActivityGroups<Id extends string = string>(
   const archived = new Set<string>(inputs.workspaces.archivedSessionIds)
   const pinned = new Set<string>(inputs.workspaces.pinnedSessionIds ?? [])
   const completedSince = inputs.completedSince
+  const manualUnread = inputs.manualUnread
   const folders = folderIndex(inputs.workspaces.items)
   const candidates: ActivityRow<Id>[] = []
   for (const id of inputs.sessions.ids) {
     const session = inputs.sessions.byId[id]
     if (session === undefined || !visible(session, archived)) continue
     const status = inputs.statuses.get(id)
+    const running = status?.running ?? session.running
     candidates.push({
       id,
       title: session.displayTitle,
       folder: folders.get(id) ?? pathBasename(session.cwd) ?? '',
       updatedAt: session.updatedAt,
-      unread: status?.completionUnread === true || completedSince?.has(id) === true,
-      running: status?.running ?? session.running,
+      unread: isUnread(id, status, completedSince, manualUnread),
+      manual: manualUnread?.has(id) === true,
+      running,
       pending: pendingKind(status?.pendingInteraction?.kind),
       pinned: pinned.has(id),
       current: (session.retainedBy?.mainView ?? 0) > 0,
@@ -249,20 +278,22 @@ export function buildActivityGroups<Id extends string = string>(
 }
 
 /**
- * Count the Sessions that finished while unopened, restricted to the rows the
+ * Count the unread Sessions — completions the framework or this surface
+ * observed, plus the operator's own manual marks — restricted to the rows the
  * activity list would show so the badge and the list can never disagree.
  *
  * @param inputs - Session, status, and Workspace snapshots.
- * @returns the unread completion count.
+ * @returns the unread count.
  */
 export function countUnread<Id extends string = string>(inputs: ActivityInputs<Id>): number {
   const archived = new Set<string>(inputs.workspaces.archivedSessionIds)
   const completedSince = inputs.completedSince
+  const manualUnread = inputs.manualUnread
   let count = 0
   for (const id of inputs.sessions.ids) {
     const session = inputs.sessions.byId[id]
     if (session === undefined || !visible(session, archived)) continue
-    if (inputs.statuses.get(id)?.completionUnread !== true && completedSince?.has(id) !== true) continue
+    if (!isUnread(id, inputs.statuses.get(id), completedSince, manualUnread)) continue
     count += 1
   }
   return count

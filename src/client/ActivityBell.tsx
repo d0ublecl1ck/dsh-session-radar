@@ -42,6 +42,7 @@ import type { LedgerSource } from './ledger-source.js'
 import {
   expandOwningGroup, findSessionRow, nextUnreadId, owningWorkspaceKey, revealRow,
 } from './jump.js'
+import { readManualUnread, watchManualUnread } from './manual-unread.js'
 import { BellIcon } from './icons.js'
 import { useTitleMarquee } from './marquee.js'
 import { useSidebarAnchors } from './use-anchors.js'
@@ -103,6 +104,7 @@ function dayLabel(bucket: ActivityDayBucket, t: Translate, now: number): string 
 
 /** Row status text for assistive tech (the dots are decorative). */
 function statusText(row: ActivityRow<SessionId>, t: Translate): string | undefined {
+  if (row.manual) return t('row.markedUnread')
   if (row.unread) return t('row.unread')
   if (row.pending !== undefined) return t('row.attention')
   if (row.running) return t('row.running')
@@ -210,6 +212,17 @@ function useSnapshot<T>(source: SnapshotSource<T>): T {
   return useSyncExternalStore(subscribe, read, read)
 }
 
+/**
+ * Track the Workspace browser's manual unread marks. That store is not a
+ * framework snapshot the shell publishes, so this reads its persisted key and
+ * follows same-document writes through the bridge's watcher.
+ */
+function useManualUnread(): ReadonlySet<SessionId> {
+  const [marked, setMarked] = useState<ReadonlySet<SessionId>>(() => readManualUnread())
+  useEffect(() => watchManualUnread(setMarked), [])
+  return marked
+}
+
 /** Re-render once a minute so day buckets and the "today" section stay honest. */
 function useMinuteTick(): number {
   const [now, setNow] = useState(() => Date.now())
@@ -291,6 +304,7 @@ export function ActivityBell({
   const list = useSnapshot(sessions)
   const statusMap = useSnapshot(statuses)
   const workspaceSnapshot = useSnapshot(workspaces)
+  const manualUnread = useManualUnread()
   const now = useMinuteTick()
   const [active, setActive] = useState(false)
   const [pending, setPending] = useState<ReadonlySet<SessionId>>(() => new Set())
@@ -344,10 +358,14 @@ export function ActivityBell({
 
   const view = useMemo(() => {
     const inputs = {
-      sessions: list, statuses: statusMap, workspaces: workspaceSnapshot, completedSince: pending,
+      sessions: list,
+      statuses: statusMap,
+      workspaces: workspaceSnapshot,
+      completedSince: pending,
+      manualUnread,
     }
     return { groups: buildActivityGroups<SessionId>(inputs, now), unread: countUnread<SessionId>(inputs) }
-  }, [list, statusMap, workspaceSnapshot, pending, now])
+  }, [list, statusMap, workspaceSnapshot, pending, manualUnread, now])
   const { groups, unread } = view
 
   // The jump order the badge counts. It is the order the activity list already

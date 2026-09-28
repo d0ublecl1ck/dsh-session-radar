@@ -22,12 +22,13 @@ fork 自 `minivv/dsh-activity-bell`（MIT）。上游主交互是「换掉整个
 - `src/ledger.ts` —— 纯账本状态机（无框架依赖，单测直接打它）。
 - `src/host.ts` —— host 行为：`session/event` 记账、`$DSH_HOME/session-ledger.json` 原子写、`POST /session-ledger/*` 路由（`connection.requestRejection` 鉴权）、串行 continue 投递。`src/index.ts` 只做导出接线。
 - `src/client/ledger-source.ts` —— 浏览器到账本的唯一桥（同源 `fetch`），把桥接失败**发布**出去而不是吞掉。
-- `src/client/ActivityBell.tsx` 铃铛与活动面板；`LedgerChip.tsx` 只显示被打断项 + 全部继续；`jump.ts` 未读选择与行定位；`completions.ts` 本地边沿记账（与账本并集）；`anchors.ts` 官方 DOM 锚点；`locales.ts` 文案。
+- `src/client/ActivityBell.tsx` 铃铛与活动面板；`LedgerChip.tsx` 只显示被打断项 + 全部继续；`jump.ts` 未读选择与行定位；`completions.ts` 本地边沿记账（与账本并集）；`manual-unread.ts` 读官方侧边栏的「标为未读」并监听其写入；`anchors.ts` 官方 DOM 锚点；`locales.ts` 文案。
 - `test/` 与 `src/` 同名对应；`scripts/build.mjs`、`scripts/build-tests.mjs` 是构建入口。
 - 依赖官方 DOM 契约：`[data-row-key="session:<id>"]`、`[class*="listArea"]`、`[class*="sectionHeader"]`。
+- 依赖官方持久化键：Workspace 浏览器的手动未读存在 `localStorage` 的 `dsh.workspace.view.v5` 里，官方改键名会静默失效。
 
 ## 当前状态与下一步
 
-- 已实现：账本持久化（未读跨刷新/重启）、铃铛角标与跳转读账本、被打断会话的 chip + 全部继续（串行投递）、打开会话回写已读、启动静默窗避免"自动恢复=已读"。
+- 已实现：账本持久化（未读跨刷新/重启）、铃铛角标与跳转读「账本 ∪ 本地完成边沿 ∪ 官方手动未读」、被打断会话的 chip + 全部继续（串行投递）、打开会话回写已读、启动静默窗避免"自动恢复=已读"。
 - 被打断路径已由使用方验收通过；判据只用 `turn/end` 的 `aborted` + `disposed`，不读会话日志。
 - 下一步（未做）：chip 的「只看未读」筛选、跨工作区排序、把被打断项并进铃铛右键面板以去掉第二个入口。

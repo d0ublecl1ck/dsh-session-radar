@@ -65,6 +65,12 @@ export interface ActivityInputs<Id extends string = string> {
      * somewhere else, so this carries the completions watched live as well.
      */
     readonly completedSince?: ReadonlySet<Id>;
+    /**
+     * Sessions the operator marked unread by hand in the browsing region. The
+     * mark lives in that region's own persisted view store, not in the Session
+     * status stream, so it arrives as a set of its own.
+     */
+    readonly manualUnread?: ReadonlySet<Id>;
 }
 /** Pending-interaction kinds that carry a dedicated row marker. */
 export type ActivityAttention = 'approval' | 'plan-review' | 'question';
@@ -93,8 +99,10 @@ export interface ActivityRow<Id extends string = string> {
     /** Owning Workspace title, or the working-directory basename; empty when neither is known. */
     readonly folder: string;
     readonly updatedAt: number;
-    /** Finished and not yet opened: the green "done" dot. */
+    /** Finished or marked, and not yet opened: the green "done" dot. */
     readonly unread: boolean;
+    /** The operator's own "mark unread", the one reminder an open Session can carry. */
+    readonly manual: boolean;
     readonly running: boolean;
     readonly pending: ActivityAttention | undefined;
     /** In the registry-global pin set. */
@@ -140,10 +148,11 @@ export declare function pathBasename(path: string | undefined): string | undefin
  */
 export declare function buildActivityGroups<Id extends string = string>(inputs: ActivityInputs<Id>, now: number, limit?: number): ActivityGroup<Id>[];
 /**
- * Count the Sessions that finished while unopened, restricted to the rows the
+ * Count the unread Sessions — completions the framework or this surface
+ * observed, plus the operator's own manual marks — restricted to the rows the
  * activity list would show so the badge and the list can never disagree.
  *
  * @param inputs - Session, status, and Workspace snapshots.
- * @returns the unread completion count.
+ * @returns the unread count.
  */
 export declare function countUnread<Id extends string = string>(inputs: ActivityInputs<Id>): number;

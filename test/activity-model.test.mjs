@@ -172,3 +172,26 @@ test('pathBasename handles posix and windows separators', () => {
   assert.equal(pathBasename('/'), undefined)
   assert.equal(pathBasename(undefined), undefined)
 })
+
+test('a Session marked unread by hand counts as unread, running or not', () => {
+  const rows = [
+    session('marked'),
+    session('quiet'),
+    session('busy', { running: true }),
+    session('archived'),
+  ]
+  const source = {
+    ...inputs(rows, { workspaces: { items: [], archivedSessionIds: ['archived'] } }),
+    manualUnread: new Set(['marked', 'busy', 'archived']),
+  }
+  const byId = Object.fromEntries(
+    buildActivityGroups(source, NOW).flatMap(group => group.rows.map(row => [row.id, row])),
+  )
+  assert.equal(byId.marked.unread, true, 'the manual mark is a reminder')
+  assert.equal(byId.marked.manual, true, 'the row can say why it is unread')
+  assert.equal(byId.quiet.unread, false)
+  assert.equal(byId.quiet.manual, false)
+  assert.equal(byId.busy.unread, true, 'an explicit mark holds while the Session runs')
+  assert.equal(byId.archived, undefined, 'a hidden row stays hidden')
+  assert.equal(countUnread(source), 2, 'only the hidden row stays out of the badge')
+})

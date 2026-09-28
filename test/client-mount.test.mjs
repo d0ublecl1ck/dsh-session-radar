@@ -34,6 +34,26 @@ const { createRoot } = await import('react-dom/client')
 const { apply } = await import('../.test-build/client/index.js')
 const { zh } = await import('../.test-build/client/locales.js')
 const { buildSidebar } = await import('./sidebar-fixture.mjs')
+const { WORKSPACE_VIEW_STORAGE_KEY } = await import('../.test-build/client/manual-unread.js')
+
+/**
+ * Mirror what the real UiWorkspaceService.openSession does to the Workspace
+ * browser's private view store: opening a Session clears its manual unread
+ * mark, which our bridge then reads back out of localStorage.
+ */
+function clearManualUnread(sessionId) {
+  const raw = window.localStorage.getItem(WORKSPACE_VIEW_STORAGE_KEY)
+  if (raw === null) return
+  try {
+    const document_ = JSON.parse(raw)
+    window.localStorage.setItem(WORKSPACE_VIEW_STORAGE_KEY, JSON.stringify({
+      ...document_,
+      unreadSessionIds: (document_.unreadSessionIds ?? []).filter(id => id !== sessionId),
+    }))
+  } catch {
+    // A hostile value is not the test's concern.
+  }
+}
 
 // jsdom's visual mode owns a requestAnimationFrame loop; closing the window
 // after the lane releases the event loop so the runner can exit.
@@ -128,7 +148,12 @@ function fakeContext(values = {}) {
     },
     uiSession: { sessionStatus: statuses },
     uiWorkspace: {
-      openSession: (sessionId) => { opened.push(['open', sessionId]) },
+      openSession: (sessionId) => {
+        opened.push(['open', sessionId])
+        // The real UiWorkspaceService.openSession clears the browser's manual
+        // unread mark; the double mirrors it so the badge settles like it does.
+        clearManualUnread(sessionId)
+      },
       pinSession: (sessionId) => { opened.push(['pin', sessionId]); return Promise.resolve() },
       unpinSession: (sessionId) => { opened.push(['unpin', sessionId]); return Promise.resolve() },
       // The host refuses a plain archive while work still runs; the panel shows
@@ -195,7 +220,8 @@ test('the client half registers one sidebar foot action and injects the framewor
   assert.equal(captured().options.locale, 'session-ledger')
   const injected = captured().options.inject()
   assert.deepEqual(Object.keys(injected).sort(), [
-    'archiveSession', 'openSession', 'pinSession', 'sessions', 'statuses', 'unpinSession', 'workspaces',
+    'archiveSession', 'ledger', 'openSession', 'pinSession', 'sessions', 'statuses', 'unpinSession',
+    'workspaces',
   ])
   assert.equal(document.querySelector('style[data-plugin="dsh-session-ledger"]') !== null, true)
   for (const dispose of [...disposers].reverse()) dispose()
@@ -511,4 +537,56 @@ test('clicking the bell reveals and opens the next unread Session, wrapping arou
 
   await view.unmount()
   for (const dispose of [...disposers].reverse()) dispose()
+})
+
+test('a Session marked unread by hand raises the badge until it is opened', async () => {
+  document.body.innerHTML = ''
+  buildSidebar(document)
+  window.localStorage.removeItem(WORKSPACE_VIEW_STORAGE_KEY)
+  const rows = [
+    { id: 's1', displayTitle: '手动标记未读', blank: false, running: false, updatedAt: localAt(0, 9) },
+    { id: 's2', displayTitle: '普通会话', blank: false, running: false, updatedAt: localAt(0, 8) },
+  ]
+  const handle = fakeContext({
+    sessions: source({
+      ids: rows.map(row => row.id),
+      byId: Object.fromEntries(rows.map(row => [row.id, row])),
+      phase: 'ready',
+    }),
+    statuses: source(new Map()),
+    workspaces: source({ items: [], archivedSessionIds: [] }),
+  })
+  const { ctx, opened, disposers } = handle
+  const captured = () => handle.captured
+  apply(ctx)
+  const injected = captured().options.inject()
+  const view = await mount(React.createElement(captured().component, {
+    wide: true, t: translate, ...injected,
+  }))
+  assert.equal(document.querySelector('.ab-badge'), null, 'the store holds no manual mark yet')
+
+  await React.act(async () => {
+    window.localStorage.setItem(
+      WORKSPACE_VIEW_STORAGE_KEY,
+      JSON.stringify({ groupBy: 'workspace', unreadSessionIds: ['s1'] }),
+    )
+  })
+  assert.equal(document.querySelector('.ab-badge').textContent, '1')
+  assert.equal(
+    document.querySelector('.ab-bell').getAttribute('aria-label'),
+    '定位下一个未读，1 个会话已完成未查看',
+  )
+
+  await view.contextMenu(document.querySelector('.ab-bell'))
+  const row = document.querySelector('.ab-row')
+  assert.equal(row.querySelector('.ab-row-title').textContent, '手动标记未读')
+  assert.equal(row.querySelector('.ab-sr-only').textContent, '标为未读')
+
+  await view.click(row)
+  assert.deepEqual(opened, [['open', 's1']])
+  assert.equal(document.querySelector('.ab-badge'), null, 'opening clears the manual mark')
+
+  await view.unmount()
+  for (const dispose of [...disposers].reverse()) dispose()
+  window.localStorage.removeItem(WORKSPACE_VIEW_STORAGE_KEY)
 })
