@@ -1,17 +1,17 @@
 {
-  "name": "dsh-unread-jump",
+  "name": "dsh-session-ledger",
   "version": "0.1.0",
-  "description": "DSH Web 侧边栏未读铃铛：会话跑完显示角标，点一下依次定位并打开下一个未读会话（可循环）。Fork of dsh-activity-bell.",
+  "description": "DSH Web 会话账本：未读跨重启持久化 + 被重启打断的会话标红与批量 continue；铃铛负责顺序定位未读。Fork of dsh-activity-bell.",
   "type": "module",
   "license": "MIT",
   "author": "Wei <minivv@users.noreply.github.com> (upstream dsh-activity-bell)",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/d0ublecl1ck/dsh-unread-jump.git"
+    "url": "git+https://github.com/d0ublecl1ck/dsh-session-ledger.git"
   },
-  "homepage": "https://github.com/d0ublecl1ck/dsh-unread-jump",
+  "homepage": "https://github.com/d0ublecl1ck/dsh-session-ledger",
   "bugs": {
-    "url": "https://github.com/d0ublecl1ck/dsh-unread-jump/issues"
+    "url": "https://github.com/d0ublecl1ck/dsh-session-ledger/issues"
   },
   "publishConfig": {
     "access": "public"
@@ -48,11 +48,12 @@
     "dsh",
     "deepseek-harness",
     "deepseek",
-    "activity",
-    "unread-jump",
     "sidebar",
-    "notification",
-    "unread"
+    "unread",
+    "ledger",
+    "restart",
+    "recovery",
+    "session-ledger"
   ],
   "dsh": {
     "bundle": {
@@ -95,20 +96,48 @@
     "react-dom": "^18.2.0"
   },
   "peerDependenciesMeta": {
-    "@deepseek-ai/cordis": { "optional": true },
-    "@deepseek-ai/dsh-api-session-controller": { "optional": true },
-    "@deepseek-ai/dsh-api-workspace-controller": { "optional": true },
-    "@deepseek-ai/dsh-client-locale": { "optional": true },
-    "@deepseek-ai/dsh-client-ui-renderer": { "optional": true },
-    "@deepseek-ai/dsh-client-store": { "optional": true },
-    "@deepseek-ai/dsh-client-ui-primitives": { "optional": true },
-    "@deepseek-ai/dsh-client-ui-session": { "optional": true },
-    "@deepseek-ai/dsh-client-ui-sidebar": { "optional": true },
-    "@deepseek-ai/dsh-client-ui-slots": { "optional": true },
-    "@deepseek-ai/dsh-client-ui-workspace": { "optional": true },
-    "@deepseek-ai/dsh-session": { "optional": true },
-    "react": { "optional": true },
-    "react-dom": { "optional": true }
+    "@deepseek-ai/cordis": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-api-session-controller": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-api-workspace-controller": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-locale": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-ui-renderer": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-store": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-ui-primitives": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-ui-session": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-ui-sidebar": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-ui-slots": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-ui-workspace": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-session": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.4",

@@ -9,7 +9,7 @@
  * pair, and the panel paints the sidebar fill so the list underneath cannot
  * show through.
  *
- * @module dsh-unread-jump/client/styles
+ * @module dsh-session-ledger/client/styles
  */
 
 const CSS = `
@@ -333,7 +333,7 @@ const CSS = `
 }
 `
 
-const PLUGIN_ID = 'dsh-unread-jump'
+const PLUGIN_ID = 'dsh-session-ledger'
 
 let installed: HTMLStyleElement | undefined
 

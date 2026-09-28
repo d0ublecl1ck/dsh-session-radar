@@ -2,4 +2,7 @@
 
 - [ ] `src/client/anchors.ts` / `src/client/jump.ts` — 依赖官方 CSS module 类名子串（`listArea` / `sectionHeader` / `searchSlot` / `headerActions`）与 `[data-row-key="session:<id>"]` 契约；DSH 升级后先核对这两处，再谈行为回归。记录：2026-09-28
 - [ ] `lib/` — 被跟踪的构建产物；改 `src/` 后忘记 `npm run build` 并提交，安装方会拿到旧 bundle。核对方式：`lib/client.js` 是否含 `expandOwningGroup`。记录：2026-09-28
-- [ ] `test/client-mount.test.mjs` — 面板改由右键打开后，同一文件里并存 `contextMenu`（开面板）与 `click`（跳转）两种入口；下次改铃铛行为时两个都要核对。记录：2026-09-28
+- [ ] host 半边改动 — 宿主按 URL 缓存模块，只 `dsh plugin add` 不会重新导入；必须 `remove` + `add`。症状：路由 404/405、日志行号仍指向旧代码。记录：2026-09-28
+- [ ] `test/client-mount.test.mjs` — 夹具按 `options.id` 存全部注册，`captured` 取回铃铛那条。本插件现在注册两个 `sidebar.footer.action`（`session-ledger` 与 `session-ledger-chip`）；再加第三个入口时 `captured` 的取法要一并核对。记录：2026-09-28
+- [ ] `src/client/ledger-source.ts` — 桥接失败必须发布到 snapshot（chip 显示 `!`）。不要改回 `catch(() => {})`：静默失败会让"没有数据"和"桥断了"分不开，上一轮为此排查了很久。记录：2026-09-28
+- [ ] 「被打断」判据 — 只用 `turn/end` 的 `aborted` + `disposed`；宿主被强杀时可能不写这条事件。使用方已验收当前行为；若要更强，再考虑比对会话日志里的未闭合轮次。记录：2026-09-28

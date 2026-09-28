@@ -15,7 +15,7 @@
  * green dots, and the ordering all recompute from those snapshots, so opening
  * a Session clears its dot exactly the way the shipped rows do.
  *
- * @module dsh-unread-jump/client/ActivityBell
+ * @module dsh-session-ledger/client/ActivityBell
  */
 import {
   useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore,
@@ -38,6 +38,7 @@ import {
   applyRowInset, ensurePositioned, measureRowInset, mountContainer, type SidebarAnchors,
 } from './anchors.js'
 import { nextPending, sessionFacts, type SessionFacts } from './completions.js'
+import type { LedgerSource } from './ledger-source.js'
 import {
   expandOwningGroup, findSessionRow, nextUnreadId, owningWorkspaceKey, revealRow,
 } from './jump.js'
@@ -66,15 +67,17 @@ export interface ActivityBellInjected {
   readonly sessions: SnapshotSource<SessionListState>
   readonly statuses: SnapshotSource<SessionStatusSnapshot>
   readonly workspaces: SnapshotSource<WorkspaceSnapshot>
+  /** Cross-restart reminder memory owned by the host half. */
+  readonly ledger: LedgerSource
 }
 
 /** Composed props: shell share + locale seat + injected business face. */
 export type ActivityBellProps =
   PropsRuntime<'sidebar.footer.action'>
-  & PropsLocale<'unread-jump'>
+  & PropsLocale<'session-ledger'>
   & ActivityBellInjected
 
-type Translate = PropsLocale<'unread-jump'>['t']
+type Translate = PropsLocale<'session-ledger'>['t']
 
 /** Calendar bucket → section label. */
 function dayLabel(bucket: ActivityDayBucket, t: Translate, now: number): string {
@@ -282,7 +285,7 @@ function useHosts(anchors: SidebarAnchors | undefined, wide: boolean, active: bo
  * @returns the two portals, or null before the sidebar region exists.
  */
 export function ActivityBell({
-  wide, t, openSession, pinSession, unpinSession, archiveSession, sessions, statuses, workspaces,
+  wide, t, openSession, pinSession, unpinSession, archiveSession, sessions, statuses, workspaces, ledger,
 }: ActivityBellProps): ReactElement | null {
   const anchors = useSidebarAnchors()
   const list = useSnapshot(sessions)
@@ -308,6 +311,26 @@ export function ActivityBell({
     setPending(currentPending => nextPending(currentPending, previous, current))
   }, [list, statusMap])
 
+  // The host ledger is the cross-restart memory: a completion recorded there
+  // keeps its badge after a reload, which the in-memory edge tracker cannot.
+  const ledgerSnapshot = useSyncExternalStore(
+    useCallback((listener: () => void) => ledger.subscribe(listener), [ledger]),
+    useCallback(() => ledger.getSnapshot(), [ledger]),
+  )
+  useEffect(() => {
+    const persistent = ledgerSnapshot.unread.map((row: { sessionId: string }) => row.sessionId as SessionId)
+    if (persistent.length === 0) return
+    setPending((current) => {
+      let next: Set<SessionId> | undefined
+      for (const id of persistent) {
+        if (current.has(id)) continue
+        next ??= new Set(current)
+        next.add(id)
+      }
+      return next ?? current
+    })
+  }, [ledgerSnapshot])
+
   const acknowledge = useCallback((sessionId: SessionId): void => {
     setPending((current) => {
       if (!current.has(sessionId)) return current
@@ -315,7 +338,9 @@ export function ActivityBell({
       next.delete(sessionId)
       return next
     })
-  }, [])
+    // Tell the host too, so the ledger stops re-arming this Session.
+    ledger.read(sessionId)
+  }, [ledger])
 
   const view = useMemo(() => {
     const inputs = {

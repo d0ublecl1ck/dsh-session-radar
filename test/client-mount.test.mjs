@@ -7,6 +7,7 @@
 import assert from 'node:assert/strict'
 import test, { after } from 'node:test'
 
+
 // The DOM must exist before react-dom and the component are imported.
 const { JSDOM } = await import('jsdom')
 const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', {
@@ -98,7 +99,9 @@ function mutableSource(initial) {
 function fakeContext(values = {}) {
   const disposers = []
   const opened = []
-  let captured
+  // A plugin may register more than one action; keep them all and let the
+  // tests address the bell by its id instead of by registration order.
+  const registrations = new Map()
   const sessions = values.sessions ?? source({
     ids: SESSIONS.map(row => row.id),
     byId: Object.fromEntries(SESSIONS.map(row => [row.id, row])),
@@ -116,8 +119,8 @@ function fakeContext(values = {}) {
     slots: {
       inject(_name, factory) { return factory() },
       register(options, component) {
-        captured = { options, component }
-        return () => { captured = undefined }
+        registrations.set(options.id, { options, component })
+        return () => { registrations.delete(options.id) }
       },
     },
     get(name) {
@@ -137,7 +140,7 @@ function fakeContext(values = {}) {
     ctx,
     disposers,
     opened,
-    get captured() { return captured },
+    get captured() { return registrations.get('session-ledger') },
   }
 }
 
@@ -188,15 +191,15 @@ test('the client half registers one sidebar foot action and injects the framewor
   const captured = () => handle.captured
   apply(ctx)
   assert.equal(captured().options.name, 'sidebar.footer.action')
-  assert.equal(captured().options.id, 'unread-jump')
-  assert.equal(captured().options.locale, 'unread-jump')
+  assert.equal(captured().options.id, 'session-ledger')
+  assert.equal(captured().options.locale, 'session-ledger')
   const injected = captured().options.inject()
   assert.deepEqual(Object.keys(injected).sort(), [
     'archiveSession', 'openSession', 'pinSession', 'sessions', 'statuses', 'unpinSession', 'workspaces',
   ])
-  assert.equal(document.querySelector('style[data-plugin="dsh-unread-jump"]') !== null, true)
+  assert.equal(document.querySelector('style[data-plugin="dsh-session-ledger"]') !== null, true)
   for (const dispose of [...disposers].reverse()) dispose()
-  assert.equal(document.querySelector('style[data-plugin="dsh-unread-jump"]'), null)
+  assert.equal(document.querySelector('style[data-plugin="dsh-session-ledger"]'), null)
 })
 
 test('the bell renders beside the search control with the unread badge', async () => {
@@ -225,7 +228,7 @@ test('the bell renders beside the search control with the unread badge', async (
   for (const dispose of [...disposers].reverse()) dispose()
   assert.equal(document.querySelector('.ab-bell'), null)
   assert.equal(document.querySelector('.ab-bell-host'), null)
-  assert.equal(document.querySelector('style[data-plugin="dsh-unread-jump"]'), null)
+  assert.equal(document.querySelector('style[data-plugin="dsh-session-ledger"]'), null)
   assert.equal(shell.header.children.length, 3, 'the shell keeps only its own children')
 })
 

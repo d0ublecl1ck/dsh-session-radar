@@ -1,50 +1,87 @@
-# dsh-unread-jump
+# dsh-session-ledger
 
-DSH Web 侧边栏**未读铃铛**：会话跑完在铃铛上留下数字角标，**点一下依次定位并打开下一个未读会话**（到末尾绕回开头）；右键才打开「最近活动」列表。
+DSH Web 侧边栏**未读铃铛 + 跨重启会话账本**。
 
-> 本项目 fork 自 [minivv/dsh-activity-bell](https://github.com/minivv/dsh-activity-bell)（MIT，作者 Wei）。
-> 上游的主交互是「点铃铛把侧边栏换成按天分组的活动列表」；issue 里的实际使用反馈是：**侧边栏本来就是会话列表，再换一份列表并不能回答「到底哪个未读」**。
-> 本 fork 只改这一点：主交互变成「定位」，列表退到右键。
+铃铛回答「哪个未读、下一个在哪」；host 侧的账本回答「重启之后这些事还在不在」。两者读同一份数据。
+
+> fork 自 [minivv/dsh-activity-bell](https://github.com/minivv/dsh-activity-bell)（MIT，作者 Wei）。上游把「点铃铛」做成换一份活动列表，本 fork 先把它改成**顺序定位未读**，之后又在本 fork 上加了 host 账本与「被重启打断」的处理。
 
 ## 行为
 
 | 操作 | 结果 |
 | --- | --- |
-| 左键点铃铛 | 定位到下一个未读会话：把它的侧边栏行滚动到可见，并在对话栏打开它；再点继续往后走，到末尾绕回第一个 |
-| 右键点铃铛 | 打开/关闭「最近活动」列表（保留上游的按天分组视图） |
-| 点击列表里的行 | 打开该会话 |
-| Esc / 点击侧边栏其它位置 | 关闭活动列表 |
+| 左键点铃铛 | 定位到下一个未读会话：滚动到可见并在对话栏打开；再点继续往后走，末尾绕回第一个 |
+| 右键点铃铛 | 打开/关闭「最近活动」列表（按天分组） |
+| 点列表里的行 | 打开该会话 |
+| Esc / 点侧边栏其它位置 | 关闭活动列表 |
+| chip（只有存在被打断的会话时才出现） | 显示红色 `⚠ N`；点开列出被重启打断的会话，顶部一个「全部继续」 |
 
-未读的来源与官方侧栏绿点同源：
+## 未读从哪来（跨重启）
 
-- 官方 `uiSession.sessionStatus` 的 `completionUnread`（离开时跑完的会话）；
-- 加上本插件自己观察到的「运行中 → 结束」边沿（你在场看着它跑完也算），打开该会话即清除。
+host 半边持有账本 `$DSH_HOME/session-ledger.json`，原子写（临时文件 + rename）：
 
-跳转游标由插件自己持有：即使某个会话的未读状态因为打开而被清掉，连续点击也不会原地打转。
+| 字段 | 含义 |
+| --- | --- |
+| `lastTurnEndAt` / `lastTurnEndKind` | 最后一次 durable 轮次边界（completed / aborted / blocked / max-tokens…） |
+| `lastAttentionAt` / `lastAttentionKind` | 最后一次待交互（approval / question） |
+| `interruptedAt` | 被宿主退出切断的那一轮（`turn/end` 的 `aborted` + cause `disposed`） |
+| `lastReadAt` | 操作者最后确认到的时间 |
+
+- 未读 = `interruptedAt` 有值，**或** `max(turnEnd, attention) > lastReadAt`
+- 记账来源：`session/event` 的 `turn/end` 与 `approval/asked`，加上 `ask_user_question` 的工具分发
+- 已读 = 打开该会话（铃铛跳转或 chip 点行）｜在该会话发新消息
+- 重启后自动恢复成当前会话的**不算已读**：客户端启动后有 3 秒静默窗
+
+浏览器半边**不自己记账**：铃铛的角标和跳转顺序都由账本驱动，所以数字跨刷新、跨重启都不丢。
+
+## 被重启打断的会话
+
+- 判定：最后一次 `turn/end` 是 `aborted` 且 cause 为 `disposed`
+- chip 显示 `⚠ N`，点开可逐个打开
+- 「全部继续」发送固定文本（行配置 `continueMessage` 可覆盖）：
+
+  `上次执行被 DSH 重启中断，请先核对当前文件与命令的真实状态，再继续。`
+
+- 投递是**串行**的：上一个跑完（或 10 分钟超时）才发下一个，避免多个 agent 同时改同一批文件
+
+## 通道
+
+host 半边注册一条自己的路由：
+
+```
+POST /session-ledger/<endpoint>        endpoint: list | read | continue-all
+```
+
+handler 第一件事是 `connection.requestRejection(req)` —— 信任与鉴权复用连接服务自己的栅栏（与 `dsh-host-open-in-app` 同款）。带会话 cookie → 200，不带 → 401。
+
+不用 Typert Remote 的原因：手写的 contribution 没有平台生成的 Remote 元数据，`ctx.remote.$mount()` 会在网关的 `validateContribution` 里被拒。
 
 ## 已知限制
 
-- 工作区分组**折叠**时那一行不在 DOM 里；插件会先点开该分组再滚动。若展开后仍然找不到（会话被归档、被筛选隐藏、或不在当前列表），则**只打开会话、不滚动**。
-- 侧边栏折叠成 56px 轨道时不显示铃铛（该位置的角标被官方占用）。
-- 未读不跨刷新保存，与官方一致。
-- 依赖官方 DOM 契约 `[data-row-key="session:<id>"]` / `[class*="listArea"]` / `[class*="sectionHeader"]`；官方改版可能失效。
+- 依赖官方 DOM 契约 `[data-row-key="session:<id>"]` / `[class*="listArea"]` / `[class*="sectionHeader"]`，官方改版可能失效。
+- 工作区分组**折叠**时那一行不在 DOM 里：插件先点开分组再滚动；展开后仍找不到（归档、被筛选隐藏、不在当前列表）则**只打开、不滚动**。
+- 侧边栏折叠成 56px 轨道时不显示铃铛（该位置被官方占用）。
+- 「被打断」依赖宿主来得及写 `turn/end`（`aborted` + `disposed`）；进程被强杀时可能不写。**这一路径已由使用方验收通过。**
+- chip 上的红色 `!` 表示浏览器到 host 的桥接失败：此时保留上一次已知数据，不清空。
 
 ## 安装
 
 ```sh
-dsh plugin --profile web add /绝对路径/dsh-unread-jump
+dsh plugin --profile web add /绝对路径/dsh-session-ledger
 ```
 
-装完刷新页面。卸载：`dsh plugin --profile web remove dsh-unread-jump`。
+装完刷新页面。卸载：`dsh plugin --profile web remove dsh-session-ledger`。
+
+**改完 host 半边必须 `remove` + `add`**：模块按 URL 缓存，只 `add` 不会重新导入。
 
 ## 开发
 
 ```sh
 npm ci
-npm run verify    # typecheck + build + 46 个测试
+npm run verify    # typecheck + build + 55 个测试
 ```
 
-测试里 `test/jump.test.mjs` 覆盖选择逻辑（首个/下一个/绕回/游标失效）与分组展开，`test/client-mount.test.mjs` 用真实客户端半边挂载，断言「点一下 → 滚动 + 打开下一个未读」。
+`test/ledger.test.mjs` 覆盖账本状态机（未读、已读不回退、打断与继续）；`test/jump.test.mjs` 覆盖未读选择与分组展开；`test/client-mount.test.mjs` 用真实客户端半边挂载，断言铃铛与 chip 两个入口。
 
 ## License
 

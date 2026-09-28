@@ -1,6 +1,7 @@
 /**
  * Client half: inject the page styles, register the `unread-jump`
- * dictionaries, and mount the bell through the sidebar foot's action list.
+ * dictionaries, mount the bell, and mount the chip that carries only the
+ * restart-interrupted Sessions. Both read the one host ledger.
  *
  * The registration is the component's lifecycle and locale carrier (plus the
  * shell's `wide` flag); the visible surfaces are portalled into the browsing
@@ -21,11 +22,13 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import './types.js'
 import { ActivityBell } from './ActivityBell.js'
+import { LedgerChip } from './LedgerChip.js'
+import { createLedgerSource } from './ledger-source.js'
 import { en, zh } from './locales.js'
 import { injectStyles, removeStyles } from './styles.js'
 
 /** Dictionary namespace owned by this plugin. */
-const NS = 'unread-jump'
+const NS = 'session-ledger'
 
 /** Services required before this plugin mounts. */
 export const inject = ['slots', 'locale', 'sessions', 'workspaces', 'uiSession', 'uiWorkspace']
@@ -52,9 +55,12 @@ export function apply(ctx: Context): void {
   const sessions = (ctx.get('sessions') as ISessions).list
   const statuses = ctx.uiSession.sessionStatus
   const workspaces = (ctx.get('workspaces') as IWorkspaces).list
+  // One ledger, two readers: the bell's badge and jump order, and the chip's
+  // interrupted list. Neither keeps its own unread memory.
+  const ledger = createLedgerSource(ctx, sessions)
   ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
     name: 'sidebar.footer.action',
-    id: 'unread-jump',
+    id: 'session-ledger',
     order: 900,
     locale: NS,
     inject: () => ({
@@ -65,6 +71,20 @@ export function apply(ctx: Context): void {
       sessions,
       statuses,
       workspaces,
+      ledger,
     }),
   }, ActivityBell))
+
+  // The chip carries only what the bell has no room for: the Sessions a restart
+  // cut off, and the continue rollout over them.
+  ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
+    name: 'sidebar.footer.action',
+    id: 'session-ledger-chip',
+    order: 901,
+    locale: NS,
+    inject: () => ({
+      ledger,
+      openSession: (sessionId: SessionId) => { ctx.uiWorkspace.openSession(sessionId) },
+    }),
+  }, LedgerChip))
 }

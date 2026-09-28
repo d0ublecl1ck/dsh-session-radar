@@ -4,6 +4,7 @@ import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/c
 import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client';
 import type { SessionStatusSnapshot } from '@deepseek-ai/dsh-client-ui-session/client';
 import type { SessionId } from '@deepseek-ai/dsh-session/types';
+import type { LedgerSource } from './ledger-source.js';
 /** Structural view of the observable snapshots this plugin subscribes to. */
 export interface SnapshotSource<T> {
     getSnapshot(): T;
@@ -24,13 +25,15 @@ export interface ActivityBellInjected {
     readonly sessions: SnapshotSource<SessionListState>;
     readonly statuses: SnapshotSource<SessionStatusSnapshot>;
     readonly workspaces: SnapshotSource<WorkspaceSnapshot>;
+    /** Cross-restart reminder memory owned by the host half. */
+    readonly ledger: LedgerSource;
 }
 /** Composed props: shell share + locale seat + injected business face. */
-export type ActivityBellProps = PropsRuntime<'sidebar.footer.action'> & PropsLocale<'unread-jump'> & ActivityBellInjected;
+export type ActivityBellProps = PropsRuntime<'sidebar.footer.action'> & PropsLocale<'session-ledger'> & ActivityBellInjected;
 /**
  * Render the bell into the sidebar header and, while active, the activity list
  * into the list seat it covers.
  * @param props - shell share, locale seat, and injected business face.
  * @returns the two portals, or null before the sidebar region exists.
  */
-export declare function ActivityBell({ wide, t, openSession, pinSession, unpinSession, archiveSession, sessions, statuses, workspaces, }: ActivityBellProps): ReactElement | null;
+export declare function ActivityBell({ wide, t, openSession, pinSession, unpinSession, archiveSession, sessions, statuses, workspaces, ledger, }: ActivityBellProps): ReactElement | null;
