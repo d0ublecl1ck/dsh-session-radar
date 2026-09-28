@@ -1,5 +1,5 @@
 /**
- * Client half: inject the page styles, register the `activity-bell`
+ * Client half: inject the page styles, register the `unread-jump`
  * dictionaries, and mount the bell through the sidebar foot's action list.
  *
  * The registration is the component's lifecycle and locale carrier (plus the
@@ -7,7 +7,7 @@
  * region, because the region is a single-occupant slot whose header has no
  * hole beside the search control. See `./ActivityBell` for that rationale.
  *
- * @module dsh-activity-bell/client
+ * @module dsh-unread-jump/client
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
@@ -25,7 +25,7 @@ import { en, zh } from './locales.js'
 import { injectStyles, removeStyles } from './styles.js'
 
 /** Dictionary namespace owned by this plugin. */
-const NS = 'activity-bell'
+const NS = 'unread-jump'
 
 /** Services required before this plugin mounts. */
 export const inject = ['slots', 'locale', 'sessions', 'workspaces', 'uiSession', 'uiWorkspace']
@@ -41,8 +41,8 @@ export function apply(ctx: Context): void {
       style.remove()
       removeStyles()
     }
-  }, 'activity-bell: styles')
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'activity-bell: dictionaries')
+  }, 'unread-jump: styles')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'unread-jump: dictionaries')
 
   // The injected face binds the framework's own sources: the Session list the
   // browsing region reads, the UI status it derives row dots from, and the
@@ -54,7 +54,7 @@ export function apply(ctx: Context): void {
   const workspaces = (ctx.get('workspaces') as IWorkspaces).list
   ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
     name: 'sidebar.footer.action',
-    id: 'activity-bell',
+    id: 'unread-jump',
     order: 900,
     locale: NS,
     inject: () => ({

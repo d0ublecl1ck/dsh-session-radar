@@ -8,7 +8,7 @@
  * objects. Filtering mirrors the sidebar browser's own visibility rule so the
  * bell never counts a row the browsing region would hide.
  *
- * @module dsh-activity-bell/activity-model
+ * @module dsh-unread-jump/activity-model
  */
 
 /** Session facts the projection reads (a structural subset of the client summary). */

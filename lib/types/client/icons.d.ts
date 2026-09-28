@@ -3,7 +3,7 @@
  * shell surfaces), so this module draws one at the same weight: a 16px
  * current-color outline with a 1px stroke.
  *
- * @module dsh-activity-bell/client/icons
+ * @module dsh-unread-jump/client/icons
  */
 /**
  * Render the bell outline.

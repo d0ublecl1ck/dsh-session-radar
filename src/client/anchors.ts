@@ -14,7 +14,7 @@
  * validated by the search control it must contain, so an unrelated section
  * header elsewhere in the shell can never be mistaken for this one.
  *
- * @module dsh-activity-bell/client/anchors
+ * @module dsh-unread-jump/client/anchors
  */
 
 /** Resolved sidebar-region anchors for one rendered shell. */

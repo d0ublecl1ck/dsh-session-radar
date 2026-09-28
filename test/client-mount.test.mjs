@@ -165,6 +165,11 @@ async function mount(element) {
         node.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }))
       })
     },
+    async contextMenu(node) {
+      await React.act(async () => {
+        node.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }))
+      })
+    },
     async press(node) {
       await React.act(async () => {
         node.dispatchEvent(new window.MouseEvent('pointerdown', { bubbles: true, cancelable: true }))
@@ -183,15 +188,15 @@ test('the client half registers one sidebar foot action and injects the framewor
   const captured = () => handle.captured
   apply(ctx)
   assert.equal(captured().options.name, 'sidebar.footer.action')
-  assert.equal(captured().options.id, 'activity-bell')
-  assert.equal(captured().options.locale, 'activity-bell')
+  assert.equal(captured().options.id, 'unread-jump')
+  assert.equal(captured().options.locale, 'unread-jump')
   const injected = captured().options.inject()
   assert.deepEqual(Object.keys(injected).sort(), [
     'archiveSession', 'openSession', 'pinSession', 'sessions', 'statuses', 'unpinSession', 'workspaces',
   ])
-  assert.equal(document.querySelector('style[data-plugin="dsh-activity-bell"]') !== null, true)
+  assert.equal(document.querySelector('style[data-plugin="dsh-unread-jump"]') !== null, true)
   for (const dispose of [...disposers].reverse()) dispose()
-  assert.equal(document.querySelector('style[data-plugin="dsh-activity-bell"]'), null)
+  assert.equal(document.querySelector('style[data-plugin="dsh-unread-jump"]'), null)
 })
 
 test('the bell renders beside the search control with the unread badge', async () => {
@@ -212,7 +217,7 @@ test('the bell renders beside the search control with the unread badge', async (
   assert.equal(bell.parentElement.previousElementSibling, shell.searchSlot, 'the bell sits beside the search control')
   assert.equal(bell.parentElement.nextElementSibling, shell.actions)
   assert.equal(bell.getAttribute('aria-pressed'), 'false')
-  assert.equal(bell.getAttribute('aria-label'), '查看活动，2 个会话已完成未查看')
+  assert.equal(bell.getAttribute('aria-label'), '定位下一个未读，2 个会话已完成未查看')
   assert.equal(document.querySelector('.ab-badge').textContent, '2')
   assert.equal(document.querySelector('.ab-panel'), null)
 
@@ -220,11 +225,11 @@ test('the bell renders beside the search control with the unread badge', async (
   for (const dispose of [...disposers].reverse()) dispose()
   assert.equal(document.querySelector('.ab-bell'), null)
   assert.equal(document.querySelector('.ab-bell-host'), null)
-  assert.equal(document.querySelector('style[data-plugin="dsh-activity-bell"]'), null)
+  assert.equal(document.querySelector('style[data-plugin="dsh-unread-jump"]'), null)
   assert.equal(shell.header.children.length, 3, 'the shell keeps only its own children')
 })
 
-test('clicking the bell swaps in the day-grouped activity list and back', async () => {
+test('right-clicking the bell swaps in the day-grouped activity list and back', async () => {
   document.body.innerHTML = ''
   const shell = buildSidebar(document)
   const handle = fakeContext()
@@ -236,12 +241,12 @@ test('clicking the bell swaps in the day-grouped activity list and back', async 
     wide: true, t: translate, ...injected,
   }))
 
-  await view.click(document.querySelector('.ab-bell'))
+  await view.contextMenu(document.querySelector('.ab-bell'))
   const panel = document.querySelector('.ab-panel')
   assert.ok(panel, 'the panel replaces the workspace list')
   assert.equal(document.querySelector('.ab-bell').getAttribute('aria-pressed'), 'true')
   assert.equal(document.querySelector('.ab-bell').className, 'ab-bell ab-bell-active')
-  assert.equal(document.querySelector('.ab-bell').getAttribute('aria-label'), '返回工作区列表')
+  assert.equal(document.querySelector('.ab-bell').getAttribute('aria-label'), '打开最近活动')
   assert.equal(panel.parentElement.parentElement, shell.listArea, 'the panel covers the list seat')
   assert.equal(shell.list.inert, true, 'the covered rows leave the tab order')
 
@@ -298,12 +303,12 @@ test('clicking the bell swaps in the day-grouped activity list and back', async 
   assert.deepEqual(opened, [['pin', 's3'], ['archive', 's3'], ['open', 's3']], 'a row opens its session')
   assert.equal(document.querySelector('.ab-badge').textContent, '2', 'opening does not touch other rows')
 
-  await view.click(document.querySelector('.ab-bell'))
+  await view.contextMenu(document.querySelector('.ab-bell'))
   assert.equal(document.querySelector('.ab-panel'), null)
   assert.equal(document.querySelector('.ab-bell').getAttribute('aria-pressed'), 'false')
   assert.equal(
     document.querySelector('.ab-bell').getAttribute('aria-label'),
-    '查看活动，2 个会话已完成未查看',
+    '定位下一个未读，2 个会话已完成未查看',
     'the closed bell falls back to the unread label',
   )
   assert.equal(shell.list.inert, false, 'the restored rows rejoin the tab order')
@@ -329,7 +334,7 @@ test('Escape closes the activity list', async () => {
   const view = await mount(React.createElement(captured().component, {
     wide: true, t: translate, ...injected,
   }))
-  await view.click(document.querySelector('.ab-bell'))
+  await view.contextMenu(document.querySelector('.ab-bell'))
   assert.ok(document.querySelector('.ab-panel'))
   await React.act(async () => {
     document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
@@ -351,7 +356,7 @@ test('a press on neighbouring sidebar chrome hands the region back', async () =>
     wide: true, t: translate, ...injected,
   }))
 
-  await view.click(document.querySelector('.ab-bell'))
+  await view.contextMenu(document.querySelector('.ab-bell'))
   assert.ok(document.querySelector('.ab-panel'))
   // A neighbouring plugin's tab must not end up under the activity list.
   await view.press(shell.tab)
@@ -360,7 +365,7 @@ test('a press on neighbouring sidebar chrome hands the region back', async () =>
 
   // Pressing the activity surface itself keeps it open, and so does a press in
   // the conversation column (outside the sidebar).
-  await view.click(document.querySelector('.ab-bell'))
+  await view.contextMenu(document.querySelector('.ab-bell'))
   const row = document.querySelector('.ab-row')
   await view.press(row)
   assert.ok(document.querySelector('.ab-panel'), 'the list survives its own presses')
@@ -410,10 +415,10 @@ test('a turn seen finishing raises the badge until its Session is opened', async
   assert.equal(document.querySelector('.ab-badge').textContent, '1')
   assert.equal(
     document.querySelector('.ab-bell').getAttribute('aria-label'),
-    '查看活动，1 个会话已完成未查看',
+    '定位下一个未读，1 个会话已完成未查看',
   )
 
-  await view.click(document.querySelector('.ab-bell'))
+  await view.contextMenu(document.querySelector('.ab-bell'))
   const row = document.querySelector('.ab-row')
   assert.equal(
     row.className,
@@ -444,7 +449,7 @@ test('the collapsed sidebar drops the bell and closes the activity list', async 
   const view = await mount(React.createElement(captured().component, {
     wide: true, t: translate, ...injected,
   }))
-  await view.click(document.querySelector('.ab-bell'))
+  await view.contextMenu(document.querySelector('.ab-bell'))
   assert.ok(document.querySelector('.ab-panel'))
 
   await view.render(element(false))
@@ -454,6 +459,53 @@ test('the collapsed sidebar drops the bell and closes the activity list', async 
   await view.render(element(true))
   assert.ok(document.querySelector('.ab-bell'), 'the bell returns on expand')
   assert.equal(document.querySelector('.ab-panel'), null, 'the activity list does not reopen by itself')
+  await view.unmount()
+  for (const dispose of [...disposers].reverse()) dispose()
+})
+
+test('clicking the bell reveals and opens the next unread Session, wrapping around', async () => {
+  document.body.innerHTML = ''
+  const shell = buildSidebar(document)
+  const handle = fakeContext()
+  const { ctx, opened, disposers } = handle;
+  const captured = () => handle.captured
+  apply(ctx)
+  const injected = captured().options.inject()
+  const view = await mount(React.createElement(captured().component, {
+    wide: true, t: translate, ...injected,
+  }))
+
+  // The sidebar renders both unread Sessions as rows, in the jump order the
+  // activity projection already sorted them into.
+  const revealed = new Map()
+  for (const id of ['s1', 's2']) {
+    const row = document.createElement('div')
+    row.setAttribute('data-row-key', 'session:' + id)
+    let count = 0
+    row.scrollIntoView = () => { count += 1 }
+    revealed.set(id, () => count)
+    shell.list.appendChild(row)
+  }
+
+  assert.equal(
+    document.querySelector('.ab-bell').getAttribute('aria-label'),
+    '定位下一个未读，2 个会话已完成未查看',
+  )
+
+  await view.click(document.querySelector('.ab-bell'))
+  assert.deepEqual(opened, [['open', 's1']], 'the first press lands on the first unread Session')
+  assert.equal(revealed.get('s1')(), 1, 'the row is scrolled into view')
+
+  await view.click(document.querySelector('.ab-bell'))
+  assert.deepEqual(opened, [['open', 's1'], ['open', 's2']], 'the second press advances')
+
+  await view.click(document.querySelector('.ab-bell'))
+  assert.deepEqual(
+    opened,
+    [['open', 's1'], ['open', 's2'], ['open', 's1']],
+    'the walk wraps back to the first unread Session',
+  )
+
   await view.unmount()
   for (const dispose of [...disposers].reverse()) dispose()
 })

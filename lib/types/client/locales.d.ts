@@ -1,14 +1,16 @@
 /**
- * `activity-bell` dictionaries. Simplified Chinese is the source of truth for
+ * `unread-jump` dictionaries. Simplified Chinese is the source of truth for
  * the key set; English mirrors it one-to-one.
  *
- * @module dsh-activity-bell/client/locales
+ * @module dsh-unread-jump/client/locales
  */
 /** Simplified Chinese dictionary. */
 export declare const zh: {
     'bell.show': string;
     'bell.hide': string;
     'bell.showUnread': string;
+    'bell.noUnread': string;
+    'bell.openActivity': string;
     'panel.aria': string;
     'panel.empty': string;
     'row.untitled': string;

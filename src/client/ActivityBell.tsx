@@ -15,7 +15,7 @@
  * green dots, and the ordering all recompute from those snapshots, so opening
  * a Session clears its dot exactly the way the shipped rows do.
  *
- * @module dsh-activity-bell/client/ActivityBell
+ * @module dsh-unread-jump/client/ActivityBell
  */
 import {
   useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore,
@@ -38,6 +38,9 @@ import {
   applyRowInset, ensurePositioned, measureRowInset, mountContainer, type SidebarAnchors,
 } from './anchors.js'
 import { nextPending, sessionFacts, type SessionFacts } from './completions.js'
+import {
+  expandOwningGroup, findSessionRow, nextUnreadId, owningWorkspaceKey, revealRow,
+} from './jump.js'
 import { BellIcon } from './icons.js'
 import { useTitleMarquee } from './marquee.js'
 import { useSidebarAnchors } from './use-anchors.js'
@@ -68,10 +71,10 @@ export interface ActivityBellInjected {
 /** Composed props: shell share + locale seat + injected business face. */
 export type ActivityBellProps =
   PropsRuntime<'sidebar.footer.action'>
-  & PropsLocale<'activity-bell'>
+  & PropsLocale<'unread-jump'>
   & ActivityBellInjected
 
-type Translate = PropsLocale<'activity-bell'>['t']
+type Translate = PropsLocale<'unread-jump'>['t']
 
 /** Calendar bucket → section label. */
 function dayLabel(bucket: ActivityDayBucket, t: Translate, now: number): string {
@@ -322,6 +325,40 @@ export function ActivityBell({
   }, [list, statusMap, workspaceSnapshot, pending, now])
   const { groups, unread } = view
 
+  // The jump order the badge counts. It is the order the activity list already
+  // sorts - newest first - so the bell walks the Sessions the way the operator
+  // reads them.
+  const unreadOrder = useMemo<readonly SessionId[]>(
+    () => groups.flatMap((group) => group.rows.filter((row) => row.unread).map((row) => row.id)),
+    [groups],
+  )
+  const cursor = useRef<SessionId | null>(null)
+
+  // One press advances to the next unread Session: its sidebar row is scrolled
+  // into view and the conversation column opens it. The cursor is what keeps
+  // the walk sequential - the unread set shrinks as each opened Session clears.
+  const jumpNextUnread = useCallback((): void => {
+    const target = nextUnreadId(unreadOrder, cursor.current)
+    if (target === null) return
+    cursor.current = target
+    const listArea = anchors?.listArea ?? null
+    const row = findSessionRow(listArea, target)
+    if (row !== undefined) revealRow(row)
+    else {
+      // A collapsed Workspace group renders no member rows, so there is nothing
+      // to scroll to: open its disclosure and reveal the row after the repaint.
+      const key = owningWorkspaceKey(workspaceSnapshot.items, target)
+      if (key !== undefined && expandOwningGroup(listArea, key)) {
+        window.requestAnimationFrame(() => {
+          const revealed = findSessionRow(listArea, target)
+          if (revealed !== undefined) revealRow(revealed)
+        })
+      }
+    }
+    acknowledge(target)
+    openSession(target)
+  }, [acknowledge, anchors, openSession, unreadOrder, workspaceSnapshot])
+
   // Collapsing the sidebar unmounts the region the panel covers: leave the
   // activity view rather than keeping a flag nobody can see or clear.
   useEffect(() => {
@@ -397,15 +434,28 @@ export function ActivityBell({
 
   if (hosts.bell === null) return null
 
-  const label = unread > 0 && !active ? t('bell.showUnread', { count: unread }) : active ? t('bell.hide') : t('bell.show')
+  const label = active
+    ? t('bell.hide')
+    : unread > 0
+      ? t('bell.showUnread', { count: unread })
+      : t('bell.noUnread')
   const bell = (
-    <Tooltip label={active ? t('bell.hide') : t('bell.show')} side="bottom" delayMs={400} align="end">
+    <Tooltip
+      label={active ? label : label + ' \u00b7 ' + t('bell.openActivity')}
+      side="bottom"
+      delayMs={400}
+      align="end"
+    >
       <button
         type="button"
         className={active ? 'ab-bell ab-bell-active' : 'ab-bell'}
         aria-label={label}
         aria-pressed={active}
-        onClick={() => { setActive(value => !value) }}
+        onClick={jumpNextUnread}
+        onContextMenu={(event) => {
+          event.preventDefault()
+          setActive(value => !value)
+        }}
       >
         <BellIcon size={16} />
         {unread > 0 && (

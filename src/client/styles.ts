@@ -9,7 +9,7 @@
  * pair, and the panel paints the sidebar fill so the list underneath cannot
  * show through.
  *
- * @module dsh-activity-bell/client/styles
+ * @module dsh-unread-jump/client/styles
  */
 
 const CSS = `
@@ -333,7 +333,7 @@ const CSS = `
 }
 `
 
-const PLUGIN_ID = 'dsh-activity-bell'
+const PLUGIN_ID = 'dsh-unread-jump'
 
 let installed: HTMLStyleElement | undefined
 

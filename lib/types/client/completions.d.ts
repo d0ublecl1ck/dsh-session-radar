@@ -10,7 +10,7 @@
  * once the operator has acknowledged it (opened the Session) or the Session
  * starts running again.
  *
- * @module dsh-activity-bell/client/completions
+ * @module dsh-unread-jump/client/completions
  */
 import type { SessionId } from '@deepseek-ai/dsh-session/types';
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client';

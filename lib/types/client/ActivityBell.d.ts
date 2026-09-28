@@ -26,7 +26,7 @@ export interface ActivityBellInjected {
     readonly workspaces: SnapshotSource<WorkspaceSnapshot>;
 }
 /** Composed props: shell share + locale seat + injected business face. */
-export type ActivityBellProps = PropsRuntime<'sidebar.footer.action'> & PropsLocale<'activity-bell'> & ActivityBellInjected;
+export type ActivityBellProps = PropsRuntime<'sidebar.footer.action'> & PropsLocale<'unread-jump'> & ActivityBellInjected;
 /**
  * Render the bell into the sidebar header and, while active, the activity list
  * into the list seat it covers.

@@ -8,7 +8,7 @@
  * the ellipsis and the fade masks line up exactly as they do in the shipped
  * rows).
  *
- * @module dsh-activity-bell/client/marquee
+ * @module dsh-unread-jump/client/marquee
  */
 import { type RefObject } from 'react';
 /**

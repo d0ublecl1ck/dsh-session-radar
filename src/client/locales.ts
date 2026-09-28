@@ -1,15 +1,17 @@
 /**
- * `activity-bell` dictionaries. Simplified Chinese is the source of truth for
+ * `unread-jump` dictionaries. Simplified Chinese is the source of truth for
  * the key set; English mirrors it one-to-one.
  *
- * @module dsh-activity-bell/client/locales
+ * @module dsh-unread-jump/client/locales
  */
 
 /** Simplified Chinese dictionary. */
 export const zh = {
-  'bell.show': '查看活动',
-  'bell.hide': '返回工作区列表',
-  'bell.showUnread': '查看活动，{count} 个会话已完成未查看',
+  'bell.show': '定位下一个未读',
+  'bell.hide': '打开最近活动',
+  'bell.showUnread': '定位下一个未读，{count} 个会话已完成未查看',
+  'bell.noUnread': '没有未读会话',
+  'bell.openActivity': '右键：打开最近活动列表',
   'panel.aria': '最近活动',
   'panel.empty': '还没有会话活动。',
   'row.untitled': '未命名会话',
@@ -39,9 +41,11 @@ export type ActivityBellKey = keyof typeof zh
 
 /** English dictionary; the key set is fixed by the Chinese source of truth. */
 export const en: Record<ActivityBellKey, string> = {
-  'bell.show': 'View activity',
-  'bell.hide': 'Back to workspaces',
-  'bell.showUnread': 'View activity, {count} sessions finished unviewed',
+  'bell.show': 'Jump to next unread',
+  'bell.hide': 'Open recent activity',
+  'bell.showUnread': 'Jump to next unread, {count} sessions finished unviewed',
+  'bell.noUnread': 'No unread sessions',
+  'bell.openActivity': 'Right-click: recent activity list',
   'panel.aria': 'Recent activity',
   'panel.empty': 'No session activity yet.',
   'row.untitled': 'Untitled session',

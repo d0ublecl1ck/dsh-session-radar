@@ -1,17 +1,17 @@
 {
-  "name": "dsh-activity-bell",
-  "version": "0.1.1",
-  "description": "DSH Web 侧边栏活动铃铛：会话任务结束时显示角标，一键切换到「最近结束」会话列表。",
+  "name": "dsh-unread-jump",
+  "version": "0.1.0",
+  "description": "DSH Web 侧边栏未读铃铛：会话跑完显示角标，点一下依次定位并打开下一个未读会话（可循环）。Fork of dsh-activity-bell.",
   "type": "module",
   "license": "MIT",
-  "author": "Wei <minivv@users.noreply.github.com>",
+  "author": "Wei <minivv@users.noreply.github.com> (upstream dsh-activity-bell)",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/minivv/dsh-activity-bell.git"
+    "url": "git+https://github.com/d0ublecl1ck/dsh-unread-jump.git"
   },
-  "homepage": "https://github.com/minivv/dsh-activity-bell",
+  "homepage": "https://github.com/d0ublecl1ck/dsh-unread-jump",
   "bugs": {
-    "url": "https://github.com/minivv/dsh-activity-bell/issues"
+    "url": "https://github.com/d0ublecl1ck/dsh-unread-jump/issues"
   },
   "publishConfig": {
     "access": "public"
@@ -51,6 +51,7 @@
     "deepseek-harness",
     "deepseek",
     "activity",
+    "unread-jump",
     "sidebar",
     "notification",
     "unread"
