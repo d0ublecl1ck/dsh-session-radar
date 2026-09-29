@@ -169,6 +169,28 @@ function fakeContext(values = {}) {
   }
 }
 
+/** Build the conversation column's chat region, as the shipped shell renders it. */
+function buildConversation(document, sessionId, { followingTail = true } = {}) {
+  const region = document.createElement('div')
+  region.setAttribute('data-conversation-region', 'chat')
+  region.setAttribute('data-conversation-session', sessionId)
+  const scroll = document.createElement('div')
+  scroll.setAttribute('data-conversation-scroll', '')
+  const root = document.createElement('div')
+  if (followingTail) root.setAttribute('data-chat-following-tail', '')
+  scroll.appendChild(root)
+  region.appendChild(scroll)
+  document.body.appendChild(region)
+  return { region, root }
+}
+
+/** Two frames: one for the mutation observer, one for the frame it schedules. */
+function nextFrame() {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+  })
+}
+
 /** Bind the plugin's own Chinese dictionary, so a missing key fails the test. */
 function translate(key, params) {
   const template = zh[key]
@@ -589,4 +611,108 @@ test('a Session marked unread by hand raises the badge until it is opened', asyn
   await view.unmount()
   for (const dispose of [...disposers].reverse()) dispose()
   window.localStorage.removeItem(WORKSPACE_VIEW_STORAGE_KEY)
+})
+
+test('a completion is unread while scrolled up and read once the conversation reaches its tail', async () => {
+  document.body.innerHTML = ''
+  buildSidebar(document)
+  const badge = () => document.querySelector('.ab-badge')?.textContent ?? null
+  const statuses = mutableSource(new Map())
+  const row = {
+    id: 's1', displayTitle: '当前对话', blank: false, running: false,
+    updatedAt: Date.now(), retainedBy: { mainView: 1 },
+  }
+  const handle = fakeContext({
+    statuses: statuses.source,
+    sessions: source({ ids: ['s1'], byId: { s1: row }, phase: 'ready' }),
+    workspaces: source({ items: [], archivedSessionIds: [] }),
+  })
+  const { ctx, disposers } = handle
+  const captured = () => handle.captured
+  apply(ctx)
+  const injected = captured().options.inject()
+  const conversation = buildConversation(document, 's1', { followingTail: false })
+  const view = await mount(React.createElement(captured().component, {
+    wide: true, t: translate, ...injected,
+  }))
+  assert.equal(badge(), null)
+
+  // A turn ends while the operator reads history above the tail.
+  await React.act(async () => { statuses.set(new Map([['s1', { running: true, completionUnread: false }]])) })
+  await React.act(async () => { statuses.set(new Map([['s1', { running: false, completionUnread: false }]])) })
+  assert.equal(badge(), '1', 'new content below is unread')
+
+  // Reaching the tail reads it, and reading is permanent.
+  await React.act(async () => {
+    conversation.root.setAttribute('data-chat-following-tail', '')
+    await nextFrame()
+  })
+  assert.equal(badge(), null, 'the tail is read')
+  await React.act(async () => {
+    conversation.root.removeAttribute('data-chat-following-tail')
+    await nextFrame()
+  })
+  assert.equal(badge(), null, 'a read completion does not come back')
+
+  // A turn watched to completion at the tail never raises the badge.
+  await React.act(async () => {
+    conversation.root.setAttribute('data-chat-following-tail', '')
+    await nextFrame()
+  })
+  await React.act(async () => { statuses.set(new Map([['s1', { running: true, completionUnread: false }]])) })
+  await React.act(async () => { statuses.set(new Map([['s1', { running: false, completionUnread: false }]])) })
+  assert.equal(badge(), null, 'a completion at the tail never badges')
+
+  await view.unmount()
+  for (const dispose of [...disposers].reverse()) dispose()
+})
+
+test('a conversation at its tail tells the host ledger the Session is read', async () => {
+  document.body.innerHTML = ''
+  buildSidebar(document)
+  const row = {
+    id: 's1', displayTitle: '当前对话', blank: false, running: false,
+    updatedAt: Date.now(), retainedBy: { mainView: 1 },
+  }
+  const empty = {
+    now: Date.now(), unread: [], interrupted: [],
+    rollout: { total: 0, done: 0, active: null, running: false },
+  }
+  const listed = { ...empty, unread: [{ sessionId: 's1', at: Date.now(), kind: 'completed' }] }
+  const calls = []
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async (url, init) => {
+    const target = String(url)
+    calls.push({
+      target,
+      body: init?.body === undefined ? undefined : JSON.parse(String(init.body)),
+    })
+    return { json: async () => ({ ok: true, value: target.endsWith('/read') ? empty : listed }) }
+  }
+  try {
+    const handle = fakeContext({
+      sessions: source({ ids: ['s1'], byId: { s1: row }, phase: 'ready' }),
+      statuses: source(new Map()),
+      workspaces: source({ items: [], archivedSessionIds: [] }),
+    })
+    const { ctx, disposers } = handle
+    const captured = () => handle.captured
+    apply(ctx)
+    const injected = captured().options.inject()
+    buildConversation(document, 's1', { followingTail: true })
+    const view = await mount(React.createElement(captured().component, {
+      wide: true, t: translate, ...injected,
+    }))
+    await React.act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
+    assert.equal(document.querySelector('.ab-badge'), null, 'the tail never badges')
+    assert.ok(
+      calls.some(call => call.target.endsWith('/session-ledger/read') && call.body?.sessionId === 's1'),
+      'the host ledger is told the Session is read',
+    )
+
+    await view.unmount()
+    for (const dispose of [...disposers].reverse()) dispose()
+  } finally {
+    globalThis.fetch = originalFetch
+  }
 })

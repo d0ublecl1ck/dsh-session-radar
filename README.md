@@ -14,6 +14,7 @@ DSH Web 侧边栏**未读铃铛 + 跨重启会话账本**。
 | 右键点铃铛 | 打开/关闭「最近活动」列表（按天分组） |
 | 点列表里的行 | 打开该会话 |
 | 在某会话行右键 →「标为未读」 | 该会话计入铃铛角标与跳转顺序，直到被打开；标记由官方侧边栏持有，插件只读 |
+| 在会话里滚到底部 | 该会话视为已读：角标与账本已读一并回落，再往上滚也不会重新变未读 |
 | Esc / 点侧边栏其它位置 | 关闭活动列表 |
 | chip（只有存在被打断的会话时才出现） | 显示红色 `⚠ N`；点开列出被重启打断的会话，顶部一个「全部继续」 |
 
@@ -30,18 +31,21 @@ host 半边持有账本 `$DSH_HOME/session-ledger.json`，原子写（临时文�
 
 - 未读 = `interruptedAt` 有值，**或** `max(turnEnd, attention) > lastReadAt`
 - 记账来源：`session/event` 的 `turn/end` 与 `approval/asked`，加上 `ask_user_question` 的工具分发
-- 已读 = 打开该会话（铃铛跳转或 chip 点行）｜在该会话发新消息
+- 已读 = 打开该会话（铃铛跳转或 chip 点行）｜在该会话发新消息｜把该会话的对话滚到底部
 - 重启后自动恢复成当前会话的**不算已读**：客户端启动后有 3 秒静默窗
 
-浏览器半边的角标与跳转顺序是**三路并集**，所以既有跨重启的账本项，也有本次会话里刚发生的事：
+浏览器半边的角标与跳转顺序是**四路并集**，所以既有跨重启的账本项，也有本次会话里刚发生的事：
 
 | 来源 | 覆盖 |
 | --- | --- |
-| 账本 `unread` | 跨刷新、跨重启都不丢的未读 |
-| 官方 `completionUnread` + 浏览器自己观察到的「运行 → 停止」沿 | 刚跑完、框架还没标未读的 |
+| 账本 `unread` | 跨刷新、跨重启都不丢的未读；host 端被读回后角标随之回落 |
+| 官方 `completionUnread` | 在别处时跑完、框架标成未读的 |
+| 浏览器观察到的「运行 → 停止」沿 | 就在眼前跑完、框架不标的 |
 | Workspace 浏览器的手动「标为未读」 | 操作者右键会话行打的标记（见「已知限制」） |
 
 打开会话即清掉前两路；手动标记由官方 `openSession` 一并清除。
+
+**「在对话里滚到底部」本身就是已读**：官方对话区跟随最新内容时会给 chat 根节点打 `data-chat-following-tail`，插件据此把当前会话踢出前两路，并立刻回写 host 账本的 `read`。所以你在自己看着的对话里新跑完一轮不会变成未读；只有你翻到上面、内容从下方长出来时才提醒。手动标记是显式动作，仍会保留。
 
 ## 被重启打断的会话
 
@@ -68,6 +72,7 @@ handler 第一件事是 `connection.requestRejection(req)` —— 信任与鉴�
 ## 已知限制
 
 - 依赖官方 DOM 契约 `[data-row-key="session:<id>"]` / `[class*="listArea"]` / `[class*="sectionHeader"]`，官方改版可能失效。
+- 「滚到底部=已读」依赖官方对话区契约 `[data-conversation-region="chat"][data-conversation-session]` 与 `[data-chat-following-tail]`；属性不存在时这一路静默失效，退回「切走再切回才算已读」的旧行为。
 - 工作区分组**折叠**时那一行不在 DOM 里：插件先点开分组再滚动；展开后仍找不到（归档、被筛选隐藏、不在当前列表）则**只打开、不滚动**。
 - 侧边栏折叠成 56px 轨道时不显示铃铛（该位置被官方占用）。
 - 「被打断」依赖宿主来得及写 `turn/end`（`aborted` + `disposed`）；进程被强杀时可能不写。**这一路径已由使用方验收通过。**
@@ -88,10 +93,10 @@ dsh plugin --profile web add /绝对路径/dsh-session-ledger
 
 ```sh
 npm ci
-npm run verify    # typecheck + build + 61 个测试
+npm run verify    # typecheck + build + 69 个测试
 ```
 
-`test/ledger.test.mjs` 覆盖账本状态机（未读、已读不回退、打断与继续）；`test/jump.test.mjs` 覆盖未读选择与分组展开；`test/manual-unread.test.mjs` 覆盖官方手动未读标记的解析与监听；`test/client-mount.test.mjs` 用真实客户端半边挂载，断言铃铛与 chip 两个入口。
+`test/ledger.test.mjs` 覆盖账本状态机（未读、已读不回退、打断与继续）；`test/jump.test.mjs` 覆盖未读选择与分组展开；`test/manual-unread.test.mjs` 覆盖官方手动未读标记的解析与监听；`test/conversation-tail.test.mjs` 覆盖「对话在底部」的锚点；`test/client-mount.test.mjs` 用真实客户端半边挂载，断言铃铛与 chip 两个入口。
 
 ## License
 

@@ -46,6 +46,7 @@ import { readManualUnread, watchManualUnread } from './manual-unread.js'
 import { BellIcon } from './icons.js'
 import { useTitleMarquee } from './marquee.js'
 import { useSidebarAnchors } from './use-anchors.js'
+import { useFollowingTailSession } from './use-conversation-tail.js'
 
 /** Structural view of the observable snapshots this plugin subscribes to. */
 export interface SnapshotSource<T> {
@@ -305,6 +306,7 @@ export function ActivityBell({
   const statusMap = useSnapshot(statuses)
   const workspaceSnapshot = useSnapshot(workspaces)
   const manualUnread = useManualUnread()
+  const tail = useFollowingTailSession()
   const now = useMinuteTick()
   const [active, setActive] = useState(false)
   const [pending, setPending] = useState<ReadonlySet<SessionId>>(() => new Set())
@@ -323,7 +325,12 @@ export function ActivityBell({
     const previous = facts.current
     facts.current = current
     setPending(currentPending => nextPending(currentPending, previous, current))
-  }, [list, statusMap])
+    // A turn that ends while its conversation sits at the tail is read at once,
+    // so leaving before the host poll cannot re-arm the ledger reminder.
+    if (tail !== null && previous?.get(tail)?.running === true && current.get(tail)?.running === false) {
+      ledger.read(tail)
+    }
+  }, [list, statusMap, tail, ledger])
 
   // The host ledger is the cross-restart memory: a completion recorded there
   // keeps its badge after a reload, which the in-memory edge tracker cannot.
@@ -331,19 +338,28 @@ export function ActivityBell({
     useCallback((listener: () => void) => ledger.subscribe(listener), [ledger]),
     useCallback(() => ledger.getSnapshot(), [ledger]),
   )
-  useEffect(() => {
-    const persistent = ledgerSnapshot.unread.map((row: { sessionId: string }) => row.sessionId as SessionId)
-    if (persistent.length === 0) return
-    setPending((current) => {
-      let next: Set<SessionId> | undefined
-      for (const id of persistent) {
-        if (current.has(id)) continue
-        next ??= new Set(current)
-        next.add(id)
-      }
-      return next ?? current
-    })
+  // Its own source rather than folded into `pending`: the host can read a
+  // Session back (the tail does), and the badge has to follow that down again.
+  const ledgerUnread = useMemo(() => {
+    const ids = new Set<SessionId>()
+    for (const row of ledgerSnapshot.unread) ids.add(row.sessionId as SessionId)
+    return ids
   }, [ledgerSnapshot])
+
+  // The conversation at its tail is read: drop the surface's own reminder for it
+  // and tell the host, so scrolling away can re-arm neither source.
+  useEffect(() => {
+    if (tail === null || !pending.has(tail)) return
+    setPending((current) => {
+      const next = new Set(current)
+      next.delete(tail)
+      return next
+    })
+  }, [tail, pending])
+  useEffect(() => {
+    if (tail === null) return
+    if (ledgerUnread.has(tail)) ledger.read(tail)
+  }, [tail, ledgerUnread, ledger])
 
   const acknowledge = useCallback((sessionId: SessionId): void => {
     setPending((current) => {
@@ -362,10 +378,12 @@ export function ActivityBell({
       statuses: statusMap,
       workspaces: workspaceSnapshot,
       completedSince: pending,
+      ledgerUnread,
+      viewingTail: tail,
       manualUnread,
     }
     return { groups: buildActivityGroups<SessionId>(inputs, now), unread: countUnread<SessionId>(inputs) }
-  }, [list, statusMap, workspaceSnapshot, pending, manualUnread, now])
+  }, [list, statusMap, workspaceSnapshot, pending, ledgerUnread, tail, manualUnread, now])
   const { groups, unread } = view
 
   // The jump order the badge counts. It is the order the activity list already

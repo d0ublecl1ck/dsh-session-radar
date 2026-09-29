@@ -66,6 +66,18 @@ export interface ActivityInputs<Id extends string = string> {
      */
     readonly completedSince?: ReadonlySet<Id>;
     /**
+     * The host ledger's own reminders: a durable turn boundary or pending
+     * interaction newer than the operator's read marker, kept across reloads. It
+     * stays a set of its own rather than merging into `completedSince` so a
+     * host-side read takes the reminder away again.
+     */
+    readonly ledgerUnread?: ReadonlySet<Id>;
+    /**
+     * The Session whose visible conversation is scrolled to its tail. Reaching
+     * the newest content is the acknowledgement, so that Session reads as read.
+     */
+    readonly viewingTail?: Id | null;
+    /**
      * Sessions the operator marked unread by hand in the browsing region. The
      * mark lives in that region's own persisted view store, not in the Session
      * status stream, so it arrives as a set of its own.

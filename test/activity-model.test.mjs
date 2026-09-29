@@ -195,3 +195,48 @@ test('a Session marked unread by hand counts as unread, running or not', () => {
   assert.equal(byId.archived, undefined, 'a hidden row stays hidden')
   assert.equal(countUnread(source), 2, 'only the hidden row stays out of the badge')
 })
+
+test('the host ledger is its own unread source', () => {
+  const rows = [session('remembered'), session('quiet')]
+  const source = { ...inputs(rows), ledgerUnread: new Set(['remembered']) }
+  const byId = Object.fromEntries(
+    buildActivityGroups(source, NOW).flatMap(group => group.rows.map(row => [row.id, row])),
+  )
+  assert.equal(byId.remembered.unread, true, 'a ledger reminder survives the reload')
+  assert.equal(byId.quiet.unread, false)
+  assert.equal(countUnread(source), 1)
+})
+
+test('the conversation at its tail reads as read until the operator scrolls away', () => {
+  const rows = [session('open', { retainedBy: { mainView: 1 } }), session('other')]
+  const statuses = new Map([['open', { running: false, completionUnread: true }]])
+  const source = {
+    ...inputs(rows, { statuses }),
+    ledgerUnread: new Set(['open', 'other']),
+    completedSince: new Set(['open']),
+    viewingTail: 'open',
+  }
+  const byId = Object.fromEntries(
+    buildActivityGroups(source, NOW).flatMap(group => group.rows.map(row => [row.id, row])),
+  )
+  assert.equal(byId.open.unread, false, 'the operator is looking at the newest content')
+  assert.equal(byId.other.unread, true, 'another Session is untouched')
+  assert.equal(countUnread(source), 1)
+})
+
+test('an explicit mark survives reading the tail, and a foreign tail id suppresses nothing', () => {
+  const rows = [session('open', { retainedBy: { mainView: 1 } }), session('foreign')]
+  const manual = Object.fromEntries(
+    buildActivityGroups({
+      ...inputs(rows), manualUnread: new Set(['open']), viewingTail: 'open',
+    }, NOW).flatMap(group => group.rows.map(row => [row.id, row])),
+  )
+  assert.equal(manual.open.unread, true, 'the explicit mark is not a read')
+
+  const foreign = Object.fromEntries(
+    buildActivityGroups({
+      ...inputs(rows), ledgerUnread: new Set(['foreign']), viewingTail: 'foreign',
+    }, NOW).flatMap(group => group.rows.map(row => [row.id, row])),
+  )
+  assert.equal(foreign.foreign.unread, true, 'only the open conversation can be read by tail')
+})

@@ -66,6 +66,18 @@ export interface ActivityInputs<Id extends string = string> {
    */
   readonly completedSince?: ReadonlySet<Id>
   /**
+   * The host ledger's own reminders: a durable turn boundary or pending
+   * interaction newer than the operator's read marker, kept across reloads. It
+   * stays a set of its own rather than merging into `completedSince` so a
+   * host-side read takes the reminder away again.
+   */
+  readonly ledgerUnread?: ReadonlySet<Id>
+  /**
+   * The Session whose visible conversation is scrolled to its tail. Reaching
+   * the newest content is the acknowledgement, so that Session reads as read.
+   */
+  readonly viewingTail?: Id | null
+  /**
    * Sessions the operator marked unread by hand in the browsing region. The
    * mark lives in that region's own persisted view store, not in the Session
    * status stream, so it arrives as a set of its own.
@@ -179,19 +191,25 @@ function folderIndex<Id extends string>(
 /**
  * Whether one Session still asks for the operator.
  *
- * Three sources union here: the framework's completion flag, the completions
- * the surface watched itself, and the operator's own "mark unread". The manual
- * mark is an explicit request, so it holds even while the Session runs.
+ * Four sources union here: the framework's completion flag, the completions
+ * the surface watched itself, the host ledger's durable reminders, and the
+ * operator's own "mark unread". Two rules override that union: an explicit
+ * mark is the operator's request and always counts, while the conversation
+ * sitting at its tail has been read and never does.
  */
 function isUnread<Id extends string>(
   id: Id,
   status: ActivityStatus | undefined,
   completedSince: ReadonlySet<Id> | undefined,
+  ledgerUnread: ReadonlySet<Id> | undefined,
   manualUnread: ReadonlySet<Id> | undefined,
+  atTail: boolean,
 ): boolean {
+  if (manualUnread?.has(id) === true) return true
+  if (atTail) return false
   return status?.completionUnread === true
     || completedSince?.has(id) === true
-    || manualUnread?.has(id) === true
+    || ledgerUnread?.has(id) === true
 }
 
 function pendingKind(kind: string | undefined): ActivityAttention | undefined {
@@ -236,7 +254,9 @@ export function buildActivityGroups<Id extends string = string>(
   const archived = new Set<string>(inputs.workspaces.archivedSessionIds)
   const pinned = new Set<string>(inputs.workspaces.pinnedSessionIds ?? [])
   const completedSince = inputs.completedSince
+  const ledgerUnread = inputs.ledgerUnread
   const manualUnread = inputs.manualUnread
+  const viewingTail = inputs.viewingTail ?? null
   const folders = folderIndex(inputs.workspaces.items)
   const candidates: ActivityRow<Id>[] = []
   for (const id of inputs.sessions.ids) {
@@ -244,17 +264,18 @@ export function buildActivityGroups<Id extends string = string>(
     if (session === undefined || !visible(session, archived)) continue
     const status = inputs.statuses.get(id)
     const running = status?.running ?? session.running
+    const current = (session.retainedBy?.mainView ?? 0) > 0
     candidates.push({
       id,
       title: session.displayTitle,
       folder: folders.get(id) ?? pathBasename(session.cwd) ?? '',
       updatedAt: session.updatedAt,
-      unread: isUnread(id, status, completedSince, manualUnread),
+      unread: isUnread(id, status, completedSince, ledgerUnread, manualUnread, current && viewingTail === id),
       manual: manualUnread?.has(id) === true,
       running,
       pending: pendingKind(status?.pendingInteraction?.kind),
       pinned: pinned.has(id),
-      current: (session.retainedBy?.mainView ?? 0) > 0,
+      current,
       bucket: dayBucket(now, session.updatedAt),
     })
   }
@@ -288,12 +309,16 @@ export function buildActivityGroups<Id extends string = string>(
 export function countUnread<Id extends string = string>(inputs: ActivityInputs<Id>): number {
   const archived = new Set<string>(inputs.workspaces.archivedSessionIds)
   const completedSince = inputs.completedSince
+  const ledgerUnread = inputs.ledgerUnread
   const manualUnread = inputs.manualUnread
+  const viewingTail = inputs.viewingTail ?? null
   let count = 0
   for (const id of inputs.sessions.ids) {
     const session = inputs.sessions.byId[id]
     if (session === undefined || !visible(session, archived)) continue
-    if (!isUnread(id, inputs.statuses.get(id), completedSince, manualUnread)) continue
+    const current = (session.retainedBy?.mainView ?? 0) > 0
+    const atTail = current && viewingTail === id
+    if (!isUnread(id, inputs.statuses.get(id), completedSince, ledgerUnread, manualUnread, atTail)) continue
     count += 1
   }
   return count

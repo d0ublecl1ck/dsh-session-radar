@@ -7,3 +7,4 @@
 - [ ] `src/client/ledger-source.ts` — 桥接失败必须发布到 snapshot（chip 显示 `!`）。不要改回 `catch(() => {})`：静默失败会让"没有数据"和"桥断了"分不开，上一轮为此排查了很久。记录：2026-09-28
 - [ ] 「被打断」判据 — 只用 `turn/end` 的 `aborted` + `disposed`；宿主被强杀时可能不写这条事件。使用方已验收当前行为；若要更强，再考虑比对会话日志里的未闭合轮次。记录：2026-09-28
 - [ ] `src/client/manual-unread.ts` — 依赖官方 Workspace 视图 store 的私有持久化键 `dsh.workspace.view.v5`（取其中的 `unreadSessionIds`）与 Desktop 的 `__dsh_storage_sync__` 事件；DSH 升级后先核对键名/事件名是否还在，失效是静默的（只少一路未读来源）。记录：2026-09-28
+- [ ] `src/client/conversation-tail.ts` — 「对话停在底部即已读」依赖官方对话区属性 `[data-conversation-region="chat"][data-conversation-session]` 与 `[data-chat-following-tail]`；DSH 升级后先核对这两个属性，失效是静默的（退回「切走再切回才算已读」）。记录：2026-09-28
