@@ -49,7 +49,10 @@ host 半边持有账本 `$DSH_HOME/session-ledger.json`，原子写（临时文�
 
 ## 被重启打断的会话
 
-- 判定：最后一次 `turn/end` 是 `aborted` 且 cause 为 `disposed`
+- 判定：最后一次 `turn/end` 是**重启**造成的，不是操作者造成的。两条信号都算：
+  - 优雅退出：宿主动态 dispose 会在 `session/event` 上发 `aborted` + cause `disposed`
+  - 崩溃修复：DSH 给没结束的尾回合补一条 reason `interrupted` 的 `turn/end`。它作为构造 seed 注入，**永远不发 `session/event`**，所以 host 在 `session/created`（外加启动时扫一次 live agents）读 `session.snapshotEvents()` 找它
+  - 其后出现 `turn/start` 或 `user/message` 视为已被取代，不再算被打断
 - chip 显示 `⚠ N`，点开可逐个打开
 - 「全部继续」发送固定文本（行配置 `continueMessage` 可覆盖）：
 
@@ -75,7 +78,8 @@ handler 第一件事是 `connection.requestRejection(req)` —— 信任与鉴�
 - 「滚到底部=已读」依赖官方对话区契约 `[data-conversation-region="chat"][data-conversation-session]` 与 `[data-chat-following-tail]`；属性不存在时这一路静默失效，退回「切走再切回才算已读」的旧行为。
 - 工作区分组**折叠**时那一行不在 DOM 里：插件先点开分组再滚动；展开后仍找不到（归档、被筛选隐藏、不在当前列表）则**只打开、不滚动**。
 - 侧边栏折叠成 56px 轨道时不显示铃铛（该位置被官方占用）。
-- 「被打断」依赖宿主来得及写 `turn/end`（`aborted` + `disposed`）；进程被强杀时可能不写。**这一路径已由使用方验收通过。**
+- 崩溃（进程被强杀）走修复补写的 `interrupted`；会话不暴露 `snapshotEvents()` 也不暴露 `events` 时这一路静默失效。
+- 任何在重启后自动向被打断会话发消息的插件，都会让新回合结束时清掉标记、chip 随之消失；要保留手动「全部继续」，就得关掉那类插件的启动自动续跑。
 - chip 上的红色 `!` 表示浏览器到 host 的桥接失败：此时保留上一次已知数据，不清空。
 - 手动「标为未读」不在任何公开快照里：插件直接读 Workspace 浏览器持久化的私有键 `dsh.workspace.view.v5`。官方改键名时这一路会静默失效，其它未读来源不受影响。
 
@@ -93,10 +97,10 @@ dsh plugin --profile web add /绝对路径/dsh-session-ledger
 
 ```sh
 npm ci
-npm run verify    # typecheck + build + 69 个测试
+npm run verify    # typecheck + build + 77 个测试
 ```
 
-`test/ledger.test.mjs` 覆盖账本状态机（未读、已读不回退、打断与继续）；`test/jump.test.mjs` 覆盖未读选择与分组展开；`test/manual-unread.test.mjs` 覆盖官方手动未读标记的解析与监听；`test/conversation-tail.test.mjs` 覆盖「对话在底部」的锚点；`test/client-mount.test.mjs` 用真实客户端半边挂载，断言铃铛与 chip 两个入口。
+`test/ledger.test.mjs` 覆盖账本状态机（未读、已读不回退、两种重启信号、存储器尾部扫描）；`test/host.test.mjs` 用假 ctx 挂载 host 半边，断言恢复扫描、live 清除与畸形输入；`test/jump.test.mjs` 覆盖未读选择与分组展开；`test/manual-unread.test.mjs` 覆盖官方手动未读标记的解析与监听；`test/conversation-tail.test.mjs` 覆盖「对话在底部」的锚点；`test/client-mount.test.mjs` 用真实客户端半边挂载，断言铃铛与 chip 两个入口。
 
 ## License
 

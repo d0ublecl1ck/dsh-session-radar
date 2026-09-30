@@ -5,6 +5,8 @@
 - [ ] host 半边改动 — 宿主按 URL 缓存模块，只 `dsh plugin add` 不会重新导入；必须 `remove` + `add`。症状：路由 404/405、日志行号仍指向旧代码。记录：2026-09-28
 - [ ] `test/client-mount.test.mjs` — 夹具按 `options.id` 存全部注册，`captured` 取回铃铛那条。本插件现在注册两个 `sidebar.footer.action`（`session-ledger` 与 `session-ledger-chip`）；再加第三个入口时 `captured` 的取法要一并核对。记录：2026-09-28
 - [ ] `src/client/ledger-source.ts` — 桥接失败必须发布到 snapshot（chip 显示 `!`）。不要改回 `catch(() => {})`：静默失败会让"没有数据"和"桥断了"分不开，上一轮为此排查了很久。记录：2026-09-28
-- [ ] 「被打断」判据 — 只用 `turn/end` 的 `aborted` + `disposed`；宿主被强杀时可能不写这条事件。使用方已验收当前行为；若要更强，再考虑比对会话日志里的未闭合轮次。记录：2026-09-28
+- [ ] 「被打断」判据 — 并集两条信号：live 的 `aborted` + cause `disposed`，以及崩溃修复补写的 `interrupted`（只存在于构造 seed / `session.snapshotEvents()`，绝不发 `session/event`）。DSH 升级后先核对这两个 reason kind 与 `snapshotEvents()` 是否还在。记录：2026-09-30
+- [ ] 启动自动续跑冲突 — 任何在宿主启动窗口自动向被打断会话发消息的插件，都会让新回合结束时清掉 `interruptedAt`、chip 随之消失；两者不能共用同一启动窗口。记录：2026-09-30
+- [ ] `src/host.ts` 的 `whenLoaded()` — 所有账本写入都必须经过它，否则会写在占位账本上、随后被文件加载覆盖。新增记账入口时先核对。记录：2026-09-30
 - [ ] `src/client/manual-unread.ts` — 依赖官方 Workspace 视图 store 的私有持久化键 `dsh.workspace.view.v5`（取其中的 `unreadSessionIds`）与 Desktop 的 `__dsh_storage_sync__` 事件；DSH 升级后先核对键名/事件名是否还在，失效是静默的（只少一路未读来源）。记录：2026-09-28
 - [ ] `src/client/conversation-tail.ts` — 「对话停在底部即已读」依赖官方对话区属性 `[data-conversation-region="chat"][data-conversation-session]` 与 `[data-chat-following-tail]`；DSH 升级后先核对这两个属性，失效是静默的（退回「切走再切回才算已读」）。记录：2026-09-28

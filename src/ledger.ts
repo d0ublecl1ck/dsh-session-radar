@@ -17,8 +17,32 @@
 /** Persisted document version; bump when the fold semantics change. */
 export const LEDGER_VERSION = 1
 
-/** The only cancel cause that means a restart cut the turn off. */
+/** The graceful-dispose cancel cause that means a restart cut the turn off. */
 export const INTERRUPT_CAUSE = 'disposed'
+
+/**
+ * The `turn/end` reason DSH's crash repair writes for a turn nobody closed.
+ * It reaches a plugin only through stored history: the closer is appended as a
+ * constructor seed, and seeds never publish on `session/event`.
+ */
+export const INTERRUPT_REASON = 'interrupted'
+
+/** One stored session event, as the tail scanner reads it. */
+export interface TailEventLike {
+  readonly type?: unknown
+  readonly time?: unknown
+  readonly data?: unknown
+}
+
+/** The restart-interrupted facts one stored turn boundary reports. */
+export interface InterruptedTail {
+  /** Epoch ms of the orphaned turn boundary. */
+  readonly at: number
+  /** `turn/end` reason kind, in the shape `recordTurnEnd` takes. */
+  readonly kind: string
+  /** Cancellation cause of an `aborted` boundary, else null. */
+  readonly cause: string | null
+}
 
 /** What one Session's row remembers. */
 export interface LedgerEntry {
@@ -124,6 +148,61 @@ function ensureEntry(ledger: LedgerState, sessionId: string): LedgerEntry {
   return created
 }
 
+/**
+ * Whether one durable turn boundary means a restart cut the turn off.
+ *
+ * Two signals reach the ledger: a graceful host dispose publishes `aborted`
+ * with the `disposed` cancel cause on the live firehose, while a crash leaves
+ * the turn open until DSH's repair closes it with a synthetic `interrupted`
+ * boundary that only stored history carries.
+ *
+ * @param kind - `turn/end` reason kind.
+ * @param cause - cancel cause for an `aborted` boundary, else null.
+ * @returns whether the boundary was caused by a restart rather than the operator.
+ */
+export function isRestartInterrupt(kind: string, cause: string | null): boolean {
+  if (kind === INTERRUPT_REASON) return true
+  return kind === 'aborted' && cause === INTERRUPT_CAUSE
+}
+
+/**
+ * Read a stored session history's last `turn/end` and report a restart orphan.
+ *
+ * A resumed Session carries its repaired tail as a constructor seed, so this
+ * snapshot scan is the only way a plugin can see it. A later `turn/start` or
+ * `user/message` supersedes the orphan, and a boundary without a usable time
+ * or reason is ignored rather than guessed at.
+ *
+ * @param events - the stored history, oldest first.
+ * @returns the orphan's facts, or null when the tail is not a restart orphan.
+ */
+export function restartInterruptedTail(events: readonly TailEventLike[]): InterruptedTail | null {
+  let tail: TailEventLike | undefined
+  let tailIndex = -1
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index]
+    if (event !== null && typeof event === 'object' && event.type === 'turn/end') {
+      tail = event
+      tailIndex = index
+      break
+    }
+  }
+  if (tail === undefined) return null
+  const data = isRecord(tail.data) ? tail.data : null
+  const reason = data !== null && isRecord(data.reason) ? data.reason : null
+  const kind = reason !== null ? textOrNull(reason.kind) : null
+  if (kind === null) return null
+  const cause = reason !== null && isRecord(reason.reason) ? textOrNull(reason.reason.kind) : null
+  if (!isRestartInterrupt(kind, cause)) return null
+  const at = finiteOrNull(tail.time)
+  if (at === null) return null
+  for (let index = tailIndex + 1; index < events.length; index += 1) {
+    const type = events[index]?.type
+    if (type === 'turn/start' || type === 'user/message') return null
+  }
+  return { at, kind, cause }
+}
+
 /** Record one durable turn boundary. */
 export function recordTurnEnd(
   ledger: LedgerState,
@@ -132,8 +211,7 @@ export function recordTurnEnd(
   const entry = ensureEntry(ledger, input.sessionId)
   entry.lastTurnEndAt = finiteOrNull(input.at)
   entry.lastTurnEndKind = textOrNull(input.kind)
-  entry.interruptedAt =
-    input.kind === 'aborted' && input.cause === INTERRUPT_CAUSE ? finiteOrNull(input.at) : null
+  entry.interruptedAt = isRestartInterrupt(input.kind, input.cause) ? finiteOrNull(input.at) : null
 }
 
 /** Record a pending interaction: the agent is waiting for the operator. */

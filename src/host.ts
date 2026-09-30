@@ -27,8 +27,10 @@ import {
   normalizeLedger,
   recordAttention,
   recordTurnEnd,
+  restartInterruptedTail,
   type InterruptedRow,
   type LedgerState,
+  type TailEventLike,
   type UnreadRow,
 } from './ledger.js'
 
@@ -99,7 +101,8 @@ export function mount(rawCtx: any, config?: { continueMessage?: unknown }): void
       : join(process.env.DSH_HOME ?? join(homedir(), '.dsh'), STATE_FILE)
 
   let ledger: LedgerState = emptyLedger()
-  let loaded = false
+  let hydrated = false
+  let loading: Promise<void> | null = null
   let persistTimer: ReturnType<typeof setTimeout> | null = null
   let persistChain: Promise<void> = Promise.resolve()
 
@@ -135,18 +138,35 @@ export function mount(rawCtx: any, config?: { continueMessage?: unknown }): void
     persistTimer.unref?.()
   }
 
-  async function load(): Promise<void> {
-    if (loaded) return
-    loaded = true
-    try {
-      ledger = normalizeLedger(JSON.parse(await readFile(statePath, 'utf8')))
-    } catch (error: unknown) {
-      const code = (error as { code?: string } | null)?.code
-      if (code !== 'ENOENT') {
-        warn('session-ledger: ignoring unreadable ' + statePath + ': ' + String(error))
+  function load(): Promise<void> {
+    loading ??= (async () => {
+      try {
+        ledger = normalizeLedger(JSON.parse(await readFile(statePath, 'utf8')))
+      } catch (error: unknown) {
+        const code = (error as { code?: string } | null)?.code
+        if (code !== 'ENOENT') {
+          warn('session-ledger: ignoring unreadable ' + statePath + ': ' + String(error))
+        }
+        ledger = emptyLedger()
       }
-      ledger = emptyLedger()
+      hydrated = true
+    })()
+    return loading
+  }
+
+  /**
+   * Run one ledger mutation once the persisted state is in memory.
+   *
+   * Durable events and restored Sessions can both arrive while the file is
+   * still being read; applying them to the placeholder would let the load
+   * overwrite the newer facts.
+   */
+  function whenLoaded(apply: () => void): void {
+    if (hydrated) {
+      apply()
+      return
     }
+    void load().then(apply)
   }
 
   function sessionIdOf(session: unknown): string | null {
@@ -178,7 +198,64 @@ export function mount(rawCtx: any, config?: { continueMessage?: unknown }): void
     })
   }
 
+  /** One live Session's stored history, or null when it exposes none. */
+  function storedEventsOf(session: unknown): readonly TailEventLike[] | null {
+    const candidate = session as { snapshotEvents?: unknown; events?: unknown } | null
+    try {
+      if (typeof candidate?.snapshotEvents === 'function') {
+        const events = (candidate.snapshotEvents as () => unknown)()
+        return Array.isArray(events) ? (events as readonly TailEventLike[]) : null
+      }
+      if (Array.isArray(candidate?.events)) return candidate.events as readonly TailEventLike[]
+    } catch (error: unknown) {
+      warn('session-ledger: could not read a stored Session history: ' + String(error))
+    }
+    return null
+  }
+
+  /**
+   * Recover a restart orphan from one Session's stored history.
+   *
+   * DSH's crash repair closes an interrupted tail with a synthetic `turn/end`
+   * that arrives as a constructor seed, and seeds never publish on
+   * `session/event` — so a resumed Session's orphan is invisible to the live
+   * listener and has to be read off the snapshot instead.
+   */
+  function recordRestoredTail(session: unknown): void {
+    const sessionId = sessionIdOf(session)
+    if (sessionId === null) return
+    const events = storedEventsOf(session)
+    if (events === null) return
+    const tail = restartInterruptedTail(events)
+    if (tail === null) return
+    recordTurnEnd(ledger, { sessionId, at: tail.at, kind: tail.kind, cause: tail.cause })
+    schedulePersist()
+  }
+
+  /** Sessions restored before this plugin mounted never announce themselves. */
+  function scanRestoredSessions(): void {
+    try {
+      const agents = ctx.get('agents')
+      if (agents === undefined || typeof agents.list !== 'function') return
+      for (const agent of (agents.list() ?? []) as { session?: unknown }[]) {
+        recordRestoredTail(agent?.session)
+      }
+    } catch (error: unknown) {
+      warn('session-ledger: could not scan restored Sessions: ' + String(error))
+    }
+  }
+
   // ── durable session events ─────────────────────────────────────────────
+  // A resumed Session announces itself with its repaired tail already seeded.
+  ctx.on('session/created', (...args: any[]) => {
+    const session = args[0] as unknown
+    try {
+      whenLoaded(() => recordRestoredTail(session))
+    } catch (error: unknown) {
+      warn('session-ledger: could not scan a restored Session: ' + String(error))
+    }
+  })
+
   ctx.on('session/event', (...args: any[]) => {
     const session = args[0] as unknown
     const event = args[1] as { type?: unknown; time?: unknown; data?: any } | null
@@ -186,27 +263,29 @@ export function mount(rawCtx: any, config?: { continueMessage?: unknown }): void
     if (sessionId === null || event === null || typeof event !== 'object') return
     const at = typeof event.time === 'number' ? event.time : Date.now()
 
-    if (event.type === 'turn/end') {
-      const reason = event.data?.reason ?? {}
-      const kind = typeof reason.kind === 'string' ? reason.kind : 'unknown'
-      const cause = typeof reason.reason?.kind === 'string' ? reason.reason.kind : null
-      recordTurnEnd(ledger, { sessionId, at, kind, cause })
-      schedulePersist()
-      settleTurnWaiters(sessionId)
-      return
-    }
+    whenLoaded(() => {
+      if (event.type === 'turn/end') {
+        const reason = event.data?.reason ?? {}
+        const kind = typeof reason.kind === 'string' ? reason.kind : 'unknown'
+        const cause = typeof reason.reason?.kind === 'string' ? reason.reason.kind : null
+        recordTurnEnd(ledger, { sessionId, at, kind, cause })
+        schedulePersist()
+        settleTurnWaiters(sessionId)
+        return
+      }
 
-    if (event.type === 'approval/asked') {
-      recordAttention(ledger, { sessionId, at, kind: 'approval' })
-      schedulePersist()
-      return
-    }
+      if (event.type === 'approval/asked') {
+        recordAttention(ledger, { sessionId, at, kind: 'approval' })
+        schedulePersist()
+        return
+      }
 
-    // Sending a message is the operator engaging with the Session: read.
-    if (event.type === 'user/message') {
-      markRead(ledger, sessionId, at)
-      schedulePersist()
-    }
+      // Sending a message is the operator engaging with the Session: read.
+      if (event.type === 'user/message') {
+        markRead(ledger, sessionId, at)
+        schedulePersist()
+      }
+    })
   })
 
   // ask_user_question is not a session event; the tool dispatch is.
@@ -217,8 +296,11 @@ export function mount(rawCtx: any, config?: { continueMessage?: unknown }): void
       if (exec?.name === 'ask_user_question') {
         const sessionId = sessionIdOf(exec.agent?.session)
         if (sessionId !== null) {
-          recordAttention(ledger, { sessionId, at: Date.now(), kind: 'question' })
-          schedulePersist()
+          const at = Date.now()
+          whenLoaded(() => {
+            recordAttention(ledger, { sessionId, at, kind: 'question' })
+            schedulePersist()
+          })
         }
       }
     } catch {
@@ -363,7 +445,7 @@ export function mount(rawCtx: any, config?: { continueMessage?: unknown }): void
     },
   }), 'session-ledger: POST ' + ROUTE_PATH + '/<endpoint>')
 
-  void load()
+  void load().then(scanRestoredSessions)
 
   ctx.effect(() => () => {
     if (persistTimer !== null) clearTimeout(persistTimer)
