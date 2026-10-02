@@ -122,6 +122,9 @@ function fakeContext(values = {}) {
   // A plugin may register more than one action; keep them all and let the
   // tests address the bell by its id instead of by registration order.
   const registrations = new Map()
+  // The shortcut registry is plugin-scope: `apply` registers one command, so
+  // the double keeps the latest registration by id for the integration test.
+  const shortcutCommands = new Map()
   const sessions = values.sessions ?? source({
     ids: SESSIONS.map(row => row.id),
     byId: Object.fromEntries(SESSIONS.map(row => [row.id, row])),
@@ -135,7 +138,13 @@ function fakeContext(values = {}) {
       if (typeof dispose === 'function') disposers.push(dispose)
       return dispose
     },
-    locale: { register: () => () => {} },
+    locale: { register: () => () => {}, bind: () => translate },
+    shortcuts: {
+      register(command) {
+        shortcutCommands.set(command.id, command)
+        return () => { shortcutCommands.delete(command.id) }
+      },
+    },
     slots: {
       inject(_name, factory) { return factory() },
       register(options, component) {
@@ -166,6 +175,7 @@ function fakeContext(values = {}) {
     disposers,
     opened,
     get captured() { return registrations.get('session-ledger') },
+    shortcut(id) { return shortcutCommands.get(id) },
   }
 }
 
@@ -243,7 +253,7 @@ test('the client half registers one sidebar foot action and injects the framewor
   const injected = captured().options.inject()
   assert.deepEqual(Object.keys(injected).sort(), [
     'archiveSession', 'ledger', 'openSession', 'pinSession', 'sessions', 'statuses', 'unpinSession',
-    'workspaces',
+    'unreadJump', 'workspaces',
   ])
   assert.equal(document.querySelector('style[data-plugin="dsh-session-ledger"]') !== null, true)
   for (const dispose of [...disposers].reverse()) dispose()
@@ -556,6 +566,53 @@ test('clicking the bell reveals and opens the next unread Session, wrapping arou
     [['open', 's1'], ['open', 's2'], ['open', 's1']],
     'the walk wraps back to the first unread Session',
   )
+
+  await view.unmount()
+  for (const dispose of [...disposers].reverse()) dispose()
+})
+
+test('the registered unread-jump shortcut runs the bell\'s jump', async () => {
+  document.body.innerHTML = ''
+  const shell = buildSidebar(document)
+  const handle = fakeContext()
+  const { ctx, opened, disposers } = handle
+  const captured = () => handle.captured
+  apply(ctx)
+
+  const command = handle.shortcut('session-ledger.jumpUnread')
+  assert.ok(command, 'apply registers the unread-jump command')
+  assert.equal(command.label(), '定位下一个未读')
+  assert.deepEqual(command.defaults, {
+    'desktop:macos': { code: 'KeyJ', modifiers: ['primary', 'shift'] },
+    'desktop:windows': { code: 'KeyJ', modifiers: ['primary', 'alt'] },
+    'desktop:linux': { code: 'KeyJ', modifiers: ['primary', 'alt'] },
+    'web:macos': { code: 'KeyJ', modifiers: ['primary', 'shift'] },
+    'web:windows': { code: 'KeyJ', modifiers: ['primary', 'alt'] },
+  })
+  // Before the bell mounts there is nothing to jump with.
+  assert.deepEqual(
+    command.resolve({ region: 'page', modal: null, target: null }),
+    { status: 'blocked', reason: '没有未读会话' },
+  )
+
+  const injected = captured().options.inject()
+  const view = await mount(React.createElement(captured().component, {
+    wide: true, t: translate, ...injected,
+  }))
+
+  const revealed = []
+  for (const id of ['s1', 's2']) {
+    const row = document.createElement('div')
+    row.setAttribute('data-row-key', 'session:' + id)
+    row.scrollIntoView = () => { revealed.push(id) }
+    shell.list.appendChild(row)
+  }
+
+  const resolution = command.resolve({ region: 'page', modal: null, target: null })
+  assert.equal(resolution.status, 'handled')
+  resolution.run()
+  assert.deepEqual(opened, [['open', 's1']], 'the shortcut lands on the next unread Session')
+  assert.deepEqual(revealed, ['s1'], 'the shortcut also reveals the sidebar row')
 
   await view.unmount()
   for (const dispose of [...disposers].reverse()) dispose()

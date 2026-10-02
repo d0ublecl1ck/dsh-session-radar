@@ -10,4 +10,5 @@
 - [ ] `src/host.ts` 的 `whenLoaded()` — 所有账本写入都必须经过它，否则会写在占位账本上、随后被文件加载覆盖。新增记账入口时先核对。记录：2026-09-30
 - [ ] `src/client/manual-unread.ts` — 依赖官方 Workspace 视图 store 的私有持久化键 `dsh.workspace.view.v5`（取其中的 `unreadSessionIds`）与 Desktop 的 `__dsh_storage_sync__` 事件；DSH 升级后先核对键名/事件名是否还在，失效是静默的（只少一路未读来源）。记录：2026-09-28
 - [ ] `src/client/conversation-tail.ts` — 「对话停在底部即已读」依赖官方对话区属性 `[data-conversation-region="chat"][data-conversation-session]` 与 `[data-chat-following-tail]`；DSH 升级后先核对这两个属性，失效是静默的（退回「切走再切回才算已读」）。记录：2026-09-28
+- [ ] `src/client/jump-command.ts` — 快捷键走官方 `@deepseek-ai/dsh-client-shortcuts` 的 `ctx.shortcuts`，macOS 默认 `Mod+Shift+J`、其余 `Mod+Alt+J`。macOS Desktop 走 `data-dsh-desktop-web-shortcuts` 的 `web` runtime：单 `⌘+字母` 判 `unsupported-browser`（官方 `⌘K` 也失效），`Option+<键>` 死键被 DOM 分发器当输入法组合丢弃（框架只豁免 `KeyN`），`⌘U` 属 Desktop 菜单「检查更新」，R 系撞官方 `session.rename` / `page.refresh`。改默认值前先用官方 `bindingIssue` + 死键 + 菜单三重复核。记录：2026-10-02
 - [ ] 续跑投递（`src/host.ts` 的 `sendContinue`）— 必须用 `createUserMessage({source:{kind:'user'}})`，不要手搓 message（宿主会拒收并弄坏会话）；`sessionController.resolveAgent` 的返回形状跨版本可能不同，任何失败都要写进 `rollout.lastError` 让 chip 显示。记录：2026-10-02

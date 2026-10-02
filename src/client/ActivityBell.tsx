@@ -42,6 +42,7 @@ import type { LedgerSource } from './ledger-source.js'
 import {
   expandOwningGroup, findSessionRow, nextUnreadId, owningWorkspaceKey, revealRow,
 } from './jump.js'
+import type { UnreadJumpSeat } from './jump-command.js'
 import { readManualUnread, watchManualUnread } from './manual-unread.js'
 import { BellIcon } from './icons.js'
 import { useTitleMarquee } from './marquee.js'
@@ -71,6 +72,8 @@ export interface ActivityBellInjected {
   readonly workspaces: SnapshotSource<WorkspaceSnapshot>
   /** Cross-restart reminder memory owned by the host half. */
   readonly ledger: LedgerSource
+  /** Seat the plugin-scope shortcut command reads to run this bell's jump. */
+  readonly unreadJump: UnreadJumpSeat
 }
 
 /** Composed props: shell share + locale seat + injected business face. */
@@ -300,6 +303,7 @@ function useHosts(anchors: SidebarAnchors | undefined, wide: boolean, active: bo
  */
 export function ActivityBell({
   wide, t, openSession, pinSession, unpinSession, archiveSession, sessions, statuses, workspaces, ledger,
+  unreadJump,
 }: ActivityBellProps): ReactElement | null {
   const anchors = useSidebarAnchors()
   const list = useSnapshot(sessions)
@@ -419,6 +423,14 @@ export function ActivityBell({
     acknowledge(target)
     openSession(target)
   }, [acknowledge, anchors, openSession, unreadOrder, workspaceSnapshot])
+
+  // The seat is the plugin-scope command's only way to reach this component's
+  // jump: publish while mounted, clear on unmount, and re-publish whenever the
+  // unread order or the closure's anchors change.
+  useEffect(() => unreadJump.publish({
+    available: () => unreadOrder.length > 0,
+    run: jumpNextUnread,
+  }), [unreadJump, jumpNextUnread, unreadOrder])
 
   // Collapsing the sidebar unmounts the region the panel covers: leave the
   // activity view rather than keeping a flag nobody can see or clear.

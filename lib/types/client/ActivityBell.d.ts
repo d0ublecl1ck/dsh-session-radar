@@ -5,6 +5,7 @@ import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controlle
 import type { SessionStatusSnapshot } from '@deepseek-ai/dsh-client-ui-session/client';
 import type { SessionId } from '@deepseek-ai/dsh-session/types';
 import type { LedgerSource } from './ledger-source.js';
+import type { UnreadJumpSeat } from './jump-command.js';
 /** Structural view of the observable snapshots this plugin subscribes to. */
 export interface SnapshotSource<T> {
     getSnapshot(): T;
@@ -27,6 +28,8 @@ export interface ActivityBellInjected {
     readonly workspaces: SnapshotSource<WorkspaceSnapshot>;
     /** Cross-restart reminder memory owned by the host half. */
     readonly ledger: LedgerSource;
+    /** Seat the plugin-scope shortcut command reads to run this bell's jump. */
+    readonly unreadJump: UnreadJumpSeat;
 }
 /** Composed props: shell share + locale seat + injected business face. */
 export type ActivityBellProps = PropsRuntime<'sidebar.footer.action'> & PropsLocale<'session-ledger'> & ActivityBellInjected;
@@ -36,4 +39,4 @@ export type ActivityBellProps = PropsRuntime<'sidebar.footer.action'> & PropsLoc
  * @param props - shell share, locale seat, and injected business face.
  * @returns the two portals, or null before the sidebar region exists.
  */
-export declare function ActivityBell({ wide, t, openSession, pinSession, unpinSession, archiveSession, sessions, statuses, workspaces, ledger, }: ActivityBellProps): ReactElement | null;
+export declare function ActivityBell({ wide, t, openSession, pinSession, unpinSession, archiveSession, sessions, statuses, workspaces, ledger, unreadJump, }: ActivityBellProps): ReactElement | null;

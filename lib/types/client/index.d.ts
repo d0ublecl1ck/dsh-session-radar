@@ -1,7 +1,8 @@
 /**
  * Client half: inject the page styles, register the `unread-jump`
- * dictionaries, mount the bell, and mount the chip that carries only the
- * restart-interrupted Sessions. Both read the one host ledger.
+ * dictionaries, register the unread-jump shortcut, mount the bell, and mount
+ * the chip that carries only the restart-interrupted Sessions. Both read the
+ * one host ledger.
  *
  * The registration is the component's lifecycle and locale carrier (plus the
  * shell's `wide` flag); the visible surfaces are portalled into the browsing
