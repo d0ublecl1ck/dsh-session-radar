@@ -20,7 +20,7 @@ fork 自 `minivv/dsh-activity-bell`（MIT）。上游主交互是「换掉整个
 ## 目录约定
 
 - `src/ledger.ts` —— 纯账本状态机（无框架依赖，单测直接打它）。
-- `src/host.ts` —— host 行为：`session/event` 记账、重启孤儿扫描（`session/created` + 启动时扫一遍 live agents 的 `snapshotEvents()`）、`$DSH_HOME/session-ledger.json` 原子写、`POST /session-ledger/*` 路由（`connection.requestRejection` 鉴权）、串行 continue 投递。`src/index.ts` 只做导出接线。
+- `src/host.ts` —— host 行为：`session/event` 记账、重启孤儿扫描（`session/created` + 启动时扫一遍 live agents 的 `snapshotEvents()`）、`$DSH_HOME/session-ledger.json` 原子写、`POST /session-ledger/*` 路由（`connection.requestRejection` 鉴权）、串行 continue 投递（消息走 `@deepseek-ai/dsh-llm` 的 `createUserMessage`，失败进 `rollout.lastError`）。`src/index.ts` 只做导出接线。
 - `src/client/ledger-source.ts` —— 浏览器到账本的唯一桥（同源 `fetch`），把桥接失败**发布**出去而不是吞掉。
 - `src/client/ActivityBell.tsx` 铃铛与活动面板；`LedgerChip.tsx` 只显示被打断项 + 全部继续；`jump.ts` 未读选择与行定位；`completions.ts` 本地边沿记账；`manual-unread.ts` 读官方侧边栏的「标为未读」并监听其写入；`conversation-tail.ts` + `use-conversation-tail.ts` 判断对话是否停在底部；`anchors.ts` 官方 DOM 锚点；`locales.ts` 文案。
 - `test/` 与 `src/` 同名对应；`scripts/build.mjs`、`scripts/build-tests.mjs` 是构建入口。

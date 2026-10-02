@@ -34,7 +34,7 @@ function finishedSession(id) {
   }
 }
 
-async function harness({ agents } = {}) {
+async function harness({ agents, sessionController } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'session-ledger-host-'))
   const listeners = new Map()
   const routes = new Map()
@@ -50,6 +50,7 @@ async function harness({ agents } = {}) {
     get(name) {
       if (name === 'dshHomePath') return (file) => join(dir, file)
       if (name === 'agents') return agents
+      if (name === 'sessionController') return sessionController
       return undefined
     },
     logger: { warn: (message) => warnings.push(message) },
@@ -128,4 +129,32 @@ test('malformed sessions and event snapshots never throw', async () => {
   h.emit('session/created', null)
   const body = await h.post('list')
   assert.deepEqual(body.value.interrupted, [])
+})
+
+test('continue-all delivers one official user message through the resolved agent', async () => {
+  const sent = []
+  const h = await harness({
+    sessionController: { resolveAgent: async () => ({ agent: { followup: (message) => sent.push(message) } }) },
+  })
+  h.emit('session/created', crashTailSession('s1'))
+  const body = await h.post('continue-all', {})
+  assert.equal(body.ok, true)
+  assert.equal(body.total, 1)
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  assert.equal(sent.length, 1, 'the rollout sends exactly one message')
+  assert.equal(sent[0].role, 'user')
+  assert.equal(sent[0].source.kind, 'user', 'a user turn, not a plugin-shaped one')
+  assert.match(sent[0].content[0].text, /重启中断/)
+  assert.equal(typeof sent[0].id, 'string')
+})
+
+test('a continue the host refuses is surfaced instead of swallowed', async () => {
+  const h = await harness({
+    sessionController: { resolveAgent: async () => ({ error: { code: 'session/not-found', message: 'no such session' } }) },
+  })
+  h.emit('session/created', crashTailSession('s1'))
+  await h.post('continue-all', {})
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  const body = await h.post('list')
+  assert.match(String(body.value.rollout.lastError), /session\/not-found|no such session/)
 })

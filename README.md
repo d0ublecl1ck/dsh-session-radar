@@ -59,6 +59,7 @@ host 半边持有账本 `$DSH_HOME/session-ledger.json`，原子写（临时文�
   `上次执行被 DSH 重启中断，请先核对当前文件与命令的真实状态，再继续。`
 
 - 投递是**串行**的：上一个跑完（或 10 分钟超时）才发下一个，避免多个 agent 同时改同一批文件
+- 续跑消息用官方的 `createUserMessage` 构造（`source: {kind:'user'}`），不手搓 message；宿主拒收或投递失败会写进 rollout 状态并在 chip 上显示，而不是只进控制台
 
 ## 通道
 

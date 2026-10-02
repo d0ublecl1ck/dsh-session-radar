@@ -36,6 +36,8 @@ export interface LedgerRollout {
   readonly done: number
   readonly active: string | null
   readonly running: boolean
+  /** Why the host last rollout refused or failed, or null. */
+  readonly lastError: string | null
 }
 
 /** Everything the chip renders. */
@@ -65,7 +67,7 @@ const EMPTY: LedgerSnapshot = {
   now: 0,
   unread: [],
   interrupted: [],
-  rollout: { total: 0, done: 0, active: null, running: false },
+  rollout: { total: 0, done: 0, active: null, running: false, lastError: null },
   error: null,
 }
 
@@ -116,7 +118,9 @@ export function createLedgerSource(
     if (payload?.ok !== true || payload.value === undefined) {
       throw new Error('session-ledger: host refused ' + endpoint + ' (HTTP ' + String(response.status) + ')')
     }
-    return { ...payload.value, error: null }
+    // A rollout the host refused is the operator problem too: surface it on
+    // the chip instead of leaving a click that silently does nothing.
+    return { ...payload.value, error: payload.value.rollout?.lastError ?? null }
   }
 
   async function refresh(): Promise<void> {

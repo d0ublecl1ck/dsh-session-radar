@@ -33,6 +33,8 @@ export interface LedgerRollout {
     readonly done: number;
     readonly active: string | null;
     readonly running: boolean;
+    /** Why the host last rollout refused or failed, or null. */
+    readonly lastError: string | null;
 }
 /** Everything the chip renders. */
 export interface LedgerSnapshot {

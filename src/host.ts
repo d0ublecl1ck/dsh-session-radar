@@ -14,7 +14,7 @@
  * @module dsh-session-ledger/host
  */
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { randomUUID } from 'node:crypto'
+import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -36,6 +36,11 @@ import {
 
 /** Stable cordis plugin name (the bundle row's id is `session-ledger`). */
 export const name = 'session-ledger'
+
+/** The slice of a resolved Agent the rollout uses. */
+interface AgentHandle {
+  followup(message: unknown): void
+}
 
 /** The authenticated route the browser half posts to. */
 const ROUTE_PATH = '/session-ledger'
@@ -71,6 +76,8 @@ interface Snapshot {
     readonly done: number
     readonly active: string | null
     readonly running: boolean
+    /** Why the last rollout refused or failed, or null. */
+    readonly lastError: string | null
   }
 }
 
@@ -107,7 +114,13 @@ export function mount(rawCtx: any, config?: { continueMessage?: unknown }): void
   let persistChain: Promise<void> = Promise.resolve()
 
   /** Serial rollout: one Session at a time, so agents never race each other. */
-  const rollout = { queue: [] as string[], done: 0, total: 0, active: null as string | null }
+  const rollout = {
+    queue: [] as string[],
+    done: 0,
+    total: 0,
+    active: null as string | null,
+    lastError: null as string | null,
+  }
   const turnWaiters = new Set<TurnWaiter>()
 
   const warn = (message: string): void => {
@@ -310,21 +323,46 @@ export function mount(rawCtx: any, config?: { continueMessage?: unknown }): void
   })
 
   // ── continue rollout ───────────────────────────────────────────────────
+  /**
+   * Read the resolved Agent out of the host answer: the documented shape is
+   * agent-or-error, and a host that hands the Agent itself back is accepted too
+   * because silently refusing to continue is the worse failure.
+   */
+  function agentOf(resolved: unknown): AgentHandle | null {
+    if (resolved === null || typeof resolved !== 'object') return null
+    const nested = (resolved as { agent?: unknown }).agent
+    if (nested !== null && typeof nested === 'object' && typeof (nested as AgentHandle).followup === 'function') {
+      return nested as AgentHandle
+    }
+    if (typeof (resolved as AgentHandle).followup === 'function') return resolved as AgentHandle
+    return null
+  }
+
   async function sendContinue(sessionId: string): Promise<{ ok: boolean; error?: string }> {
     const controller = ctx.get('sessionController')
     if (controller === undefined || typeof controller.resolveAgent !== 'function') {
       return { ok: false, error: 'sessionController.resolveAgent is unavailable' }
     }
-    const resolved = await controller.resolveAgent(sessionId)
-    if (resolved === null || typeof resolved !== 'object' || !('agent' in resolved)) {
-      return { ok: false, error: 'cannot resolve an agent for ' + sessionId }
+    let resolved: unknown
+    try {
+      resolved = await controller.resolveAgent(sessionId)
+    } catch (error: unknown) {
+      return { ok: false, error: String((error as Error)?.message ?? error) }
     }
-    resolved.agent.followup({
-      id: randomUUID(),
-      role: 'user',
+    const agent = agentOf(resolved)
+    if (agent === null) {
+      const failure = (resolved as { error?: { code?: string; message?: string } } | null)?.error
+      return failure === undefined
+        ? { ok: false, error: 'cannot resolve an agent for ' + sessionId }
+        : { ok: false, error: (failure.code ?? 'resolve-failed') + ': ' + (failure.message ?? sessionId) }
+    }
+    // Build the message with the harness own constructor: a hand-rolled
+    // message can carry an identity or source the transcript rejects, which
+    // breaks the very Session the continue was meant to rescue.
+    agent.followup(createUserMessage({
       content: [{ type: 'text', text: continueText }],
-      source: { kind: 'plugin', plugin: name },
-    })
+      source: { kind: 'user' },
+    }))
     markContinued(ledger, sessionId, Date.now())
     schedulePersist()
     return { ok: true }
@@ -337,10 +375,16 @@ export function mount(rawCtx: any, config?: { continueMessage?: unknown }): void
       try {
         const sent = await sendContinue(sessionId)
         // One at a time: do not start the next Session until this turn ends.
-        if (sent.ok) await awaitTurnEnd(sessionId)
-        else warn('session-ledger: continue refused for ' + sessionId + ': ' + (sent.error ?? 'unknown'))
+        if (sent.ok) {
+          rollout.lastError = null
+          await awaitTurnEnd(sessionId)
+        } else {
+          rollout.lastError = 'continue refused for ' + sessionId + ': ' + (sent.error ?? 'unknown')
+          warn('session-ledger: ' + rollout.lastError)
+        }
       } catch (error: unknown) {
-        warn('session-ledger: continue failed for ' + sessionId + ': ' + String(error))
+        rollout.lastError = 'continue failed for ' + sessionId + ': ' + String(error)
+        warn('session-ledger: ' + rollout.lastError)
       }
       rollout.done += 1
     }
@@ -357,6 +401,7 @@ export function mount(rawCtx: any, config?: { continueMessage?: unknown }): void
         done: rollout.done,
         active: rollout.active,
         running: rollout.active !== null || rollout.queue.length > 0,
+        lastError: rollout.lastError,
       },
     }
   }
@@ -408,6 +453,7 @@ export function mount(rawCtx: any, config?: { continueMessage?: unknown }): void
     rollout.queue = targets
     rollout.done = 0
     rollout.total = targets.length
+    rollout.lastError = null
     void drainRollout()
     return { ok: true, total: rollout.total }
   }
