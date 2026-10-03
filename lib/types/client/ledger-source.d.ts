@@ -29,11 +29,19 @@ export interface LedgerSnapshot {
     /** Last bridge failure, or null. Rendered so a broken bridge is visible. */
     readonly error: string | null;
 }
+/** Extras a read can report about why the operator is acknowledging. */
+export interface LedgerReadOptions {
+    /**
+     * The operator reached the conversation's tail. That is the acknowledgement
+     * of a restart-interrupted turn; a plain open leaves the marker armed.
+     */
+    readonly acknowledgeInterrupt?: boolean;
+}
 /** Observable ledger face handed to the component. */
 export interface LedgerSource {
     getSnapshot(): LedgerSnapshot;
     subscribe(listener: () => void): () => void;
-    read(sessionId: SessionId): void;
+    read(sessionId: SessionId, options?: LedgerReadOptions): void;
 }
 /**
  * Create the ledger source and keep it mounted for the plugin's lifetime.

@@ -17,6 +17,7 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
 import {
+  acknowledgeInterrupt,
   emptyLedger,
   listUnread,
   markRead,
@@ -300,6 +301,8 @@ export function mount(rawCtx: any): void {
         return { status: 400, value: { ok: false, error: { code: 'bad-request', message: 'sessionId must be a string' } } }
       }
       markRead(ledger, body.sessionId, Date.now())
+      // A tail read acknowledges a restart-interrupted turn; a plain open does not.
+      if (body?.acknowledgeInterrupt === true) acknowledgeInterrupt(ledger, body.sessionId)
       schedulePersist()
       return { status: 200, value: { ok: true, value: snapshot() } }
     }

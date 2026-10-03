@@ -117,6 +117,18 @@ export declare function recordAttention(ledger: LedgerState, input: {
 /** Advance a read marker to at least `at`; it never moves backwards. */
 export declare function markRead(ledger: LedgerState, sessionId: string, at: number): void;
 /**
+ * Drop the restart-interrupt marker once the operator has read the Session.
+ *
+ * A plain read (opening the Session) deliberately leaves the marker alone, so a
+ * quick glance cannot excuse an unfinished turn. Reaching the conversation's
+ * tail is the acknowledgement: the browser reports that read with this separate
+ * step, and the reminder stops coming back when the operator scrolls away.
+ *
+ * @param ledger - ledger to edit.
+ * @param sessionId - Session to acknowledge.
+ */
+export declare function acknowledgeInterrupt(ledger: LedgerState, sessionId: string): void;
+/**
  * @param target - a Session id, or `{ sessionId, running }` when the caller knows
  *   the Session is currently running (a running Session is never a reminder).
  * @returns whether the Session still needs the operator's attention.

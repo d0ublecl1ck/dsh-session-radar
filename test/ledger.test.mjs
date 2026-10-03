@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  acknowledgeInterrupt,
   emptyLedger,
   isRestartInterrupt,
   listUnread,
@@ -57,6 +58,17 @@ test('an interrupted session stays unread until a later turn ends', () => {
   assert.equal(ledger.sessions.s1.interruptedAt, null, 'a later turn clears the interrupt flag')
   markRead(ledger, 's1', T(4))
   assert.deepEqual(listUnread(ledger), [])
+})
+
+test('reaching the tail acknowledges an interrupted turn', () => {
+  const ledger = emptyLedger()
+  recordTurnEnd(ledger, { sessionId: 's1', at: T(1), kind: 'aborted', cause: 'disposed' })
+  markRead(ledger, 's1', T(2))
+  assert.equal(listUnread(ledger).length, 1, 'a read marker alone keeps the reminder')
+  acknowledgeInterrupt(ledger, 's1')
+  assert.equal(ledger.sessions.s1.interruptedAt, null, 'the tail acknowledgement drops the marker')
+  assert.deepEqual(listUnread(ledger), [], 'and the reminder does not come back')
+  assert.equal(acknowledgeInterrupt(ledger, 'missing'), undefined, 'an unknown Session is a no-op')
 })
 
 test('a later normal turn end clears an earlier interrupted flag', () => {

@@ -767,6 +767,11 @@ test('a conversation at its tail tells the host ledger the Session is read', asy
       calls.some(call => call.target.endsWith('/unread-helper/read') && call.body?.sessionId === 's1'),
       'the host ledger is told the Session is read',
     )
+    assert.ok(
+      calls.some(call => call.target.endsWith('/unread-helper/read')
+        && call.body?.sessionId === 's1' && call.body?.acknowledgeInterrupt === true),
+      'the tail read also acknowledges a restart-interrupted turn',
+    )
 
     await view.unmount()
     for (const dispose of [...disposers].reverse()) dispose()
@@ -820,7 +825,7 @@ test('a session awaiting the operator raises a warning badge apart from the unre
   for (const dispose of [...disposers].reverse()) dispose()
 })
 
-test('the O shortcut walks the pending asks and retraces the path back', async () => {
+test('the I shortcut walks the pending asks and retraces the path back', async () => {
   document.body.innerHTML = ''
   buildSidebar(document)
   let value = {

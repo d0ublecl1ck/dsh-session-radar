@@ -33,11 +33,20 @@ export interface LedgerSnapshot {
   readonly error: string | null
 }
 
+/** Extras a read can report about why the operator is acknowledging. */
+export interface LedgerReadOptions {
+  /**
+   * The operator reached the conversation's tail. That is the acknowledgement
+   * of a restart-interrupted turn; a plain open leaves the marker armed.
+   */
+  readonly acknowledgeInterrupt?: boolean
+}
+
 /** Observable ledger face handed to the component. */
 export interface LedgerSource {
   getSnapshot(): LedgerSnapshot
   subscribe(listener: () => void): () => void
-  read(sessionId: SessionId): void
+  read(sessionId: SessionId, options?: LedgerReadOptions): void
 }
 
 const ROUTE = '/unread-helper'
@@ -125,8 +134,11 @@ export function createLedgerSource(
         listeners.delete(listener)
       }
     },
-    read: (sessionId) => {
-      void post('read', { sessionId })
+    read: (sessionId, options) => {
+      const body = options?.acknowledgeInterrupt === true
+        ? { sessionId, acknowledgeInterrupt: true }
+        : { sessionId }
+      void post('read', body)
         .then((next) => { if (!disposed) publish(next) })
         .catch((error: unknown) => {
           if (!disposed) publish({ ...snapshot, error: String((error as Error)?.message ?? error) })

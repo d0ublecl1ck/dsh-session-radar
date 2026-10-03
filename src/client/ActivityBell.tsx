@@ -354,7 +354,9 @@ export function ActivityBell({
   }, [ledgerSnapshot])
 
   // The conversation at its tail is read: drop the surface's own reminder for it
-  // and tell the host, so scrolling away can re-arm neither source.
+  // and tell the host, so scrolling away can re-arm neither source. The host
+  // also drops a restart-interrupt marker on this acknowledgement — a plain open
+  // does not, so the interruption survives a quick glance but not a real read.
   useEffect(() => {
     if (tail === null || !pending.has(tail)) return
     setPending((current) => {
@@ -365,7 +367,7 @@ export function ActivityBell({
   }, [tail, pending])
   useEffect(() => {
     if (tail === null) return
-    if (ledgerUnread.has(tail)) ledger.read(tail)
+    if (ledgerUnread.has(tail)) ledger.read(tail, { acknowledgeInterrupt: true })
   }, [tail, ledgerUnread, ledger])
 
   const acknowledge = useCallback((sessionId: SessionId): void => {

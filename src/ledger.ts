@@ -228,6 +228,23 @@ export function markRead(ledger: LedgerState, sessionId: string, at: number): vo
   }
 }
 
+/**
+ * Drop the restart-interrupt marker once the operator has read the Session.
+ *
+ * A plain read (opening the Session) deliberately leaves the marker alone, so a
+ * quick glance cannot excuse an unfinished turn. Reaching the conversation's
+ * tail is the acknowledgement: the browser reports that read with this separate
+ * step, and the reminder stops coming back when the operator scrolls away.
+ *
+ * @param ledger - ledger to edit.
+ * @param sessionId - Session to acknowledge.
+ */
+export function acknowledgeInterrupt(ledger: LedgerState, sessionId: string): void {
+  const entry = entryOf(ledger, sessionId)
+  if (entry === undefined) return
+  entry.interruptedAt = null
+}
+
 interface Newest {
   readonly at: number
   readonly kind: string | null

@@ -18,7 +18,7 @@ DSH Web 侧边栏**未读铃铛 + 跨重启会话账本**。
 | 右键点铃铛 | 打开/关闭「最近活动」列表（按天分组） |
 | 点列表里的行 | 打开该会话并标为已读（与铃铛跳转同一路径） |
 | 在某会话行右键 →「标为未读」 | 该会话计入铃铛角标与跳转顺序，直到被打开；标记由官方侧边栏持有，插件只读 |
-| 在会话里滚到底部 | 该会话视为已读：角标与账本已读一并回落，再往上滚也不会重新变未读 |
+| 在会话里滚到底部 | 该会话视为已读：角标与账本已读一并回落，再往上滚也不会重新变未读（被重启打断的会话同样由此确认） |
 | Esc / 点侧边栏其它位置 | 关闭活动列表 |
 
 ## 快捷键
@@ -73,7 +73,7 @@ host 半边持有账本 `$DSH_HOME/unread-helper.json`，原子写（临时文�
 
 ## 被重启打断的会话
 
-`interruptedAt` 是一个**只标记、不修**的账本事实：不打红点、不发消息，唯一可见后果是这个会话在你打开过之后仍然算未读。
+`interruptedAt` 是一个**只标记、不修**的账本事实：不打红点、不发消息，唯一可见后果是——在你**把它的对话读到尾部**之前，它即使被打开过也算未读；读到尾部（或打开时本来就停在尾部）就**永久已读**，再往上滚也不会回来。
 
 - 判定：最后一次 `turn/end` 是**重启**造成的，不是操作者造成的。两条信号都算：
   - 优雅退出：宿主动态 dispose 会在 `session/event` 上发 `aborted` + cause `disposed`
@@ -121,7 +121,7 @@ dsh plugin --profile web add <本仓库目录绝对路径>
 
 ```sh
 npm ci
-npm run verify    # typecheck + build + 109 个测试
+npm run verify    # typecheck + build + 111 个测试
 ```
 
 `test/ledger.test.mjs` 覆盖账本状态机（未读、已读不回退、两种重启信号、存储器尾部扫描）；`test/host.test.mjs` 用假 ctx 挂载 host 半边，断言恢复扫描、live 清除与畸形输入；`test/jump.test.mjs` 覆盖未读选择与分组展开；`test/jump-command.test.mjs` 覆盖快捷键命令的座位、默认键位与 blocked/handled 解析；`test/manual-unread.test.mjs` 覆盖官方手动未读标记的解析与监听；`test/conversation-tail.test.mjs` 覆盖「对话在底部」的锚点；`test/ask-jump.test.mjs` 覆盖等待处理跳转的「队列 + 回栈」状态机；`test/activity-model.test.mjs` 覆盖活动投影与 pending 计数；`test/client-mount.test.mjs` 用真实客户端半边挂载，断言铃铛是唯一的侧边栏入口、黄色角标只数等待处理的会话、以及 I 的整条往返路径。

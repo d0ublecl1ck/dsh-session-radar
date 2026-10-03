@@ -6,7 +6,7 @@
 - [ ] 插件标识 — 包名与内部命名已从 `session-ledger` 改为 `unread-helper`（路由 `/unread-helper`、账本 `$DSH_HOME/unread-helper.json`、快捷键 id `unread-helper.jumpUnread`）。桌面 home（`~/Library/Application Support/dsh-desktop/harness`）与本地 `~/.dsh` 两个 `profiles/web` 都已改到新名，旧账本 `session-ledger.json` 未继承。记录：2026-10-03
 - [ ] `test/client-mount.test.mjs` — 夹具按 `options.id` 存注册，`captured` 取 `unread-helper` 那条，并用 `handle.all.size` 断言侧边栏只有一个入口；`inject()` 返回的键列表也在该文件里逐字断言（新增注入面要同步），再新增入口时这两处要一并改。记录：2026-10-03
 - [ ] `src/client/ledger-source.ts` — 桥接失败仍发布到快照 `error` 并保留上一次已知数据，但 chip 删除后没有界面渲染它；改回 `catch(() => {})` 之前先给 `error` 找一个可见出口。记录：2026-10-03
-- [ ] 「被打断」判据 — 并集两条信号：live 的 `aborted` + cause `disposed`，以及崩溃修复补写的 `interrupted`（只存在于构造 seed / `session.snapshotEvents()`，绝不发 `session/event`）。它现在只影响 `isUnread`（被打断的会话打开过也算未读），不再有 chip。DSH 升级后先核对这两个 reason kind 与 `snapshotEvents()` 是否还在。记录：2026-10-03
+- [ ] 「被打断」判据 — 并集两条信号：live 的 `aborted` + cause `disposed`，以及崩溃修复补写的 `interrupted`（只存在于构造 seed / `session.snapshotEvents()`，绝不发 `session/event`）。它现在只影响 `isUnread`（被打断的会话单纯打开不算已读；读到对话尾部才算确认，`/read` 带 `acknowledgeInterrupt` 时才清标记），不再有 chip。DSH 升级后先核对这两个 reason kind 与 `snapshotEvents()` 是否还在。记录：2026-10-03
 - [ ] 启动自动续跑冲突 — 任何在宿主启动窗口自动向被打断会话发消息的插件，都会让新回合结束时清掉 `interruptedAt`、该会话失去「打开也算未读」的强制状态；两者不能共用同一启动窗口。记录：2026-10-03
 - [ ] `src/host.ts` 的 `whenLoaded()` — 所有账本写入都必须经过它，否则会写在占位账本上、随后被文件加载覆盖。新增记账入口时先核对。记录：2026-09-30
 - [ ] `src/client/manual-unread.ts` — 依赖官方 Workspace 视图 store 的私有持久化键 `dsh.workspace.view.v5`（取其中的 `unreadSessionIds`）与 Desktop 的 `__dsh_storage_sync__` 事件；DSH 升级后先核对键名/事件名是否还在，失效是静默的（只少一路未读来源）。记录：2026-09-28

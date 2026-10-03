@@ -29,6 +29,6 @@ fork 自 `minivv/dsh-activity-bell`（MIT）。上游主交互是「换掉整个
 
 ## 当前状态与下一步
 
-- 已实现：账本持久化（未读跨刷新/重启）、铃铛角标与跳转读「账本 ∪ 官方 completionUnread ∪ 本地完成边沿 ∪ 官方手动未读」（侧边栏只有铃铛一个入口）、对话停在底部即视为已读（并立刻回写账本 read）、打开会话回写已读、启动静默窗避免"自动恢复=已读"、未读跳转的官方快捷键命令（macOS `⌘⇧J`；Windows/Linux `Ctrl+Alt+J`，可在 设置→通用→快捷键 改键）、待处理提醒（审批/计划审阅/提问在铃铛左上角单独用黄色警告角标计数；I 快捷键先走等待队列、每处理完一个就跳下一个，没有等待项时沿回栈原路返回，辅助键与 J 一致：macOS `⌘⇧I`；Windows/Linux `Ctrl+Alt+I`。字母不能选 O：官方 `workspace.add` / `workspace.openLocal` 已占满 O 的简单组合，注册默认键重叠会挂掉整个客户端半边）。
+- 已实现：账本持久化（未读跨刷新/重启）、铃铛角标与跳转读「账本 ∪ 官方 completionUnread ∪ 本地完成边沿 ∪ 官方手动未读」（侧边栏只有铃铛一个入口）、对话停在底部即视为已读（并立刻回写账本 read）、打开会话回写已读、启动静默窗避免"自动恢复=已读"、被重启打断的会话以「读到对话尾部」为确认（单纯打开不算）、未读跳转的官方快捷键命令（macOS `⌘⇧J`；Windows/Linux `Ctrl+Alt+J`，可在 设置→通用→快捷键 改键）、待处理提醒（审批/计划审阅/提问在铃铛左上角单独用黄色警告角标计数；I 快捷键先走等待队列、每处理完一个就跳下一个，没有等待项时沿回栈原路返回，辅助键与 J 一致：macOS `⌘⇧I`；Windows/Linux `Ctrl+Alt+I`。字母不能选 O：官方 `workspace.add` / `workspace.openLocal` 已占满 O 的简单组合，注册默认键重叠会挂掉整个客户端半边）。
 - 被打断的判据是 `turn/end` 的两种重启信号：优雅退出的 `aborted` + cause `disposed`（走 `session/event`），以及崩溃修复补写的 `interrupted`（只存在于存储器快照里，host 靠 `session/created` 与启动扫描读取，因为构造 seed 不发 `session/event`）。
 - 下一步（未做）：把桥接失败（账本快照 `error`）重新露出到铃铛、跨工作区排序。

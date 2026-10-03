@@ -97,6 +97,15 @@ test('a restored session whose tail was crash-repaired stays unread', async () =
   assert.deepEqual(body.value.unread, [{ sessionId: 's1', at: T(5), kind: 'interrupted' }])
 })
 
+test('a tail read acknowledges a restored interrupted Session for good', async () => {
+  const h = await harness()
+  h.emit('session/created', crashTailSession('s1'))
+  const opened = await h.post('read', { sessionId: 's1' })
+  assert.equal(opened.value.unread.length, 1, 'a plain open keeps the interrupted reminder')
+  const read = await h.post('read', { sessionId: 's1', acknowledgeInterrupt: true })
+  assert.deepEqual(read.value.unread, [], 'reaching the tail drops the marker for good')
+})
+
 test('sessions restored before the plugin mounted are scanned once', async () => {
   const h = await harness({ agents: { list: () => [{ session: crashTailSession('s0', T(3)) }] } })
   const body = await h.post('list')
