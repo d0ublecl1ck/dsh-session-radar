@@ -1,15 +1,13 @@
 /**
- * Client half: inject the page styles, register the `unread-jump`
- * dictionaries, register the unread-jump shortcut, mount the bell, and mount
- * the chip that carries only the restart-interrupted Sessions. Both read the
- * one host ledger.
+ * Client half: inject the page styles, register the `unread-helper`
+ * dictionaries, register the unread-jump shortcut, and mount the bell.
  *
  * The registration is the component's lifecycle and locale carrier (plus the
- * shell's `wide` flag); the visible surfaces are portalled into the browsing
+ * shell's `wide` flag); the visible surface is portalled into the browsing
  * region, because the region is a single-occupant slot whose header has no
  * hole beside the search control. See `./ActivityBell` for that rationale.
  *
- * @module dsh-unread-jump/client
+ * @module dsh-unread-helper/client
  */
 import type { Context } from '@deepseek-ai/cordis';
 import './types.js';

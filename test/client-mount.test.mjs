@@ -174,7 +174,8 @@ function fakeContext(values = {}) {
     ctx,
     disposers,
     opened,
-    get captured() { return registrations.get('session-ledger') },
+    get captured() { return registrations.get('unread-helper') },
+    get all() { return registrations },
     shortcut(id) { return shortcutCommands.get(id) },
   }
 }
@@ -247,17 +248,18 @@ test('the client half registers one sidebar foot action and injects the framewor
   const { ctx, disposers } = handle;
   const captured = () => handle.captured
   apply(ctx)
+  assert.equal(handle.all.size, 1, 'the chip was removed: the bell is the only registered action')
   assert.equal(captured().options.name, 'sidebar.footer.action')
-  assert.equal(captured().options.id, 'session-ledger')
-  assert.equal(captured().options.locale, 'session-ledger')
+  assert.equal(captured().options.id, 'unread-helper')
+  assert.equal(captured().options.locale, 'unread-helper')
   const injected = captured().options.inject()
   assert.deepEqual(Object.keys(injected).sort(), [
     'archiveSession', 'ledger', 'openSession', 'pinSession', 'sessions', 'statuses', 'unpinSession',
     'unreadJump', 'workspaces',
   ])
-  assert.equal(document.querySelector('style[data-plugin="dsh-session-ledger"]') !== null, true)
+  assert.equal(document.querySelector('style[data-plugin="dsh-unread-helper"]') !== null, true)
   for (const dispose of [...disposers].reverse()) dispose()
-  assert.equal(document.querySelector('style[data-plugin="dsh-session-ledger"]'), null)
+  assert.equal(document.querySelector('style[data-plugin="dsh-unread-helper"]'), null)
 })
 
 test('the bell renders beside the search control with the unread badge', async () => {
@@ -286,7 +288,7 @@ test('the bell renders beside the search control with the unread badge', async (
   for (const dispose of [...disposers].reverse()) dispose()
   assert.equal(document.querySelector('.ab-bell'), null)
   assert.equal(document.querySelector('.ab-bell-host'), null)
-  assert.equal(document.querySelector('style[data-plugin="dsh-session-ledger"]'), null)
+  assert.equal(document.querySelector('style[data-plugin="dsh-unread-helper"]'), null)
   assert.equal(shell.header.children.length, 3, 'the shell keeps only its own children')
 })
 
@@ -579,7 +581,7 @@ test('the registered unread-jump shortcut runs the bell\'s jump', async () => {
   const captured = () => handle.captured
   apply(ctx)
 
-  const command = handle.shortcut('session-ledger.jumpUnread')
+  const command = handle.shortcut('unread-helper.jumpUnread')
   assert.ok(command, 'apply registers the unread-jump command')
   assert.equal(command.label(), '定位下一个未读')
   assert.deepEqual(command.defaults, {
@@ -732,7 +734,7 @@ test('a conversation at its tail tells the host ledger the Session is read', asy
     updatedAt: Date.now(), retainedBy: { mainView: 1 },
   }
   const empty = {
-    now: Date.now(), unread: [], interrupted: [],
+    now: Date.now(), unread: [],
   }
   const listed = { ...empty, unread: [{ sessionId: 's1', at: Date.now(), kind: 'completed' }] }
   const calls = []
@@ -762,7 +764,7 @@ test('a conversation at its tail tells the host ledger the Session is read', asy
     await React.act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
     assert.equal(document.querySelector('.ab-badge'), null, 'the tail never badges')
     assert.ok(
-      calls.some(call => call.target.endsWith('/session-ledger/read') && call.body?.sessionId === 's1'),
+      calls.some(call => call.target.endsWith('/unread-helper/read') && call.body?.sessionId === 's1'),
       'the host ledger is told the Session is read',
     )
 

@@ -1,4 +1,4 @@
-# dsh-session-ledger
+# dsh-unread-helper
 
 DSH Web 侧边栏**未读铃铛 + 跨重启会话账本**。
 
@@ -13,15 +13,14 @@ DSH Web 侧边栏**未读铃铛 + 跨重启会话账本**。
 | 左键点铃铛 | 定位到下一个未读会话：滚动到可见并在对话栏打开；再点继续往后走，末尾绕回第一个 |
 | 快捷键 | 与左键点铃铛同一个跳转，默认 macOS `⌘⇧J`、Windows / Linux `Ctrl+Alt+J`，在 设置 → 通用 → 快捷键 改键 |
 | 右键点铃铛 | 打开/关闭「最近活动」列表（按天分组） |
-| 点列表里的行 | 打开该会话 |
+| 点列表里的行 | 打开该会话并标为已读（与铃铛跳转同一路径） |
 | 在某会话行右键 →「标为未读」 | 该会话计入铃铛角标与跳转顺序，直到被打开；标记由官方侧边栏持有，插件只读 |
 | 在会话里滚到底部 | 该会话视为已读：角标与账本已读一并回落，再往上滚也不会重新变未读 |
 | Esc / 点侧边栏其它位置 | 关闭活动列表 |
-| chip（只有存在被打断的会话时才出现） | 显示红色 `⚠ N`；点开列出被重启打断的会话与未读项，点子项即打开该会话 |
 
 ## 快捷键
 
-快捷键是官方命令 `session-ledger.jumpUnread`，通过 `ctx.shortcuts` 注册，所以出现在 设置 → 通用 → 快捷键 里，可以改键，也和其它命令一起做冲突检测。执行的就是铃铛左键的同一个跳转（共享同一个游标）。
+快捷键是官方命令 `unread-helper.jumpUnread`，通过 `ctx.shortcuts` 注册，所以出现在 设置 → 通用 → 快捷键 里，可以改键，也和其它命令一起做冲突检测。执行的就是铃铛左键的同一个跳转（共享同一个游标）。
 
 | 运行端 | 默认 |
 | --- | --- |
@@ -33,7 +32,7 @@ macOS 只能用 `Mod+Shift+J`，是两个约束卡在一起的结果：macOS Des
 
 ## 未读从哪来（跨重启）
 
-host 半边持有账本 `$DSH_HOME/session-ledger.json`，原子写（临时文件 + rename）：
+host 半边持有账本 `$DSH_HOME/unread-helper.json`，原子写（临时文件 + rename）：
 
 | 字段 | 含义 |
 | --- | --- |
@@ -44,7 +43,7 @@ host 半边持有账本 `$DSH_HOME/session-ledger.json`，原子写（临时文�
 
 - 未读 = `interruptedAt` 有值，**或** `max(turnEnd, attention) > lastReadAt`
 - 记账来源：`session/event` 的 `turn/end` 与 `approval/asked`，加上 `ask_user_question` 的工具分发
-- 已读 = 打开该会话（铃铛跳转或 chip 点行）｜在该会话发新消息｜把该会话的对话滚到底部
+- 已读 = 打开该会话（铃铛跳转或活动面板点行）｜在该会话发新消息｜把该会话的对话滚到底部
 - 重启后自动恢复成当前会话的**不算已读**：客户端启动后有 3 秒静默窗
 
 浏览器半边的角标与跳转顺序是**四路并集**，所以既有跨重启的账本项，也有本次会话里刚发生的事：
@@ -62,11 +61,12 @@ host 半边持有账本 `$DSH_HOME/session-ledger.json`，原子写（临时文�
 
 ## 被重启打断的会话
 
+`interruptedAt` 是一个**只标记、不修**的账本事实：不打红点、不发消息，唯一可见后果是这个会话在你打开过之后仍然算未读。
+
 - 判定：最后一次 `turn/end` 是**重启**造成的，不是操作者造成的。两条信号都算：
   - 优雅退出：宿主动态 dispose 会在 `session/event` 上发 `aborted` + cause `disposed`
   - 崩溃修复：DSH 给没结束的尾回合补一条 reason `interrupted` 的 `turn/end`。它作为构造 seed 注入，**永远不发 `session/event`**，所以 host 在 `session/created`（外加启动时扫一次 live agents）读 `session.snapshotEvents()` 找它
   - 其后出现 `turn/start` 或 `user/message` 视为已被取代，不再算被打断
-- chip 显示 `⚠ N`，点开可逐个打开
 - 插件**只标记、不发消息**：重启后要不要继续、什么时候继续，由你自己决定
 
 ## 通道
@@ -74,7 +74,7 @@ host 半边持有账本 `$DSH_HOME/session-ledger.json`，原子写（临时文�
 host 半边注册一条自己的路由：
 
 ```
-POST /session-ledger/<endpoint>        endpoint: list | read
+POST /unread-helper/<endpoint>        endpoint: list | read
 ```
 
 handler 第一件事是 `connection.requestRejection(req)` —— 信任与鉴权复用连接服务自己的栅栏（与 `dsh-host-open-in-app` 同款）。带会话 cookie → 200，不带 → 401。
@@ -89,17 +89,17 @@ handler 第一件事是 `connection.requestRejection(req)` —— 信任与鉴�
 - 侧边栏折叠成 56px 轨道时不显示铃铛（该位置被官方占用）。
 - 崩溃（进程被强杀）走修复补写的 `interrupted`；会话不暴露 `snapshotEvents()` 也不暴露 `events` 时这一路静默失效。
 - 标记只在你让该会话再跑一轮（自己发消息，或别的插件补发）之后由 `turn/end` 清掉；本插件从不发送消息。
-- chip 上的红色 `!` 表示浏览器到 host 的桥接失败：此时保留上一次已知数据，不清空。
+- 浏览器到 host 的桥接失败会发布在账本快照的 `error` 上并保留上一次已知数据（不清空）；chip 删除后目前没有任何界面渲染它。
 - 手动「标为未读」不在任何公开快照里：插件直接读 Workspace 浏览器持久化的私有键 `dsh.workspace.view.v5`。官方改键名时这一路会静默失效，其它未读来源不受影响。
 - 快捷键默认值同时受官方服务、macOS 死键与 Desktop 菜单限制：macOS Desktop 以 `web` runtime 分发，单 `⌘+字母` 被判 `unsupported-browser`（官方 `⌘K` 也失效），`⌘⌥<死键>`（如 `U`）被当输入法组合丢弃，`⌘U` 又归 Desktop 菜单「检查更新」，R 系撞官方 `session.rename` / `page.refresh`，所以 macOS 用 `⌘⇧J`、Windows/Linux 用 `Ctrl+Alt+J`；Linux Web 只放行三个固定组合，没有默认键。
 
 ## 安装
 
 ```sh
-dsh plugin --profile web add /绝对路径/dsh-session-ledger
+dsh plugin --profile web add <本仓库目录绝对路径>
 ```
 
-装完刷新页面。卸载：`dsh plugin --profile web remove dsh-session-ledger`。
+装完刷新页面。卸载：`dsh plugin --profile web remove dsh-unread-helper`。
 
 **改完 host 半边必须 `remove` + `add`**：模块按 URL 缓存，只 `add` 不会重新导入。
 
@@ -107,10 +107,10 @@ dsh plugin --profile web add /绝对路径/dsh-session-ledger
 
 ```sh
 npm ci
-npm run verify    # typecheck + build + 86 个测试
+npm run verify    # typecheck + build + 87 个测试
 ```
 
-`test/ledger.test.mjs` 覆盖账本状态机（未读、已读不回退、两种重启信号、存储器尾部扫描）；`test/host.test.mjs` 用假 ctx 挂载 host 半边，断言恢复扫描、live 清除与畸形输入；`test/jump.test.mjs` 覆盖未读选择与分组展开；`test/jump-command.test.mjs` 覆盖快捷键命令的座位、默认键位与 blocked/handled 解析；`test/manual-unread.test.mjs` 覆盖官方手动未读标记的解析与监听；`test/conversation-tail.test.mjs` 覆盖「对话在底部」的锚点；`test/client-mount.test.mjs` 用真实客户端半边挂载，断言铃铛与 chip 两个入口。
+`test/ledger.test.mjs` 覆盖账本状态机（未读、已读不回退、两种重启信号、存储器尾部扫描）；`test/host.test.mjs` 用假 ctx 挂载 host 半边，断言恢复扫描、live 清除与畸形输入；`test/jump.test.mjs` 覆盖未读选择与分组展开；`test/jump-command.test.mjs` 覆盖快捷键命令的座位、默认键位与 blocked/handled 解析；`test/manual-unread.test.mjs` 覆盖官方手动未读标记的解析与监听；`test/conversation-tail.test.mjs` 覆盖「对话在底部」的锚点；`test/client-mount.test.mjs` 用真实客户端半边挂载，断言铃铛是唯一的侧边栏入口。
 
 ## License
 

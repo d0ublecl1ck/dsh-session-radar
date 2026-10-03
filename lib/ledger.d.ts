@@ -1,5 +1,5 @@
 /**
- * dsh-session-ledger — the cross-restart session ledger.
+ * dsh-unread-helper — the cross-restart session ledger.
  *
  * A pure, framework-free state machine. Everything the plugin remembers about a
  * Session lives here, so the persistence rules are unit-testable without a
@@ -11,7 +11,7 @@
  *   operator opened it: the red marker means "this turn never finished".
  * - Read markers never move backwards.
  *
- * @module dsh-session-ledger/ledger
+ * @module dsh-unread-helper/ledger
  */
 /** Persisted document version; bump when the fold semantics change. */
 export declare const LEDGER_VERSION = 1;
@@ -63,11 +63,6 @@ export interface UnreadRow {
     readonly sessionId: string;
     readonly at: number;
     readonly kind: string | null;
-}
-/** One Session whose turn a restart cut off. */
-export interface InterruptedRow {
-    readonly sessionId: string;
-    readonly at: number;
 }
 /** A fresh, empty ledger. */
 export declare function emptyLedger(): LedgerState;
@@ -132,5 +127,3 @@ export declare function isUnread(ledger: LedgerState, target: string | {
 }): boolean;
 /** Every unread Session, newest first. */
 export declare function listUnread(ledger: LedgerState): UnreadRow[];
-/** Every Session whose turn a restart cut off, newest first. */
-export declare function listInterrupted(ledger: LedgerState): InterruptedRow[];

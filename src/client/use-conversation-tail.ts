@@ -7,7 +7,7 @@
  * `querySelectorAll`, so the conversation's streaming mutations cannot turn
  * into a render loop.
  *
- * @module dsh-session-ledger/client/use-conversation-tail
+ * @module dsh-unread-helper/client/use-conversation-tail
  */
 import { useEffect, useState } from 'react'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'

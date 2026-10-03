@@ -1,17 +1,17 @@
 {
-  "name": "dsh-session-ledger",
+  "name": "dsh-unread-helper",
   "version": "0.1.0",
-  "description": "DSH Web 会话账本：未读跨重启持久化 + 被重启打断的会话标红与批量 continue；铃铛负责顺序定位未读。Fork of dsh-activity-bell.",
+  "description": "DSH Web 未读助手：侧边栏铃铛顺序定位未读，host 半边持有跨重启的会话账本。Fork of dsh-activity-bell.",
   "type": "module",
   "license": "MIT",
   "author": "Wei <minivv@users.noreply.github.com> (upstream dsh-activity-bell)",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/d0ublecl1ck/dsh-session-ledger.git"
+    "url": "git+https://github.com/d0ublecl1ck/dsh-unread-helper.git"
   },
-  "homepage": "https://github.com/d0ublecl1ck/dsh-session-ledger",
+  "homepage": "https://github.com/d0ublecl1ck/dsh-unread-helper",
   "bugs": {
-    "url": "https://github.com/d0ublecl1ck/dsh-session-ledger/issues"
+    "url": "https://github.com/d0ublecl1ck/dsh-unread-helper/issues"
   },
   "publishConfig": {
     "access": "public"
@@ -53,7 +53,7 @@
     "ledger",
     "restart",
     "recovery",
-    "session-ledger"
+    "unread-helper"
   ],
   "dsh": {
     "bundle": {

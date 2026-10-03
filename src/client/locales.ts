@@ -1,8 +1,8 @@
 /**
- * `session-ledger` dictionaries. Simplified Chinese is the source of truth for
+ * `unread-helper` dictionaries. Simplified Chinese is the source of truth for
  * the key set; English mirrors it one-to-one.
  *
- * @module dsh-session-ledger/client/locales
+ * @module dsh-unread-helper/client/locales
  */
 
 /** Simplified Chinese dictionary. */

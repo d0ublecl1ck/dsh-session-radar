@@ -35,7 +35,7 @@ function finishedSession(id) {
 }
 
 async function harness({ agents } = {}) {
-  const dir = await mkdtemp(join(tmpdir(), 'session-ledger-host-'))
+  const dir = await mkdtemp(join(tmpdir(), 'unread-helper-host-'))
   const listeners = new Map()
   const routes = new Map()
   const warnings = []
@@ -65,11 +65,11 @@ async function harness({ agents } = {}) {
     for (const listener of listeners.get(event) ?? []) listener(...args)
   }
   const post = async (endpoint, body) => {
-    const route = routes.get('/session-ledger')
+    const route = routes.get('/unread-helper')
     assert.ok(route, 'the host half must register its route')
     const req = new EventEmitter()
     req.method = 'POST'
-    req.url = '/session-ledger/' + endpoint
+    req.url = '/unread-helper/' + endpoint
     const res = {
       statusCode: 0,
       payload: '',
@@ -88,36 +88,39 @@ async function harness({ agents } = {}) {
   return { dir, listeners, warnings, emit, post }
 }
 
-test('a restored session whose tail was crash-repaired is reported as interrupted', async () => {
+test('a restored session whose tail was crash-repaired stays unread', async () => {
   const h = await harness()
   h.emit('session/created', crashTailSession('s1'))
   const body = await h.post('list')
   assert.equal(body.ok, true)
-  assert.deepEqual(body.value.interrupted, [{ sessionId: 's1', at: T(5) }])
+  assert.equal('interrupted' in body.value, false, 'the chip was removed; the snapshot carries no interrupted list')
   assert.deepEqual(body.value.unread, [{ sessionId: 's1', at: T(5), kind: 'interrupted' }])
 })
 
 test('sessions restored before the plugin mounted are scanned once', async () => {
   const h = await harness({ agents: { list: () => [{ session: crashTailSession('s0', T(3)) }] } })
   const body = await h.post('list')
-  assert.deepEqual(body.value.interrupted, [{ sessionId: 's0', at: T(3) }])
+  assert.deepEqual(body.value.unread, [{ sessionId: 's0', at: T(3), kind: 'interrupted' }])
 })
 
 test('a restored Session that finished normally is not a reminder', async () => {
   const h = await harness()
   h.emit('session/created', finishedSession('s1'))
   const body = await h.post('list')
-  assert.deepEqual(body.value.interrupted, [])
   assert.deepEqual(body.value.unread, [], 'restoring a finished Session must not re-arm unread')
 })
 
-test('a live turn end after the scan clears the interrupted marker', async () => {
+test('a live turn end after the scan resolves the restored orphan', async () => {
   const h = await harness()
   h.emit('session/created', crashTailSession('s1'))
-  assert.equal((await h.post('list')).value.interrupted.length, 1)
+  assert.equal((await h.post('list')).value.unread.length, 1)
   h.emit('session/event', { id: 's1' }, { type: 'turn/end', time: T(9), data: { turn: 2, reason: { kind: 'completed' } } })
   const body = await h.post('list')
-  assert.deepEqual(body.value.interrupted, [], 'the resumed turn resolves the orphan')
+  assert.deepEqual(
+    body.value.unread,
+    [{ sessionId: 's1', at: T(9), kind: 'completed' }],
+    'the resumed turn supersedes the orphan',
+  )
 })
 
 test('malformed sessions and event snapshots never throw', async () => {
@@ -127,5 +130,5 @@ test('malformed sessions and event snapshots never throw', async () => {
   h.emit('session/created', { id: 's4', snapshotEvents: () => [{ type: 'turn/end', data: 7 }] })
   h.emit('session/created', null)
   const body = await h.post('list')
-  assert.deepEqual(body.value.interrupted, [])
+  assert.deepEqual(body.value.unread, [])
 })

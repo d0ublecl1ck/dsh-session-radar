@@ -1,8 +1,8 @@
-# dsh-session-ledger bundle patch: one host row that carries the plugin and,
+# dsh-unread-helper bundle patch: one host row that carries the plugin and,
 # through `dsh.client`, its browser roster entry. Apply this bundle after
 # `dsh-base` + `dsh-web-app`, which bring the sidebar shell (ui-sidebar), the
 # session browser (ui-workspace), and the session status source (ui-session)
 # the browser half depends on.
 - insert:
-    - id: session-ledger
-      name: 'dsh-session-ledger'
+    - id: unread-helper
+      name: 'dsh-unread-helper'

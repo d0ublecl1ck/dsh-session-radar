@@ -11,7 +11,7 @@
  * indistinguishable from "nothing to show", which is exactly the bug this file
  * was written to avoid.
  *
- * @module dsh-session-ledger/client/ledger-source
+ * @module dsh-unread-helper/client/ledger-source
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
@@ -24,17 +24,10 @@ export interface LedgerUnreadRow {
   readonly kind: string | null
 }
 
-/** One Session whose turn a restart cut off. */
-export interface LedgerInterruptedRow {
-  readonly sessionId: string
-  readonly at: number
-}
-
-/** Everything the chip renders. */
+/** Everything the bell renders. */
 export interface LedgerSnapshot {
   readonly now: number
   readonly unread: readonly LedgerUnreadRow[]
-  readonly interrupted: readonly LedgerInterruptedRow[]
   /** Last bridge failure, or null. Rendered so a broken bridge is visible. */
   readonly error: string | null
 }
@@ -46,7 +39,7 @@ export interface LedgerSource {
   read(sessionId: SessionId): void
 }
 
-const ROUTE = '/session-ledger'
+const ROUTE = '/unread-helper'
 const POLL_MS = 5000
 /** The automatic restore that follows a restart is not an acknowledgement. */
 const BOOT_SETTLE_MS = 3000
@@ -54,7 +47,6 @@ const BOOT_SETTLE_MS = 3000
 const EMPTY: LedgerSnapshot = {
   now: 0,
   unread: [],
-  interrupted: [],
   error: null,
 }
 
@@ -103,7 +95,7 @@ export function createLedgerSource(
     })
     const payload = (await response.json()) as { ok?: boolean; value?: LedgerSnapshot }
     if (payload?.ok !== true || payload.value === undefined) {
-      throw new Error('session-ledger: host refused ' + endpoint + ' (HTTP ' + String(response.status) + ')')
+      throw new Error('unread-helper: host refused ' + endpoint + ' (HTTP ' + String(response.status) + ')')
     }
     return { ...payload.value, error: null }
   }
@@ -160,7 +152,7 @@ export function createLedgerSource(
     clearTimeout(settleTimer)
     unsubscribe()
     listeners.clear()
-  }, 'session-ledger: bridge teardown')
+  }, 'unread-helper: bridge teardown')
 
   return source
 }

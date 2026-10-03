@@ -11,7 +11,7 @@
  * indistinguishable from "nothing to show", which is exactly the bug this file
  * was written to avoid.
  *
- * @module dsh-session-ledger/client/ledger-source
+ * @module dsh-unread-helper/client/ledger-source
  */
 import type { Context } from '@deepseek-ai/cordis';
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client';
@@ -22,16 +22,10 @@ export interface LedgerUnreadRow {
     readonly at: number;
     readonly kind: string | null;
 }
-/** One Session whose turn a restart cut off. */
-export interface LedgerInterruptedRow {
-    readonly sessionId: string;
-    readonly at: number;
-}
-/** Everything the chip renders. */
+/** Everything the bell renders. */
 export interface LedgerSnapshot {
     readonly now: number;
     readonly unread: readonly LedgerUnreadRow[];
-    readonly interrupted: readonly LedgerInterruptedRow[];
     /** Last bridge failure, or null. Rendered so a broken bridge is visible. */
     readonly error: string | null;
 }

@@ -9,7 +9,7 @@
  * the bell publishes while it is mounted, the command resolves against the
  * current publication, and a resolved action captures the handler it saw.
  *
- * @module dsh-session-ledger/client/jump-command
+ * @module dsh-unread-helper/client/jump-command
  */
 import type { ShortcutCommand, ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client';
 /** The live jump the bell offers while it is mounted. */

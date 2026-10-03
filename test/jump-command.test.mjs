@@ -41,8 +41,8 @@ test('a stale disposer never clears a newer handler', () => {
 
 test('the command keys its stored override on a stable id and name', () => {
   const command = unreadJumpCommand(createUnreadJumpSeat(), () => '定位下一个未读', '没有未读会话')
-  assert.equal(command.id, 'session-ledger.jumpUnread')
-  assert.equal(UNREAD_JUMP_COMMAND, 'session-ledger.jumpUnread')
+  assert.equal(command.id, 'unread-helper.jumpUnread')
+  assert.equal(UNREAD_JUMP_COMMAND, 'unread-helper.jumpUnread')
   assert.equal(command.label(), '定位下一个未读')
   assert.deepEqual(command.aliases, ['jump to next unread', 'next unread', 'unread'])
   assert.deepEqual(command.regions, ['page', 'editable'])

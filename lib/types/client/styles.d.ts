@@ -9,7 +9,7 @@
  * pair, and the panel paints the sidebar fill so the list underneath cannot
  * show through.
  *
- * @module dsh-session-ledger/client/styles
+ * @module dsh-unread-helper/client/styles
  */
 /**
  * Inject the stylesheet once per document.

@@ -1,5 +1,5 @@
 /**
- * dsh-session-ledger — host behavior.
+ * dsh-unread-helper — host behavior.
  *
  * Owns the one thing the browser half cannot own: memory that survives a
  * restart. It records durable turn boundaries and pending interactions, keeps
@@ -10,7 +10,7 @@
  * validates descriptors against generated metadata and refuses them. A
  * webServer route plus the connection's trust fence needs no such metadata.
  *
- * @module dsh-session-ledger/host
+ * @module dsh-unread-helper/host
  */
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
@@ -18,27 +18,25 @@ import { dirname, join } from 'node:path'
 
 import {
   emptyLedger,
-  listInterrupted,
   listUnread,
   markRead,
   normalizeLedger,
   recordAttention,
   recordTurnEnd,
   restartInterruptedTail,
-  type InterruptedRow,
   type LedgerState,
   type TailEventLike,
   type UnreadRow,
 } from './ledger.js'
 
-/** Stable cordis plugin name (the bundle row's id is `session-ledger`). */
-export const name = 'session-ledger'
+/** Stable cordis plugin name (the bundle row's id is `unread-helper`). */
+export const name = 'unread-helper'
 
 /** The authenticated route the browser half posts to. */
-const ROUTE_PATH = '/session-ledger'
+const ROUTE_PATH = '/unread-helper'
 
 /** File name under DSH_HOME. */
-const STATE_FILE = 'session-ledger.json'
+const STATE_FILE = 'unread-helper.json'
 
 /** Coalesce bursts of events into one write. */
 const PERSIST_DEBOUNCE_MS = 250
@@ -56,7 +54,6 @@ interface LedgerContext {
 interface Snapshot {
   readonly now: number
   readonly unread: readonly UnreadRow[]
-  readonly interrupted: readonly InterruptedRow[]
 }
 
 /**
@@ -93,7 +90,7 @@ export function mount(rawCtx: any): void {
         await rename(temporary, statePath)
       })
       .catch((error: unknown) => {
-        warn('session-ledger: could not persist ' + statePath + ': ' + String(error))
+        warn('unread-helper: could not persist ' + statePath + ': ' + String(error))
       })
     return persistChain
   }
@@ -114,7 +111,7 @@ export function mount(rawCtx: any): void {
       } catch (error: unknown) {
         const code = (error as { code?: string } | null)?.code
         if (code !== 'ENOENT') {
-          warn('session-ledger: ignoring unreadable ' + statePath + ': ' + String(error))
+          warn('unread-helper: ignoring unreadable ' + statePath + ': ' + String(error))
         }
         ledger = emptyLedger()
       }
@@ -153,7 +150,7 @@ export function mount(rawCtx: any): void {
       }
       if (Array.isArray(candidate?.events)) return candidate.events as readonly TailEventLike[]
     } catch (error: unknown) {
-      warn('session-ledger: could not read a stored Session history: ' + String(error))
+      warn('unread-helper: could not read a stored Session history: ' + String(error))
     }
     return null
   }
@@ -186,7 +183,7 @@ export function mount(rawCtx: any): void {
         recordRestoredTail(agent?.session)
       }
     } catch (error: unknown) {
-      warn('session-ledger: could not scan restored Sessions: ' + String(error))
+      warn('unread-helper: could not scan restored Sessions: ' + String(error))
     }
   }
 
@@ -197,7 +194,7 @@ export function mount(rawCtx: any): void {
     try {
       whenLoaded(() => recordRestoredTail(session))
     } catch (error: unknown) {
-      warn('session-ledger: could not scan a restored Session: ' + String(error))
+      warn('unread-helper: could not scan a restored Session: ' + String(error))
     }
   })
 
@@ -257,7 +254,6 @@ export function mount(rawCtx: any): void {
     return {
       now: Date.now(),
       unread: listUnread(ledger),
-      interrupted: listInterrupted(ledger),
     }
   }
 
@@ -324,7 +320,7 @@ export function mount(rawCtx: any): void {
       const outcome = await dispatch(endpointOf(req.url), await readBody(req))
       sendJson(res, outcome.status, outcome.value)
     },
-  }), 'session-ledger: POST ' + ROUTE_PATH + '/<endpoint>')
+  }), 'unread-helper: POST ' + ROUTE_PATH + '/<endpoint>')
 
   void load().then(scanRestoredSessions)
 

@@ -8,7 +8,7 @@
  * objects. Filtering mirrors the sidebar browser's own visibility rule so the
  * bell never counts a row the browsing region would hide.
  *
- * @module dsh-session-ledger/activity-model
+ * @module dsh-unread-helper/activity-model
  */
 /** Session facts the projection reads (a structural subset of the client summary). */
 export interface ActivitySession<Id extends string = string> {

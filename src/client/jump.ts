@@ -8,7 +8,7 @@
  * the ids the sidebar reports may change for reasons of their own, but neither
  * moves the operator off the position they reached by pressing.
  *
- * @module dsh-session-ledger/client/jump
+ * @module dsh-unread-helper/client/jump
  */
 
 /** Structural element check; the page's HTMLElement is not a global the module can assume. */

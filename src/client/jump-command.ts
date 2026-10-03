@@ -9,7 +9,7 @@
  * the bell publishes while it is mounted, the command resolves against the
  * current publication, and a resolved action captures the handler it saw.
  *
- * @module dsh-session-ledger/client/jump-command
+ * @module dsh-unread-helper/client/jump-command
  */
 import type { ShortcutCommand, ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
 
@@ -51,7 +51,7 @@ export function createUnreadJumpSeat(): UnreadJumpSeat {
 }
 
 /** Command id. It keys the stored override, so it has to stay stable. */
-export const UNREAD_JUMP_COMMAND = 'session-ledger.jumpUnread' as ShortcutCommandId
+export const UNREAD_JUMP_COMMAND = 'unread-helper.jumpUnread' as ShortcutCommandId
 
 /**
  * Build the shortcut command over a seat.
