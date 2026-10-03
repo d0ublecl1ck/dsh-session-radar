@@ -9,7 +9,7 @@ fork 自 `minivv/dsh-activity-bell`（MIT）。上游主交互是「换掉整个
 - 开发：`npm ci`，`npm run verify`（typecheck + build + node 测试）。
 - 装进实例：`dsh plugin --profile web add <本目录绝对路径>`，然后刷新页面。
 - `lib/` 是**被跟踪的构建产物**：改 `src/` 后必须 `npm run build` 并一起提交，否则安装方拿到旧 bundle。
-- **改了 host 半边必须 `remove` + `add`**：宿主按 URL 缓存模块，只 `add` 不会重新导入；症状是"改了没生效"。
+- **改了 host 半边必须 `remove` + `add`**：宿主按 URL 缓存模块，只 `add` 不会重新导入；症状是"改了没生效"。**IF** 改包名或目录后宿主行第一次激活失败 -> **MUST** 重启 DSH Desktop；运行中的实例会把那次模块解析失败缓存住，之后即使文件系统已正确，`setBundleEnabled` 重挂也一直报 `Cannot find package …index.js`。
 
 ## 技术栈
 
