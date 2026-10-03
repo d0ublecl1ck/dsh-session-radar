@@ -17,6 +17,32 @@ function isElement(value: unknown): value is HTMLElement {
     && (value as { nodeType?: unknown }).nodeType === 1
 }
 
+/** Minimal Session-list shape the current-Session lookup reads. */
+interface MainViewList<Id extends string> {
+  readonly ids: readonly Id[]
+  readonly byId: Readonly<Record<string, {
+    readonly retainedBy?: { readonly mainView?: number } | undefined
+  } | undefined>>
+}
+
+/**
+ * Find the Session the conversation column currently shows.
+ *
+ * The selected Session is the one fact the jump cannot derive from the unread
+ * or pending sets: it is the origin a new walk remembers, and the bridge to the
+ * host ledger watches the same flag to acknowledge a switch. A row without a
+ * positive `mainView` count is not open.
+ *
+ * @param list - Session list snapshot.
+ * @returns the open Session id, or null when no conversation is selected.
+ */
+export function currentSessionId<Id extends string>(list: MainViewList<Id>): Id | null {
+  for (const id of list.ids) {
+    if (((list.byId[id]?.retainedBy?.mainView) ?? 0) > 0) return id
+  }
+  return null
+}
+
 /**
  * Pick the Session the next bell press opens.
  * @param order - unread Session ids in jump order (the order the bell lists them).

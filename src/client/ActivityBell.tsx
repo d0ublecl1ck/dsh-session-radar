@@ -32,17 +32,18 @@ import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controlle
 import type { SessionStatusSnapshot } from '@deepseek-ai/dsh-client-ui-session/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import {
-  buildActivityGroups, countUnread, type ActivityDayBucket, type ActivityRow,
+  buildActivityGroups, countPending, countUnread, type ActivityDayBucket, type ActivityRow,
 } from '../activity-model.js'
 import {
   applyRowInset, ensurePositioned, measureRowInset, mountContainer, type SidebarAnchors,
 } from './anchors.js'
+import { nextAskJump } from './ask-jump.js'
 import { nextPending, sessionFacts, type SessionFacts } from './completions.js'
 import type { LedgerSource } from './ledger-source.js'
 import {
-  expandOwningGroup, findSessionRow, nextUnreadId, owningWorkspaceKey, revealRow,
+  currentSessionId, expandOwningGroup, findSessionRow, nextUnreadId, owningWorkspaceKey, revealRow,
 } from './jump.js'
-import type { UnreadJumpSeat } from './jump-command.js'
+import type { JumpSeat } from './jump-command.js'
 import { readManualUnread, watchManualUnread } from './manual-unread.js'
 import { BellIcon } from './icons.js'
 import { useTitleMarquee } from './marquee.js'
@@ -72,8 +73,10 @@ export interface ActivityBellInjected {
   readonly workspaces: SnapshotSource<WorkspaceSnapshot>
   /** Cross-restart reminder memory owned by the host half. */
   readonly ledger: LedgerSource
-  /** Seat the plugin-scope shortcut command reads to run this bell's jump. */
-  readonly unreadJump: UnreadJumpSeat
+  /** Seat the plugin-scope unread command reads to run this bell's walk. */
+  readonly unreadJump: JumpSeat
+  /** Seat the plugin-scope pending-ask command reads to run this bell's walk. */
+  readonly askJump: JumpSeat
 }
 
 /** Composed props: shell share + locale seat + injected business face. */
@@ -303,7 +306,7 @@ function useHosts(anchors: SidebarAnchors | undefined, wide: boolean, active: bo
  */
 export function ActivityBell({
   wide, t, openSession, pinSession, unpinSession, archiveSession, sessions, statuses, workspaces, ledger,
-  unreadJump,
+  unreadJump, askJump,
 }: ActivityBellProps): ReactElement | null {
   const anchors = useSidebarAnchors()
   const list = useSnapshot(sessions)
@@ -386,9 +389,13 @@ export function ActivityBell({
       viewingTail: tail,
       manualUnread,
     }
-    return { groups: buildActivityGroups<SessionId>(inputs, now), unread: countUnread<SessionId>(inputs) }
+    return {
+      groups: buildActivityGroups<SessionId>(inputs, now),
+      unread: countUnread<SessionId>(inputs),
+      pendingCount: countPending<SessionId>(inputs),
+    }
   }, [list, statusMap, workspaceSnapshot, pending, ledgerUnread, tail, manualUnread, now])
-  const { groups, unread } = view
+  const { groups, unread, pendingCount } = view
 
   // The jump order the badge counts. It is the order the activity list already
   // sorts - newest first - so the bell walks the Sessions the way the operator
@@ -397,15 +404,23 @@ export function ActivityBell({
     () => groups.flatMap((group) => group.rows.filter((row) => row.unread).map((row) => row.id)),
     [groups],
   )
+  // The pending asks, in the order they started waiting. The activity list is
+  // newest first, so reversing it makes the oldest ask lead: the queue the O
+  // shortcut walks (see ./ask-jump).
+  const askOrder = useMemo<readonly SessionId[]>(
+    () => groups
+      .flatMap((group) => group.rows.filter((row) => row.pending !== undefined).map((row) => row.id))
+      .reverse(),
+    [groups],
+  )
   const cursor = useRef<SessionId | null>(null)
+  // The stops the ask walk left behind, oldest first; the last one is where a
+  // press returns once no ask is left.
+  const askTrail = useRef<readonly SessionId[]>([])
 
-  // One press advances to the next unread Session: its sidebar row is scrolled
-  // into view and the conversation column opens it. The cursor is what keeps
-  // the walk sequential - the unread set shrinks as each opened Session clears.
-  const jumpNextUnread = useCallback((): void => {
-    const target = nextUnreadId(unreadOrder, cursor.current)
-    if (target === null) return
-    cursor.current = target
+  // Bring one Session's sidebar row into view, expanding its Workspace group
+  // first when the group is collapsed and renders no member rows.
+  const revealSession = useCallback((target: SessionId): void => {
     const listArea = anchors?.listArea ?? null
     const row = findSessionRow(listArea, target)
     if (row !== undefined) revealRow(row)
@@ -420,17 +435,44 @@ export function ActivityBell({
         })
       }
     }
+  }, [anchors, workspaceSnapshot])
+
+  // One press advances to the next unread Session: its sidebar row is scrolled
+  // into view and the conversation column opens it. The cursor is what keeps
+  // the walk sequential - the unread set shrinks as each opened Session clears.
+  const jumpNextUnread = useCallback((): void => {
+    const target = nextUnreadId(unreadOrder, cursor.current)
+    if (target === null) return
+    cursor.current = target
+    revealSession(target)
     acknowledge(target)
     openSession(target)
-  }, [acknowledge, anchors, openSession, unreadOrder, workspaceSnapshot])
+  }, [acknowledge, openSession, revealSession, unreadOrder])
 
-  // The seat is the plugin-scope command's only way to reach this component's
+  // One press walks the pending asks; once none is left it retraces the trail
+  // of Sessions the walk came through. Unlike the unread walk it acknowledges
+  // nothing: only the operator's answer clears an ask.
+  const jumpNextAsk = useCallback((): void => {
+    const step = nextAskJump(askOrder, currentSessionId(list), askTrail.current)
+    askTrail.current = step.stack
+    if (step.target === null) return
+    revealSession(step.target)
+    openSession(step.target)
+  }, [askOrder, list, openSession, revealSession])
+
+  // Each seat is its plugin-scope command's only way to reach this component's
   // jump: publish while mounted, clear on unmount, and re-publish whenever the
-  // unread order or the closure's anchors change.
+  // order or the closure's anchors change. The ask seat's availability reads
+  // the trail ref, so the walk home keeps working after the last ask clears.
   useEffect(() => unreadJump.publish({
     available: () => unreadOrder.length > 0,
     run: jumpNextUnread,
   }), [unreadJump, jumpNextUnread, unreadOrder])
+
+  useEffect(() => askJump.publish({
+    available: () => askOrder.length > 0 || askTrail.current.length > 0,
+    run: jumpNextAsk,
+  }), [askJump, jumpNextAsk, askOrder])
 
   // Collapsing the sidebar unmounts the region the panel covers: leave the
   // activity view rather than keeping a flag nobody can see or clear.
@@ -507,11 +549,16 @@ export function ActivityBell({
 
   if (hosts.bell === null) return null
 
-  const label = active
+  const baseLabel = active
     ? t('bell.hide')
     : unread > 0
       ? t('bell.showUnread', { count: unread })
       : t('bell.noUnread')
+  // The click is still the unread walk, but the bell also carries the ask
+  // count, so its accessible name has to say both.
+  const label = pendingCount > 0
+    ? baseLabel + ' \u00b7 ' + t('bell.pending', { count: pendingCount })
+    : baseLabel
   const bell = (
     <Tooltip
       label={active ? label : label + ' \u00b7 ' + t('bell.openActivity')}
@@ -533,6 +580,11 @@ export function ActivityBell({
         <BellIcon size={16} />
         {unread > 0 && (
           <span className="ab-badge" aria-hidden="true">{unread > 99 ? '99+' : String(unread)}</span>
+        )}
+        {pendingCount > 0 && (
+          <span className="ab-badge ab-badge-ask" aria-hidden="true">
+            {pendingCount > 99 ? '99+' : String(pendingCount)}
+          </span>
         )}
       </button>
     </Tooltip>

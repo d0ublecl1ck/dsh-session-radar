@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  ACTIVITY_ROW_LIMIT, buildActivityGroups, countUnread, dayBucket, pathBasename,
+  ACTIVITY_ROW_LIMIT, buildActivityGroups, countPending, countUnread, dayBucket, pathBasename,
 } from '../.test-build/activity-model.js'
 
 // 2026-09-23 10:00 local — a Wednesday, so the weekday buckets are unambiguous.
@@ -239,4 +239,52 @@ test('an explicit mark survives reading the tail, and a foreign tail id suppress
     }, NOW).flatMap(group => group.rows.map(row => [row.id, row])),
   )
   assert.equal(foreign.foreign.unread, true, 'only the open conversation can be read by tail')
+})
+
+test('countPending counts every visible session awaiting the operator', () => {
+  const rows = [session('asking'), session('approving'), session('quiet')]
+  const statuses = new Map([
+    ['asking', { running: false, completionUnread: false, pendingInteraction: { kind: 'question' } }],
+    ['approving', { running: false, completionUnread: false, pendingInteraction: { kind: 'approval' } }],
+    ['quiet', { running: false, completionUnread: true }],
+  ])
+  assert.equal(countPending(inputs(rows, { statuses })), 2)
+})
+
+test('countPending keeps the plan-review kind and ignores unknown kinds', () => {
+  const rows = [session('planning'), session('mystery')]
+  const statuses = new Map([
+    ['planning', { running: false, completionUnread: false, pendingInteraction: { kind: 'plan-review' } }],
+    ['mystery', { running: false, completionUnread: false, pendingInteraction: { kind: 'other' } }],
+  ])
+  assert.equal(countPending(inputs(rows, { statuses })), 1)
+})
+
+test('countPending ignores rows the list cannot show and sessions without a status', () => {
+  const rows = [
+    session('asking'),
+    session('blank', { blank: true }),
+    session('sub', { origin: 'subagent' }),
+    session('archived'),
+    session('silent'),
+  ]
+  const statuses = new Map(rows.map(row => [row.id, {
+    running: false, completionUnread: false, pendingInteraction: { kind: 'question' },
+  }]))
+  assert.equal(countPending(inputs(rows, {
+    statuses,
+    workspaces: { items: [], archivedSessionIds: ['archived'] },
+  })), 2, 'only the asking and the silent session remain visible')
+  assert.equal(countPending(inputs([session('silent')])), 0, 'no status means no pending ask')
+})
+
+test('an ask is counted independently from the unread reminder', () => {
+  const rows = [session('both'), session('ask-only')]
+  const statuses = new Map([
+    ['both', { running: false, completionUnread: true, pendingInteraction: { kind: 'question' } }],
+    ['ask-only', { running: false, completionUnread: false, pendingInteraction: { kind: 'question' } }],
+  ])
+  const source = inputs(rows, { statuses })
+  assert.equal(countPending(source), 2)
+  assert.equal(countUnread(source), 1, 'the ask does not become an unread completion')
 })

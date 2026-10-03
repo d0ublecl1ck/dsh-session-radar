@@ -10,6 +10,9 @@ export declare const zh: {
     'bell.hide': string;
     'bell.showUnread': string;
     'bell.noUnread': string;
+    'bell.jumpAsk': string;
+    'bell.noAsk': string;
+    'bell.pending': string;
     'bell.openActivity': string;
     'panel.aria': string;
     'panel.empty': string;

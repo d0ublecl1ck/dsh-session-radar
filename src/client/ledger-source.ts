@@ -16,6 +16,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import { currentSessionId } from './jump.js'
 
 /** One unread Session as the host reports it. */
 export interface LedgerUnreadRow {
@@ -48,16 +49,6 @@ const EMPTY: LedgerSnapshot = {
   now: 0,
   unread: [],
   error: null,
-}
-
-/** Id of the Session the conversation column currently shows, if any. */
-function mainViewId(sessions: { getSnapshot(): SessionListState }): SessionId | null {
-  const state = sessions.getSnapshot()
-  for (const id of state.ids) {
-    const row = state.byId[id] as { retainedBy?: { mainView?: number } } | undefined
-    if ((row?.retainedBy?.mainView ?? 0) > 0) return id
-  }
-  return null
 }
 
 /**
@@ -112,7 +103,7 @@ export function createLedgerSource(
   }
 
   const onSessionsChanged = (): void => {
-    const current = mainViewId(sessions)
+    const current = currentSessionId(sessions.getSnapshot())
     if (current === null) return
     if (!settled) {
       bootMain ??= current

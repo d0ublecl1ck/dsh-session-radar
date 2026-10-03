@@ -254,8 +254,8 @@ test('the client half registers one sidebar foot action and injects the framewor
   assert.equal(captured().options.locale, 'unread-helper')
   const injected = captured().options.inject()
   assert.deepEqual(Object.keys(injected).sort(), [
-    'archiveSession', 'ledger', 'openSession', 'pinSession', 'sessions', 'statuses', 'unpinSession',
-    'unreadJump', 'workspaces',
+    'archiveSession', 'askJump', 'ledger', 'openSession', 'pinSession', 'sessions', 'statuses',
+    'unpinSession', 'unreadJump', 'workspaces',
   ])
   assert.equal(document.querySelector('style[data-plugin="dsh-unread-helper"]') !== null, true)
   for (const dispose of [...disposers].reverse()) dispose()
@@ -773,4 +773,151 @@ test('a conversation at its tail tells the host ledger the Session is read', asy
   } finally {
     globalThis.fetch = originalFetch
   }
+})
+
+test('a session awaiting the operator raises a warning badge apart from the unread badge', async () => {
+  document.body.innerHTML = ''
+  buildSidebar(document)
+  const sessions = [
+    { id: 'a', displayTitle: 'A', blank: false, running: false, updatedAt: localAt(0, 12), retainedBy: { mainView: 1 } },
+    { id: 'b', displayTitle: 'B', blank: false, running: false, updatedAt: localAt(0, 11) },
+    { id: 'c', displayTitle: 'C', blank: false, running: false, updatedAt: localAt(0, 10) },
+  ]
+  const statuses = new Map([
+    ['a', { running: false, completionUnread: true }],
+    ['b', { running: false, completionUnread: false, pendingInteraction: { kind: 'question' } }],
+    ['c', { running: false, completionUnread: false, pendingInteraction: { kind: 'approval' } }],
+  ])
+  const handle = fakeContext({
+    sessions: source({
+      ids: sessions.map(row => row.id),
+      byId: Object.fromEntries(sessions.map(row => [row.id, row])),
+      phase: 'ready',
+    }),
+    statuses: source(statuses),
+    workspaces: source({ items: [], archivedSessionIds: [] }),
+  })
+  const { ctx, disposers } = handle
+  const captured = () => handle.captured
+  apply(ctx)
+  const injected = captured().options.inject()
+  const view = await mount(React.createElement(captured().component, {
+    wide: true, t: translate, ...injected,
+  }))
+
+  // The red badge keeps counting unread completions; the asks get their own
+  // warning-coloured badge so the two reminders never blur into one number.
+  assert.equal(document.querySelector('.ab-badge').textContent, '1', 'the unread badge is untouched')
+  const askBadge = document.querySelector('.ab-badge-ask')
+  assert.ok(askBadge, 'the pending asks carry their own badge')
+  assert.equal(askBadge.textContent, '2')
+  assert.equal(
+    document.querySelector('.ab-bell').getAttribute('aria-label'),
+    '定位下一个未读，1 个会话已完成未查看 · 等待你处理 2 个',
+  )
+
+  await view.unmount()
+  for (const dispose of [...disposers].reverse()) dispose()
+})
+
+test('the O shortcut walks the pending asks and retraces the path back', async () => {
+  document.body.innerHTML = ''
+  buildSidebar(document)
+  let value = {
+    ids: ['a', 'b', 'c'],
+    byId: {
+      a: { id: 'a', displayTitle: 'A', blank: false, running: false, updatedAt: localAt(0, 10), retainedBy: { mainView: 1 } },
+      b: { id: 'b', displayTitle: 'B', blank: false, running: false, updatedAt: localAt(0, 11) },
+      c: { id: 'c', displayTitle: 'C', blank: false, running: false, updatedAt: localAt(0, 12) },
+    },
+    phase: 'ready',
+  }
+  const sessionsState = mutableSource(value)
+  const statusesState = mutableSource(new Map([
+    ['b', { running: false, completionUnread: false, pendingInteraction: { kind: 'question' } }],
+    ['c', { running: false, completionUnread: false, pendingInteraction: { kind: 'question' } }],
+  ]))
+  const handle = fakeContext({
+    sessions: sessionsState.source,
+    statuses: statusesState.source,
+    workspaces: source({ items: [], archivedSessionIds: [] }),
+  })
+  const { ctx, opened, disposers } = handle
+  // The real openSession moves mainView; the double mirrors that so the walk
+  // can tell where it currently stands.
+  ctx.uiWorkspace.openSession = (sessionId) => {
+    opened.push(['open', sessionId])
+    value = {
+      ...value,
+      byId: Object.fromEntries(Object.entries(value.byId).map(([id, row]) => [
+        id, { ...row, retainedBy: { mainView: id === sessionId ? 1 : 0 } },
+      ])),
+    }
+    sessionsState.set(value)
+  }
+  const captured = () => handle.captured
+  apply(ctx)
+  const injected = captured().options.inject()
+  const view = await mount(React.createElement(captured().component, {
+    wide: true, t: translate, ...injected,
+  }))
+
+  const command = handle.shortcut('unread-helper.jumpAsk')
+  assert.ok(command, 'apply registers the ask-jump command')
+  const press = async () => {
+    const resolution = command.resolve({ region: 'page', modal: null, target: null })
+    if (resolution.status === 'handled') await React.act(async () => { resolution.run() })
+    return resolution
+  }
+
+  // A is where the operator was; B and C both wait. B asked first, so it leads.
+  await press()
+  assert.deepEqual(opened, [['open', 'b']], 'the first press lands on the earliest pending ask')
+  assert.equal(
+    document.querySelector('.ab-badge-ask').textContent,
+    '2',
+    'opening an ask does not answer it: the badge waits for the real reply',
+  )
+
+  // The operator answers B: the framework clears its pending interaction.
+  await React.act(async () => {
+    statusesState.set(new Map([
+      ['c', { running: false, completionUnread: false, pendingInteraction: { kind: 'question' } }],
+    ]))
+  })
+  assert.equal(document.querySelector('.ab-badge-ask').textContent, '1')
+
+  await press()
+  assert.deepEqual(
+    opened,
+    [['open', 'b'], ['open', 'c']],
+    'with another ask open the press follows the queue',
+  )
+
+  // C is answered too; nothing waits any more.
+  await React.act(async () => { statusesState.set(new Map()) })
+  assert.equal(document.querySelector('.ab-badge-ask'), null, 'a cleared ask drops out of the badge')
+
+  await press()
+  assert.deepEqual(
+    opened,
+    [['open', 'b'], ['open', 'c'], ['open', 'b']],
+    'with no ask left it returns to the session it came from',
+  )
+
+  await press()
+  assert.deepEqual(
+    opened,
+    [['open', 'b'], ['open', 'c'], ['open', 'b'], ['open', 'a']],
+    'and then to the one before that',
+  )
+
+  assert.deepEqual(
+    await press(),
+    { status: 'blocked', reason: '没有等待处理的会话' },
+    'an exhausted trail leaves nothing to jump to',
+  )
+
+  await view.unmount()
+  for (const dispose of [...disposers].reverse()) dispose()
 })

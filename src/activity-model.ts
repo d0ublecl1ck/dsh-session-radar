@@ -323,3 +323,27 @@ export function countUnread<Id extends string = string>(inputs: ActivityInputs<I
   }
   return count
 }
+
+/**
+ * Count the Sessions waiting for the operator — a pending approval, plan
+ * review, or question on a row the activity list would show — so the warning
+ * badge and the ask jump can never disagree with the list.
+ *
+ * This is a source of its own rather than part of the unread union: an ask is
+ * live interaction state, and answering it is what clears the marker, not
+ * opening the Session.
+ *
+ * @param inputs - Session, status, and Workspace snapshots.
+ * @returns the number of visible Sessions awaiting input.
+ */
+export function countPending<Id extends string>(inputs: ActivityInputs<Id>): number {
+  const archived = new Set<string>(inputs.workspaces.archivedSessionIds)
+  let count = 0
+  for (const id of inputs.sessions.ids) {
+    const session = inputs.sessions.byId[id]
+    if (session === undefined || !visible(session, archived)) continue
+    if (pendingKind(inputs.statuses.get(id)?.pendingInteraction?.kind) === undefined) continue
+    count += 1
+  }
+  return count
+}

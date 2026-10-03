@@ -78,6 +78,15 @@ const CSS = `
   pointer-events: none;
 }
 
+/* The pending-ask chip: the same seat on the opposite corner, filled with the
+   shared warning colour so a Session waiting for an answer never reads as an
+   unread completion. It sits beside the red unread badge when both apply. */
+.ab-badge-ask {
+  inset-inline-end: auto;
+  inset-inline-start: -3px;
+  background: var(--dsw-alias-state-warn-primary, #f5a623);
+}
+
 /* The panel seat: an opaque cover over the list so the workspace rows never
    bleed through, sized to the seat's own box. */
 .ab-panel-host {

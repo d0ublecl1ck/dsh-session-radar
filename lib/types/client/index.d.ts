@@ -1,6 +1,6 @@
 /**
  * Client half: inject the page styles, register the `unread-helper`
- * dictionaries, register the unread-jump shortcut, and mount the bell.
+ * dictionaries, register the unread and pending-ask shortcuts, and mount the bell.
  *
  * The registration is the component's lifecycle and locale carrier (plus the
  * shell's `wide` flag); the visible surface is portalled into the browsing

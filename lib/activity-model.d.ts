@@ -168,3 +168,16 @@ export declare function buildActivityGroups<Id extends string = string>(inputs: 
  * @returns the unread count.
  */
 export declare function countUnread<Id extends string = string>(inputs: ActivityInputs<Id>): number;
+/**
+ * Count the Sessions waiting for the operator — a pending approval, plan
+ * review, or question on a row the activity list would show — so the warning
+ * badge and the ask jump can never disagree with the list.
+ *
+ * This is a source of its own rather than part of the unread union: an ask is
+ * live interaction state, and answering it is what clears the marker, not
+ * opening the Session.
+ *
+ * @param inputs - Session, status, and Workspace snapshots.
+ * @returns the number of visible Sessions awaiting input.
+ */
+export declare function countPending<Id extends string>(inputs: ActivityInputs<Id>): number;

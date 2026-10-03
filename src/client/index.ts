@@ -1,6 +1,6 @@
 /**
  * Client half: inject the page styles, register the `unread-helper`
- * dictionaries, register the unread-jump shortcut, and mount the bell.
+ * dictionaries, register the unread and pending-ask shortcuts, and mount the bell.
  *
  * The registration is the component's lifecycle and locale carrier (plus the
  * shell's `wide` flag); the visible surface is portalled into the browsing
@@ -22,7 +22,7 @@ import type {} from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import './types.js'
 import { ActivityBell } from './ActivityBell.js'
-import { createUnreadJumpSeat, unreadJumpCommand } from './jump-command.js'
+import { askJumpCommand, createJumpSeat, unreadJumpCommand } from './jump-command.js'
 import { createLedgerSource } from './ledger-source.js'
 import { en, zh } from './locales.js'
 import { injectStyles, removeStyles } from './styles.js'
@@ -58,13 +58,18 @@ export function apply(ctx: Context): void {
   // One ledger, one reader: the bell's badge and jump order. The bell keeps no
   // unread memory of its own.
   const ledger = createLedgerSource(ctx, sessions)
-  // The shortcut is plugin-scope while the jump lives in the mounted bell, so
-  // the bell publishes into this seat and the command resolves against it.
-  const unreadJump = createUnreadJumpSeat()
+  // Each shortcut is plugin-scope while its jump lives in the mounted bell, so
+  // the bell publishes into one seat per walk and the command resolves against
+  // it. The two seats stay separate so neither walk can move the other's target.
+  const unreadJump = createJumpSeat()
+  const askJump = createJumpSeat()
   const t = ctx.locale.bind(NS)
   ctx.effect(() => ctx.shortcuts.register(
     unreadJumpCommand(unreadJump, () => t('bell.show'), t('bell.noUnread')),
   ), 'unread-helper: shortcut command')
+  ctx.effect(() => ctx.shortcuts.register(
+    askJumpCommand(askJump, () => t('bell.jumpAsk'), t('bell.noAsk')),
+  ), 'unread-helper: ask shortcut command')
   ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
     name: 'sidebar.footer.action',
     id: 'unread-helper',
@@ -80,6 +85,7 @@ export function apply(ctx: Context): void {
       workspaces,
       ledger,
       unreadJump,
+      askJump,
     }),
   }, ActivityBell))
 }

@@ -11,7 +11,10 @@ DSH Web 侧边栏**未读铃铛 + 跨重启会话账本**。
 | 操作 | 结果 |
 | --- | --- |
 | 左键点铃铛 | 定位到下一个未读会话：滚动到可见并在对话栏打开；再点继续往后走，末尾绕回第一个 |
-| 快捷键 | 与左键点铃铛同一个跳转，默认 macOS `⌘⇧J`、Windows / Linux `Ctrl+Alt+J`，在 设置 → 通用 → 快捷键 改键 |
+| 红色角标 | 已完成未查看的会话数（见「未读从哪来」） |
+| 黄色角标 | 正在等你处理的会话数：审批、计划审阅、提问都算；与红色角标分开计数，不会互相顶掉 |
+| 快捷键 J | 与左键点铃铛同一个跳转，默认 macOS `⌘⇧J`、Windows / Linux `Ctrl+Alt+J`，在 设置 → 通用 → 快捷键 改键 |
+| 快捷键 O | 定位等待处理的会话：优先到最早开始等待的那个；处理完再按一次——还有别的 ask 就跳过去，没有了就原路返回上一个停留点 |
 | 右键点铃铛 | 打开/关闭「最近活动」列表（按天分组） |
 | 点列表里的行 | 打开该会话并标为已读（与铃铛跳转同一路径） |
 | 在某会话行右键 →「标为未读」 | 该会话计入铃铛角标与跳转顺序，直到被打开；标记由官方侧边栏持有，插件只读 |
@@ -20,15 +23,24 @@ DSH Web 侧边栏**未读铃铛 + 跨重启会话账本**。
 
 ## 快捷键
 
-快捷键是官方命令 `unread-helper.jumpUnread`，通过 `ctx.shortcuts` 注册，所以出现在 设置 → 通用 → 快捷键 里，可以改键，也和其它命令一起做冲突检测。执行的就是铃铛左键的同一个跳转（共享同一个游标）。
+两条官方命令，都通过 `ctx.shortcuts` 注册，所以出现在 设置 → 通用 → 快捷键 里，可以改键，也和其它命令一起做冲突检测。
 
-| 运行端 | 默认 |
-| --- | --- |
-| macOS（Desktop / Web） | `⌘⇧J`（`Mod+Shift+J`） |
-| Windows / Linux | `Ctrl+Alt+J`（`Mod+Alt+J`） |
-| Web Linux | 不绑默认（服务只放行三个固定组合） |
+| 命令 | 作用 | macOS（Desktop / Web） | Windows / Linux | Web Linux |
+| --- | --- | --- | --- | --- |
+| `unread-helper.jumpUnread` | 与铃铛左键同一个跳转（共享同一个游标） | `⌘⇧J`（`Mod+Shift+J`） | `Ctrl+Alt+J`（`Mod+Alt+J`） | 不绑默认 |
+| `unread-helper.jumpAsk` | 定位等待处理的会话，并沿原路返回 | `⌘⇧O`（`Mod+Shift+O`） | `Ctrl+Alt+O`（`Mod+Alt+O`） | 不绑默认 |
 
-macOS 只能用 `Mod+Shift+J`，是两个约束卡在一起的结果：macOS Desktop 的 preload 会设 `data-dsh-desktop-web-shortcuts="true"`，runtime 因此是 `web`，所以（1）单 `⌘+字母` 被 Web 规则判 `unsupported-browser` 直接禁用——官方 `⌘K` 就因此无反应；（2）`⌘⌥U` 虽然注册合法，但 `Option+U` 是 macOS 死键，DOM 分发器把死键当输入法组合丢弃，框架只对 `⌘⌥N` 硬编码豁免。`Mod+Shift+J` 两个坑都躲开。R 系组合被官方 `session.rename`、`page.refresh` 占用；`⌘U` 则属于 Desktop 菜单的「检查更新」。要在 Web 改键，也在 设置 → 通用 → 快捷键 里录一个服务允许的组合；Web 默认值只保证注册合法，浏览器是否真的把按键送到页面仍需实测。
+两条命令的辅助键完全一致，只有字母不同：J 走未读，O 走等待处理。Web Linux 都只放行三个固定组合，所以两条都没有默认键。
+
+### O 的走法：先队列，再回栈
+
+1. 只要还有会话在等你处理，按 O 就落到其中最早开始等待的那个，同时把「你原来在哪」记进回栈。
+2. 处理完一个 ask（回答提问、批准、或处理计划审阅）后它就不再等待；再按 O——还有 ask 就跳到下一个，并把当前这个记进回栈。
+3. 没有 ask 了，再按 O 就弹出回栈、回到上一个停留点；继续按就一路回到最开始的会话，走完为止。
+
+例：`A`（当前）按 O 到 `B` → 处理完 `B` 按 O 到 `C` → 处理完 `C` 按 O 回到 `B` → 再按 O 回到 `A` → 再按没有反应（没有 ask，回栈也空了）。
+
+macOS 只能用 `Mod+Shift+<字母>`，是两个约束卡在一起的结果：macOS Desktop 的 preload 会设 `data-dsh-desktop-web-shortcuts="true"`，runtime 因此是 `web`，所以（1）单 `⌘+字母` 被 Web 规则判 `unsupported-browser` 直接禁用——官方 `⌘K` 就因此无反应；（2）`⌘⌥U` 虽然注册合法，但 `Option+U` 是 macOS 死键，DOM 分发器把死键当输入法组合丢弃，框架只对 `⌘⌥N` 硬编码豁免。`Mod+Shift+J` 两个坑都躲开。R 系组合被官方 `session.rename`、`page.refresh` 占用；`⌘U` 则属于 Desktop 菜单的「检查更新」。要在 Web 改键，也在 设置 → 通用 → 快捷键 里录一个服务允许的组合；Web 默认值只保证注册合法，浏览器是否真的把按键送到页面仍需实测。
 
 ## 未读从哪来（跨重启）
 
@@ -91,7 +103,9 @@ handler 第一件事是 `connection.requestRejection(req)` —— 信任与鉴�
 - 标记只在你让该会话再跑一轮（自己发消息，或别的插件补发）之后由 `turn/end` 清掉；本插件从不发送消息。
 - 浏览器到 host 的桥接失败会发布在账本快照的 `error` 上并保留上一次已知数据（不清空）；chip 删除后目前没有任何界面渲染它。
 - 手动「标为未读」不在任何公开快照里：插件直接读 Workspace 浏览器持久化的私有键 `dsh.workspace.view.v5`。官方改键名时这一路会静默失效，其它未读来源不受影响。
-- 快捷键默认值同时受官方服务、macOS 死键与 Desktop 菜单限制：macOS Desktop 以 `web` runtime 分发，单 `⌘+字母` 被判 `unsupported-browser`（官方 `⌘K` 也失效），`⌘⌥<死键>`（如 `U`）被当输入法组合丢弃，`⌘U` 又归 Desktop 菜单「检查更新」，R 系撞官方 `session.rename` / `page.refresh`，所以 macOS 用 `⌘⇧J`、Windows/Linux 用 `Ctrl+Alt+J`；Linux Web 只放行三个固定组合，没有默认键。
+- 快捷键默认值同时受官方服务、macOS 死键与 Desktop 菜单限制：macOS Desktop 以 `web` runtime 分发，单 `⌘+字母` 被判 `unsupported-browser`（官方 `⌘K` 也失效），`⌘⌥<死键>`（如 `U`）被当输入法组合丢弃，`⌘U` 又归 Desktop 菜单「检查更新」，R 系撞官方 `session.rename` / `page.refresh`，所以两条命令的 macOS 默认都用 `⌘⇧<字母>`（J / O）、Windows/Linux 用 `Ctrl+Alt+<字母>`；Linux Web 只放行三个固定组合，两条都没有默认键。
+- 「等待处理」角标与 O 跳转覆盖审批、计划审阅、提问三类，数据来自实时状态；跳转顺序取活动列表「最新更新在前」的逆序，所以通常是**最早开始等待**的排最前。打开会话不会清掉等待处理，只有真正回答/批准/处理计划审阅才会清。
+- O 的回栈只活在当前页面的内存里：刷新页面后回栈清空（等待处理角标与队列会由实时状态重建）。
 
 ## 安装
 
@@ -107,10 +121,10 @@ dsh plugin --profile web add <本仓库目录绝对路径>
 
 ```sh
 npm ci
-npm run verify    # typecheck + build + 87 个测试
+npm run verify    # typecheck + build + 108 个测试
 ```
 
-`test/ledger.test.mjs` 覆盖账本状态机（未读、已读不回退、两种重启信号、存储器尾部扫描）；`test/host.test.mjs` 用假 ctx 挂载 host 半边，断言恢复扫描、live 清除与畸形输入；`test/jump.test.mjs` 覆盖未读选择与分组展开；`test/jump-command.test.mjs` 覆盖快捷键命令的座位、默认键位与 blocked/handled 解析；`test/manual-unread.test.mjs` 覆盖官方手动未读标记的解析与监听；`test/conversation-tail.test.mjs` 覆盖「对话在底部」的锚点；`test/client-mount.test.mjs` 用真实客户端半边挂载，断言铃铛是唯一的侧边栏入口。
+`test/ledger.test.mjs` 覆盖账本状态机（未读、已读不回退、两种重启信号、存储器尾部扫描）；`test/host.test.mjs` 用假 ctx 挂载 host 半边，断言恢复扫描、live 清除与畸形输入；`test/jump.test.mjs` 覆盖未读选择与分组展开；`test/jump-command.test.mjs` 覆盖快捷键命令的座位、默认键位与 blocked/handled 解析；`test/manual-unread.test.mjs` 覆盖官方手动未读标记的解析与监听；`test/conversation-tail.test.mjs` 覆盖「对话在底部」的锚点；`test/ask-jump.test.mjs` 覆盖等待处理跳转的「队列 + 回栈」状态机；`test/activity-model.test.mjs` 覆盖活动投影与 pending 计数；`test/client-mount.test.mjs` 用真实客户端半边挂载，断言铃铛是唯一的侧边栏入口、黄色角标只数等待处理的会话、以及 O 的整条往返路径。
 
 ## License
 
