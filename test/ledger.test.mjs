@@ -5,7 +5,6 @@ import {
   isRestartInterrupt,
   listInterrupted,
   listUnread,
-  markContinued,
   markRead,
   normalizeLedger,
   recordAttention,
@@ -48,13 +47,14 @@ test('aborted by host disposal is interrupted; aborted by the user is not', () =
   assert.equal(listUnread(byUser).length, 1, 'but the operator still has not read it')
 })
 
-test('an interrupted session stays unread until it is continued', () => {
+test('an interrupted session stays unread until a later turn ends', () => {
   const ledger = emptyLedger()
   recordTurnEnd(ledger, { sessionId: 's1', at: T(1), kind: 'aborted', cause: 'disposed' })
   markRead(ledger, 's1', T(2))
   assert.equal(listUnread(ledger).length, 1, 'opening it does not excuse the missing turn')
-  markContinued(ledger, 's1', T(3))
-  assert.deepEqual(listInterrupted(ledger), [])
+  recordTurnEnd(ledger, { sessionId: 's1', at: T(3), kind: 'completed', cause: null })
+  assert.deepEqual(listInterrupted(ledger), [], 'a later turn clears the interrupt flag')
+  markRead(ledger, 's1', T(4))
   assert.deepEqual(listUnread(ledger), [])
 })
 

@@ -87,7 +87,7 @@ export function apply(ctx: Context): void {
   }, ActivityBell))
 
   // The chip carries only what the bell has no room for: the Sessions a restart
-  // cut off, and the continue rollout over them.
+  // cut off.
   ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
     name: 'sidebar.footer.action',
     id: 'session-ledger-chip',

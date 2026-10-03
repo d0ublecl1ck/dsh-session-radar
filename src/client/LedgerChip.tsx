@@ -2,7 +2,7 @@
  * The persistent-reminder chip.
  *
  * Reads the host ledger through \`LedgerSource\` — the same numbers a page
- * reload cannot lose — and offers the continue rollout. It renders into the
+ * reload cannot lose. It renders into the
  * sidebar foot beside the bell, so the two surfaces stay separate: the bell
  * answers "where is the next unread", the chip answers "what was left unfinished
  * by the last restart".
@@ -32,15 +32,11 @@ const TEXT = {
     title: '重启后待处理',
     unread: '未读',
     interrupted: '被重启中断',
-    continueAll: '全部继续',
-    progress: (done: number, total: number) => `继续中 ${done}/${total}`,
   },
   en: {
     title: 'Left over from a restart',
     unread: 'Unread',
     interrupted: 'Interrupted by restart',
-    continueAll: 'Continue all',
-    progress: (done: number, total: number) => `Continuing ${done}/${total}`,
   },
 } as const
 
@@ -49,8 +45,6 @@ interface ChipCopy {
   readonly title: string
   readonly unread: string
   readonly interrupted: string
-  readonly continueAll: string
-  readonly progress: (done: number, total: number) => string
 }
 
 function copy(): ChipCopy {
@@ -73,7 +67,7 @@ export function LedgerChip({ ledger, openSession }: LedgerChipProps): ReactEleme
   const unread = snapshot.unread
   const interrupted = snapshot.interrupted
   // Only the bell shows an unread count; this chip speaks for interrupted work.
-  const idle = interrupted.length === 0 && !snapshot.rollout.running && snapshot.error === null
+  const idle = interrupted.length === 0 && snapshot.error === null
   if (idle && !open) return null
 
   const interruptedIds = new Set(interrupted.map((row) => row.sessionId))
@@ -96,9 +90,6 @@ export function LedgerChip({ ledger, openSession }: LedgerChipProps): ReactEleme
       >
         {interrupted.length > 0 && <span style={{ color: '#d64545', fontWeight: 600 }}>{'⚠ ' + String(interrupted.length)}</span>}
         {unread.length > 0 && <span style={{ color: '#c98a00', fontWeight: 600 }}>{'• ' + String(unread.length)}</span>}
-        {snapshot.rollout.running && (
-          <span>{text.progress(Math.min(snapshot.rollout.done + 1, snapshot.rollout.total), snapshot.rollout.total)}</span>
-        )}
         {snapshot.error !== null && <span title={snapshot.error} style={{ color: '#d64545', fontWeight: 600 }}>!</span>}
       </button>
 
@@ -113,21 +104,6 @@ export function LedgerChip({ ledger, openSession }: LedgerChipProps): ReactEleme
             color: 'var(--dsw-alias-label-primary)', boxShadow: '0 8px 24px rgba(0,0,0,.25)',
           }}
         >
-          {interrupted.length > 0 && (
-            <button
-              type="button"
-              disabled={snapshot.rollout.running}
-              onClick={() => { void ledger.continueAll() }}
-              style={{
-                width: '100%', marginBottom: 8, padding: '4px 8px', cursor: 'pointer',
-                border: '1px solid #d64545', borderRadius: 6, background: 'transparent',
-                color: '#d64545', font: 'inherit',
-              }}
-            >
-              {text.continueAll + ' (' + String(interrupted.length) + ')'}
-            </button>
-          )}
-
           {rows.length === 0 && <div style={{ opacity: 0.7, padding: '4px 2px' }}>{text.unread + ': 0'}</div>}
 
           {rows.map((row) => (

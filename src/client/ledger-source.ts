@@ -30,22 +30,11 @@ export interface LedgerInterruptedRow {
   readonly at: number
 }
 
-/** Progress of a continue rollout. */
-export interface LedgerRollout {
-  readonly total: number
-  readonly done: number
-  readonly active: string | null
-  readonly running: boolean
-  /** Why the host last rollout refused or failed, or null. */
-  readonly lastError: string | null
-}
-
 /** Everything the chip renders. */
 export interface LedgerSnapshot {
   readonly now: number
   readonly unread: readonly LedgerUnreadRow[]
   readonly interrupted: readonly LedgerInterruptedRow[]
-  readonly rollout: LedgerRollout
   /** Last bridge failure, or null. Rendered so a broken bridge is visible. */
   readonly error: string | null
 }
@@ -55,7 +44,6 @@ export interface LedgerSource {
   getSnapshot(): LedgerSnapshot
   subscribe(listener: () => void): () => void
   read(sessionId: SessionId): void
-  continueAll(sessionIds?: readonly string[]): Promise<void>
 }
 
 const ROUTE = '/session-ledger'
@@ -67,7 +55,6 @@ const EMPTY: LedgerSnapshot = {
   now: 0,
   unread: [],
   interrupted: [],
-  rollout: { total: 0, done: 0, active: null, running: false, lastError: null },
   error: null,
 }
 
@@ -118,9 +105,7 @@ export function createLedgerSource(
     if (payload?.ok !== true || payload.value === undefined) {
       throw new Error('session-ledger: host refused ' + endpoint + ' (HTTP ' + String(response.status) + ')')
     }
-    // A rollout the host refused is the operator problem too: surface it on
-    // the chip instead of leaving a click that silently does nothing.
-    return { ...payload.value, error: payload.value.rollout?.lastError ?? null }
+    return { ...payload.value, error: null }
   }
 
   async function refresh(): Promise<void> {
@@ -163,14 +148,6 @@ export function createLedgerSource(
         .catch((error: unknown) => {
           if (!disposed) publish({ ...snapshot, error: String((error as Error)?.message ?? error) })
         })
-    },
-    continueAll: async (sessionIds) => {
-      try {
-        await post('continue-all', sessionIds === undefined ? {} : { sessionIds: [...sessionIds] })
-      } catch (error: unknown) {
-        if (!disposed) publish({ ...snapshot, error: String((error as Error)?.message ?? error) })
-      }
-      await refresh()
     },
   }
 

@@ -733,7 +733,6 @@ test('a conversation at its tail tells the host ledger the Session is read', asy
   }
   const empty = {
     now: Date.now(), unread: [], interrupted: [],
-    rollout: { total: 0, done: 0, active: null, running: false },
   }
   const listed = { ...empty, unread: [{ sessionId: 's1', at: Date.now(), kind: 'completed' }] }
   const calls = []
