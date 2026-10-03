@@ -1,12 +1,92 @@
+<sub>🌐 <b>中文</b> · <a href="#english">English</a></sub>
+
+<div align="center">
+
 # dsh-unread-helper
 
-DSH Web 侧边栏**未读铃铛 + 跨重启会话账本**。
+> *「重启也不丢的未读，和正在等你的那一个。」*
 
-铃铛回答「哪个未读、下一个在哪」；host 侧的账本回答「重启之后这些事还在不在」。两者读同一份数据。
+[![npm version](https://img.shields.io/npm/v/dsh-unread-helper)](https://www.npmjs.com/package/dsh-unread-helper)
+[![npm downloads](https://img.shields.io/npm/dm/dsh-unread-helper)](https://www.npmjs.com/package/dsh-unread-helper)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![DSH plugin](https://img.shields.io/badge/DSH-plugin-4f46e5)](https://github.com/deepseek-ai/deepseek-harness)
 
-> fork 自 [minivv/dsh-activity-bell](https://github.com/minivv/dsh-activity-bell)（MIT，作者 Wei）。上游把「点铃铛」做成换一份活动列表，本 fork 先把它改成**顺序定位未读**，之后又在本 fork 上加了 host 账本与「被重启打断」的处理。
+**DSH 侧边栏的未读与待办中枢：`⌘⇧J` 按顺序定位未读会话，`⌘⇧I` 处理正在等你输入的会话（提问 / 审批 / 计划审阅）；账本落在 host 半边，重启也不丢。**
 
-## 行为
+[效果](#效果) · [安装](#安装) · [装完怎么确认](#装完怎么确认) · [怎么用](#怎么用) · [已知限制](#已知限制) · [兼容性](#兼容性) · [开发](#开发)
+
+</div>
+
+---
+
+![侧边栏铃铛：红色未读角标 + 黄色等待处理角标](assets/bell.png)
+
+---
+
+## 它解决什么问题
+
+同时开着四五个 DSH 会话，你去泡了杯咖啡回来——哪个跑完了？哪个正在等你点确认？
+
+侧边栏默认列表不回答这两个问题；官方那个红点只在浏览器标签上闪一下，刷新、重启就没了。
+
+这个插件把两件事搬回侧边栏：
+
+- 一个**红色角标**告诉你还欠几个「跑完没看」的会话，`⌘⇧J` 带你按顺序一个个过；
+- 一个**黄色角标**（铃铛左上角）告诉你谁在**等你输入**——提问、审批、计划审阅都算，`⌘⇧I` 带你处理，处理完再按一下会**原路返回**；
+- 两者的账本由 host 半边持有，写进 `$DSH_HOME/unread-helper.json`，**重启 dsh 后欠的账还在**。
+
+## 效果
+
+等待你处理的会话，铃铛左上角单独一个黄色角标，和红色的未读角标分开计数、互不顶掉：
+
+![等待处理：黄色角标](assets/ask-badge.png)
+
+`⌘⇧I` 的走法是「先队列、再回栈」：有等待项就跳到最早开始等待的那个；处理完再按，还有就跳下一个，没有了就回到你上一个停留点：
+
+![活动列表（右键铃铛）](assets/activity-panel.png)
+
+## 安装
+
+三档，任选一条。
+
+### npm（推荐）
+
+```sh
+dsh plugin --profile web add dsh-unread-helper
+```
+
+### GitHub
+
+```sh
+dsh plugin --profile web add github:d0ublecl1ck/dsh-unread-helper
+```
+
+仓库把构建产物 `lib/` 一起提交了，git 安装不需要本地 build。
+
+### 本地目录
+
+```sh
+dsh plugin --profile web add /绝对路径/dsh-unread-helper
+```
+
+### 装完让它生效
+
+1. 页面开着的话刷新一下；
+2. 卸载：`dsh plugin --profile web remove dsh-unread-helper`。
+
+> **改了 host 半边（`src/host.ts`）之后必须 `remove` + `add`**：宿主按 URL 缓存模块，只 `add` 不会重新导入；症状是"改了没生效"。
+
+## 装完怎么确认
+
+| 你看到什么 | 状态 | 怎么办 |
+| --- | --- | --- |
+| 侧边栏「工作区」标题右边多了一个铃铛 | 装上了 | — |
+| 铃铛右上角红色数字 | 有跑完没看的会话 | `⌘⇧J`，或点铃铛 |
+| 铃铛左上角黄色数字 | 有会话在等你处理 | `⌘⇧I` |
+| 看不到铃铛 | 侧边栏折叠成了 56px 轨道 | 展开侧边栏 |
+| 铃铛在，但角标一直不清 | 浏览器到 host 的桥接失败 | 先刷新页面；仍不行看「已知限制」 |
+
+## 怎么用
 
 | 操作 | 结果 |
 | --- | --- |
@@ -81,18 +161,6 @@ host 半边持有账本 `$DSH_HOME/unread-helper.json`，原子写（临时文�
   - 其后出现 `turn/start` 或 `user/message` 视为已被取代，不再算被打断
 - 插件**只标记、不发消息**：重启后要不要继续、什么时候继续，由你自己决定
 
-## 通道
-
-host 半边注册一条自己的路由：
-
-```
-POST /unread-helper/<endpoint>        endpoint: list | read
-```
-
-handler 第一件事是 `connection.requestRejection(req)` —— 信任与鉴权复用连接服务自己的栅栏（与 `dsh-host-open-in-app` 同款）。带会话 cookie → 200，不带 → 401。
-
-不用 Typert Remote 的原因：手写的 contribution 没有平台生成的 Remote 元数据，`ctx.remote.$mount()` 会在网关的 `validateContribution` 里被拒。
-
 ## 已知限制
 
 - 依赖官方 DOM 契约 `[data-row-key="session:<id>"]` / `[class*="listArea"]` / `[class*="sectionHeader"]`，官方改版可能失效。
@@ -101,21 +169,17 @@ handler 第一件事是 `connection.requestRejection(req)` —— 信任与鉴�
 - 侧边栏折叠成 56px 轨道时不显示铃铛（该位置被官方占用）。
 - 崩溃（进程被强杀）走修复补写的 `interrupted`；会话不暴露 `snapshotEvents()` 也不暴露 `events` 时这一路静默失效。
 - 标记只在你让该会话再跑一轮（自己发消息，或别的插件补发）之后由 `turn/end` 清掉；本插件从不发送消息。
-- 浏览器到 host 的桥接失败会发布在账本快照的 `error` 上并保留上一次已知数据（不清空）；chip 删除后目前没有任何界面渲染它。
+- 浏览器到 host 的桥接失败会发布在账本快照的 `error` 上并保留上一次已知数据（不清空）；目前没有界面渲染它。
 - 手动「标为未读」不在任何公开快照里：插件直接读 Workspace 浏览器持久化的私有键 `dsh.workspace.view.v5`。官方改键名时这一路会静默失效，其它未读来源不受影响。
 - 快捷键默认值同时受官方服务、macOS 死键与 Desktop 菜单限制：macOS Desktop 以 `web` runtime 分发，单 `⌘+字母` 被判 `unsupported-browser`（官方 `⌘K` 也失效），`⌘⌥<死键>`（如 `U`）被当输入法组合丢弃，`⌘U` 又归 Desktop 菜单「检查更新」，R 系撞官方 `session.rename` / `page.refresh`，所以两条命令的 macOS 默认都用 `⌘⇧<字母>`（J / I）、Windows/Linux 用 `Ctrl+Alt+<字母>`；Linux Web 只放行三个固定组合，两条都没有默认键。
 - 「等待处理」角标与 I 跳转覆盖审批、计划审阅、提问三类，数据来自实时状态；跳转顺序取活动列表「最新更新在前」的逆序，所以通常是**最早开始等待**的排最前。打开会话不会清掉等待处理，只有真正回答/批准/处理计划审阅才会清。
 - I 的回栈只活在当前页面的内存里：刷新页面后回栈清空（等待处理角标与队列会由实时状态重建）。
 
-## 安装
+## 兼容性
 
-```sh
-dsh plugin --profile web add <本仓库目录绝对路径>
-```
-
-装完刷新页面。卸载：`dsh plugin --profile web remove dsh-unread-helper`。
-
-**改完 host 半边必须 `remove` + `add`**：模块按 URL 缓存，只 `add` 不会重新导入。
+- DSH `0.1.x`（含 `0.1.7-rc`）与 `0.2.0-rc.1` 起的 `0.2.x`。
+- 浏览器半边固定 `platform: web`；Desktop 也以 `web` runtime 分发，所以两端行为一致。
+- 依赖官方客户端半边：`ui-sidebar`、`ui-workspace`、`ui-session`、`ui-slots`、`ui-renderer`、`ui-primitives`、`client-locale`、`client-shortcuts`（都是 `dsh-base` + `dsh-web-app` 自带的）。
 
 ## 开发
 
@@ -126,6 +190,22 @@ npm run verify    # typecheck + build + 111 个测试
 
 `test/ledger.test.mjs` 覆盖账本状态机（未读、已读不回退、两种重启信号、存储器尾部扫描）；`test/host.test.mjs` 用假 ctx 挂载 host 半边，断言恢复扫描、live 清除与畸形输入；`test/jump.test.mjs` 覆盖未读选择与分组展开；`test/jump-command.test.mjs` 覆盖快捷键命令的座位、默认键位与 blocked/handled 解析；`test/manual-unread.test.mjs` 覆盖官方手动未读标记的解析与监听；`test/conversation-tail.test.mjs` 覆盖「对话在底部」的锚点；`test/ask-jump.test.mjs` 覆盖等待处理跳转的「队列 + 回栈」状态机；`test/activity-model.test.mjs` 覆盖活动投影与 pending 计数；`test/client-mount.test.mjs` 用真实客户端半边挂载，断言铃铛是唯一的侧边栏入口、黄色角标只数等待处理的会话、以及 I 的整条往返路径。
 
+`lib/` 是被跟踪的构建产物（Git 安装免 build）：改 `src/` 后必须 `npm run build` 并一起提交，CI 会断言提交进库的 `lib/` 与构建产物一致。
+
+## 致谢
+
+fork 自 [minivv/dsh-activity-bell](https://github.com/minivv/dsh-activity-bell)（MIT，作者 Wei）。上游把「点铃铛」做成换一份活动列表；本 fork 改成**顺序定位未读**，并补上 host 账本与「等待你处理」队列。
+
 ## License
 
 MIT（沿用上游）。`LICENSE` 保持上游原文。
+
+## English
+
+**dsh-unread-helper** adds an unread/attention bell to the DeepSeek Harness sidebar.
+
+- `⌘⇧J` (macOS) / `Ctrl+Alt+J` (Windows/Linux) walks unread sessions in order.
+- `⌘⇧I` / `Ctrl+Alt+I` walks sessions waiting for you (questions, approvals, plan reviews) and then retraces your path back.
+- A host-side ledger at `$DSH_HOME/unread-helper.json` keeps the unread/attention state across restarts.
+
+Install: `dsh plugin --profile web add dsh-unread-helper` (or `github:d0ublecl1ck/dsh-unread-helper`), then refresh the page. Fork of [minivv/dsh-activity-bell](https://github.com/minivv/dsh-activity-bell) (MIT).
