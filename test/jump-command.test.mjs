@@ -11,7 +11,7 @@ import {
 // The shipped service's own rules: a default it rejects throws inside
 // `ctx.shortcuts.register` and takes the whole client half down with it.
 import {
-  bindingIssue, isWebBindingAllowed, normalizeBinding,
+  bindingIssue, isWebBindingAllowed, normalizeBinding, overlappingBindings,
 } from '@deepseek-ai/dsh-client-shortcuts/protocol'
 
 /** Context the keyboard adapter always supplies; the command does not read it. */
@@ -127,16 +127,58 @@ test('the ask command keys its stored override on a stable id and name', () => {
   assert.deepEqual(command.modals, [])
 })
 
-test('the ask defaults keep J\'s helper keys and only swap the letter to O', () => {
+test('the ask defaults keep J\'s helper keys and move only the letter', () => {
   const command = askJumpCommand(createJumpSeat(), () => 'x', 'y')
   assert.deepEqual(command.defaults, {
-    'desktop:macos': { code: 'KeyO', modifiers: ['primary', 'shift'] },
+    'desktop:macos': { code: 'KeyI', modifiers: ['primary', 'shift'] },
+    'desktop:windows': { code: 'KeyI', modifiers: ['primary', 'alt'] },
+    'desktop:linux': { code: 'KeyI', modifiers: ['primary', 'alt'] },
+    'web:macos': { code: 'KeyI', modifiers: ['primary', 'shift'] },
+    'web:windows': { code: 'KeyI', modifiers: ['primary', 'alt'] },
+  })
+  assert.equal(command.defaults['web:linux'], undefined)
+})
+
+/**
+ * The shipped commands that own every simple KeyO shape. `workspace.add`
+ * (dsh-client-ui-workspace) takes Mod+O on desktop and Mod+Alt+O on web;
+ * `workspace.openLocal` (dsh-client-ui-open-in-app) takes Mod+Alt+O on desktop
+ * and Mod+Shift+O on web. The registry throws "Conflicting shortcut defaults"
+ * when two commands declare an overlapping default in ANY profile — not just
+ * the running one — so this fixture pins the collision that once broke the
+ * whole client boot and forces the ask letter off O.
+ */
+const SHIPPED_KEY_O_COMMANDS = {
+  'workspace.add': {
+    'desktop:macos': { code: 'KeyO', modifiers: ['primary'] },
+    'desktop:windows': { code: 'KeyO', modifiers: ['primary'] },
+    'desktop:linux': { code: 'KeyO', modifiers: ['primary'] },
+    'web:macos': { code: 'KeyO', modifiers: ['primary', 'alt'] },
+    'web:windows': { code: 'KeyO', modifiers: ['primary', 'alt'] },
+  },
+  'workspace.openLocal': {
+    'desktop:macos': { code: 'KeyO', modifiers: ['primary', 'alt'] },
     'desktop:windows': { code: 'KeyO', modifiers: ['primary', 'alt'] },
     'desktop:linux': { code: 'KeyO', modifiers: ['primary', 'alt'] },
     'web:macos': { code: 'KeyO', modifiers: ['primary', 'shift'] },
-    'web:windows': { code: 'KeyO', modifiers: ['primary', 'alt'] },
-  })
-  assert.equal(command.defaults['web:linux'], undefined)
+    'web:windows': { code: 'KeyO', modifiers: ['primary', 'shift'] },
+  },
+}
+
+test('no ask default overlaps a shipped KeyO binding', () => {
+  const command = askJumpCommand(createJumpSeat(), () => 'x', 'y')
+  for (const [name, profiles] of Object.entries(SHIPPED_KEY_O_COMMANDS)) {
+    for (const [profile, official] of Object.entries(profiles)) {
+      const platform = profile.split(':')[1]
+      const ours = command.defaults[profile]
+      assert.ok(ours, `${profile} declares an ask default`)
+      assert.equal(
+        overlappingBindings(normalizeBinding(ours, platform), normalizeBinding(official, platform)),
+        false,
+        `${profile} must not collide with ${name}`,
+      )
+    }
+  }
 })
 
 test('every ask default passes the shipped service legality checks too', () => {

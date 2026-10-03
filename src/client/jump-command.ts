@@ -58,10 +58,10 @@ export const UNREAD_JUMP_COMMAND = 'unread-helper.jumpUnread' as ShortcutCommand
 export const ASK_JUMP_COMMAND = 'unread-helper.jumpAsk' as ShortcutCommandId
 
 /**
- * The per-profile defaults for a jump command.
+ * Per-profile default bindings for the unread walk.
  *
- * macOS declares Mod+Shift+<letter>; the other profiles declare Mod+Alt+<letter>.
- * macOS Desktop runs the Web shortcut path (its preload sets
+ * macOS declares Mod+Shift+J; the other profiles declare Mod+Alt+J. macOS
+ * Desktop runs the Web shortcut path (its preload sets
  * `data-dsh-desktop-web-shortcuts`, so the runtime is `web`), which rules out
  * two shapes: a bare Command+letter is rejected as `unsupported-browser`, and
  * an Option combination can die as a macOS dead key the DOM adapter treats as
@@ -70,18 +70,35 @@ export const ASK_JUMP_COMMAND = 'unread-helper.jumpAsk' as ShortcutCommandId
  * `page.refresh` bindings own them, and plain Command+U belongs to the Desktop
  * app menu's Check for Updates. Linux Web admits none of these combinations, so
  * no default is declared for it.
- *
- * @param code - the physical key code shared by every profile.
- * @returns the declared defaults.
  */
-function jumpDefaults(code: string): ShortcutCommand['defaults'] {
-  return {
-    'desktop:macos': { code, modifiers: ['primary', 'shift'] },
-    'desktop:windows': { code, modifiers: ['primary', 'alt'] },
-    'desktop:linux': { code, modifiers: ['primary', 'alt'] },
-    'web:macos': { code, modifiers: ['primary', 'shift'] },
-    'web:windows': { code, modifiers: ['primary', 'alt'] },
-  }
+const UNREAD_JUMP_DEFAULTS: ShortcutCommand['defaults'] = {
+  'desktop:macos': { code: 'KeyJ', modifiers: ['primary', 'shift'] },
+  'desktop:windows': { code: 'KeyJ', modifiers: ['primary', 'alt'] },
+  'desktop:linux': { code: 'KeyJ', modifiers: ['primary', 'alt'] },
+  'web:macos': { code: 'KeyJ', modifiers: ['primary', 'shift'] },
+  'web:windows': { code: 'KeyJ', modifiers: ['primary', 'alt'] },
+}
+
+/**
+ * Per-profile default bindings for the pending-ask walk.
+ *
+ * The helper-key *families* mirror the unread walk (Mod+Shift on macOS,
+ * Mod+Alt elsewhere); only the letter differs, because the letter O is already
+ * spoken for on every simple combination. The shipped `workspace.add` owns
+ * `Mod+O` on desktop and `Mod+Alt+O` on web, and `workspace.openLocal` owns
+ * `Mod+Alt+O` on desktop and `Mod+Shift+O` on web. The shortcut registry throws
+ * on overlapping defaults in *any* declared profile — not just the running one —
+ * so declaring any of those shapes took the whole client half down at boot.
+ * I is the free neighbour: no shipped command claims `Mod+Shift+I` or
+ * `Mod+Alt+I`, and neither is a browser or macOS system shortcut. Linux Web
+ * admits none of these combinations, so no default is declared for it.
+ */
+const ASK_JUMP_DEFAULTS: ShortcutCommand['defaults'] = {
+  'desktop:macos': { code: 'KeyI', modifiers: ['primary', 'shift'] },
+  'desktop:windows': { code: 'KeyI', modifiers: ['primary', 'alt'] },
+  'desktop:linux': { code: 'KeyI', modifiers: ['primary', 'alt'] },
+  'web:macos': { code: 'KeyI', modifiers: ['primary', 'shift'] },
+  'web:windows': { code: 'KeyI', modifiers: ['primary', 'alt'] },
 }
 
 /**
@@ -91,7 +108,7 @@ function jumpDefaults(code: string): ShortcutCommand['defaults'] {
  * @param label - localized command name shown in the shortcut reference.
  * @param unavailable - localized reason for a blocked resolution.
  * @param aliases - search aliases shown in the shortcut reference.
- * @param code - physical key code for the default bindings.
+ * @param defaults - per-profile default bindings.
  * @returns the command definition for `ctx.shortcuts.register`.
  */
 function jumpCommand(
@@ -100,13 +117,13 @@ function jumpCommand(
   label: () => string,
   unavailable: string,
   aliases: readonly string[],
-  code: string,
+  defaults: ShortcutCommand['defaults'],
 ): ShortcutCommand {
   return {
     id,
     label,
     aliases: [...aliases],
-    defaults: jumpDefaults(code),
+    defaults,
     regions: ['page', 'editable'],
     modals: [],
     resolve: () => {
@@ -135,16 +152,15 @@ export function unreadJumpCommand(
 ): ShortcutCommand {
   return jumpCommand(
     UNREAD_JUMP_COMMAND, seat, label, unavailable,
-    ['jump to next unread', 'next unread', 'unread'], 'KeyJ',
+    ['jump to next unread', 'next unread', 'unread'], UNREAD_JUMP_DEFAULTS,
   )
 }
 
 /**
  * Build the pending-ask command over a seat.
  *
- * The helper keys mirror the unread walk exactly (Mod+Shift on macOS,
- * Mod+Alt elsewhere); only the letter changes, to O, so the two walks stay a
- * matching pair in the shortcut reference.
+ * Keeps the unread walk's helper-key families, differing only in the letter,
+ * because the letter O is already spoken for (see {@link ASK_JUMP_DEFAULTS}).
  *
  * @param seat - the seat the mounted bell publishes into.
  * @param label - localized command name shown in the shortcut reference.
@@ -158,6 +174,6 @@ export function askJumpCommand(
 ): ShortcutCommand {
   return jumpCommand(
     ASK_JUMP_COMMAND, seat, label, unavailable,
-    ['jump to pending ask', 'next ask', 'pending ask'], 'KeyO',
+    ['jump to pending ask', 'next ask', 'pending ask'], ASK_JUMP_DEFAULTS,
   )
 }

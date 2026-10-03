@@ -51,9 +51,8 @@ export declare function unreadJumpCommand(seat: JumpSeat, label: () => string, u
 /**
  * Build the pending-ask command over a seat.
  *
- * The helper keys mirror the unread walk exactly (Mod+Shift on macOS,
- * Mod+Alt elsewhere); only the letter changes, to O, so the two walks stay a
- * matching pair in the shortcut reference.
+ * Keeps the unread walk's helper-key families, differing only in the letter,
+ * because the letter O is already spoken for (see {@link ASK_JUMP_DEFAULTS}).
  *
  * @param seat - the seat the mounted bell publishes into.
  * @param label - localized command name shown in the shortcut reference.
