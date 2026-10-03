@@ -1,6 +1,6 @@
 {
   "name": "dsh-unread-helper",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "DSH Web 未读助手：侧边栏铃铛顺序定位未读，host 半边持有跨重启的会话账本。Fork of dsh-activity-bell.",
   "type": "module",
   "license": "MIT",
