@@ -16,7 +16,7 @@ DSH Web 侧边栏**未读铃铛 + 跨重启会话账本**。
 | 在某会话行右键 →「标为未读」 | 该会话计入铃铛角标与跳转顺序，直到被打开；标记由官方侧边栏持有，插件只读 |
 | 在会话里滚到底部 | 该会话视为已读：角标与账本已读一并回落，再往上滚也不会重新变未读 |
 | Esc / 点侧边栏其它位置 | 关闭活动列表 |
-| chip（只有存在被打断的会话时才出现） | 显示红色 `⚠ N`；点开列出被重启打断的会话，顶部一个「全部继续」 |
+| chip（只有存在被打断的会话时才出现） | 显示红色 `⚠ N`；点开列出被重启打断的会话与未读项，点子项即打开该会话 |
 
 ## 未读从哪来（跨重启）
 
@@ -54,19 +54,14 @@ host 半边持有账本 `$DSH_HOME/session-ledger.json`，原子写（临时文�
   - 崩溃修复：DSH 给没结束的尾回合补一条 reason `interrupted` 的 `turn/end`。它作为构造 seed 注入，**永远不发 `session/event`**，所以 host 在 `session/created`（外加启动时扫一次 live agents）读 `session.snapshotEvents()` 找它
   - 其后出现 `turn/start` 或 `user/message` 视为已被取代，不再算被打断
 - chip 显示 `⚠ N`，点开可逐个打开
-- 「全部继续」发送固定文本（行配置 `continueMessage` 可覆盖）：
-
-  `上次执行被 DSH 重启中断，请先核对当前文件与命令的真实状态，再继续。`
-
-- 投递是**串行**的：上一个跑完（或 10 分钟超时）才发下一个，避免多个 agent 同时改同一批文件
-- 续跑消息用官方的 `createUserMessage` 构造（`source: {kind:'user'}`），不手搓 message；宿主拒收或投递失败会写进 rollout 状态并在 chip 上显示，而不是只进控制台
+- 插件**只标记、不发消息**：重启后要不要继续、什么时候继续，由你自己决定
 
 ## 通道
 
 host 半边注册一条自己的路由：
 
 ```
-POST /session-ledger/<endpoint>        endpoint: list | read | continue-all
+POST /session-ledger/<endpoint>        endpoint: list | read
 ```
 
 handler 第一件事是 `connection.requestRejection(req)` —— 信任与鉴权复用连接服务自己的栅栏（与 `dsh-host-open-in-app` 同款）。带会话 cookie → 200，不带 → 401。
@@ -80,7 +75,7 @@ handler 第一件事是 `connection.requestRejection(req)` —— 信任与鉴�
 - 工作区分组**折叠**时那一行不在 DOM 里：插件先点开分组再滚动；展开后仍找不到（归档、被筛选隐藏、不在当前列表）则**只打开、不滚动**。
 - 侧边栏折叠成 56px 轨道时不显示铃铛（该位置被官方占用）。
 - 崩溃（进程被强杀）走修复补写的 `interrupted`；会话不暴露 `snapshotEvents()` 也不暴露 `events` 时这一路静默失效。
-- 任何在重启后自动向被打断会话发消息的插件，都会让新回合结束时清掉标记、chip 随之消失；要保留手动「全部继续」，就得关掉那类插件的启动自动续跑。
+- 标记只在你让该会话再跑一轮（自己发消息，或别的插件补发）之后由 `turn/end` 清掉；本插件从不发送消息。
 - chip 上的红色 `!` 表示浏览器到 host 的桥接失败：此时保留上一次已知数据，不清空。
 - 手动「标为未读」不在任何公开快照里：插件直接读 Workspace 浏览器持久化的私有键 `dsh.workspace.view.v5`。官方改键名时这一路会静默失效，其它未读来源不受影响。
 

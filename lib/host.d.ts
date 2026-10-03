@@ -4,8 +4,5 @@ export declare const name = "session-ledger";
  * Mount the host half.
  *
  * @param rawCtx - host cordis context.
- * @param config - row config; `continueMessage` overrides the rollout text.
  */
-export declare function mount(rawCtx: any, config?: {
-    continueMessage?: unknown;
-}): void;
+export declare function mount(rawCtx: any): void;

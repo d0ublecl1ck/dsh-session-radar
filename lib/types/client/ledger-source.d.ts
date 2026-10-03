@@ -27,21 +27,11 @@ export interface LedgerInterruptedRow {
     readonly sessionId: string;
     readonly at: number;
 }
-/** Progress of a continue rollout. */
-export interface LedgerRollout {
-    readonly total: number;
-    readonly done: number;
-    readonly active: string | null;
-    readonly running: boolean;
-    /** Why the host last rollout refused or failed, or null. */
-    readonly lastError: string | null;
-}
 /** Everything the chip renders. */
 export interface LedgerSnapshot {
     readonly now: number;
     readonly unread: readonly LedgerUnreadRow[];
     readonly interrupted: readonly LedgerInterruptedRow[];
-    readonly rollout: LedgerRollout;
     /** Last bridge failure, or null. Rendered so a broken bridge is visible. */
     readonly error: string | null;
 }
@@ -50,7 +40,6 @@ export interface LedgerSource {
     getSnapshot(): LedgerSnapshot;
     subscribe(listener: () => void): () => void;
     read(sessionId: SessionId): void;
-    continueAll(sessionIds?: readonly string[]): Promise<void>;
 }
 /**
  * Create the ledger source and keep it mounted for the plugin's lifetime.

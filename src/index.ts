@@ -20,8 +20,7 @@ export const inject = ['webServer', 'connection']
  * Remote calls the browser half makes.
  *
  * @param ctx - host cordis context.
- * @param config - row config; `continueMessage` overrides the rollout text.
  */
-export function apply(ctx: unknown, config?: { continueMessage?: unknown }): void {
-  mount(ctx, config)
+export function apply(ctx: unknown): void {
+  mount(ctx)
 }

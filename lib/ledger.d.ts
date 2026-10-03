@@ -7,7 +7,7 @@
  *
  * Invariants:
  * - A Session is unread when it has an event newer than its read marker.
- * - An interrupted Session stays unread until it is continued, even if the
+ * - An interrupted Session stays unread until a later turn ends, even if the
  *   operator opened it: the red marker means "this turn never finished".
  * - Read markers never move backwards.
  *
@@ -121,8 +121,6 @@ export declare function recordAttention(ledger: LedgerState, input: {
 }): void;
 /** Advance a read marker to at least `at`; it never moves backwards. */
 export declare function markRead(ledger: LedgerState, sessionId: string, at: number): void;
-/** A continue was dispatched: both the red marker and the unread state clear. */
-export declare function markContinued(ledger: LedgerState, sessionId: string, at: number): void;
 /**
  * @param target - a Session id, or `{ sessionId, running }` when the caller knows
  *   the Session is currently running (a running Session is never a reminder).
