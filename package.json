@@ -1,7 +1,7 @@
 {
   "name": "dsh-session-radar",
   "version": "1.0.1",
-  "description": "DSH Web 侧边栏助手：未读铃铛顺序定位未读与等待处理，另加六项会话状态读数（运行中 / 未读 / 待处理 / 闲置 / 未归档 / 已归档）；host 半边持有跨重启的会话账本。",
+  "description": "DSH Web 侧边栏助手：⌘⇧K 弹出未读与待决策总览，⌘⇧J / ⌘⇧I 顺序定位未读与等待处理；另带六项会话状态读数（运行中 / 未读 / 待处理 / 闲置 / 未归档 / 已归档）与 host 半边的跨重启会话账本。",
   "type": "module",
   "license": "MIT",
   "author": "d0ublecl1ck",
