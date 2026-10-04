@@ -2,12 +2,12 @@
 
 <div align="center">
 
-# dsh-unread-helper
+# dsh-session-radar
 
 > *「重启也不丢的未读，和正在等你的那一个。」*
 
-[![npm version](https://img.shields.io/npm/v/dsh-unread-helper)](https://www.npmjs.com/package/dsh-unread-helper)
-[![npm downloads](https://img.shields.io/npm/dm/dsh-unread-helper)](https://www.npmjs.com/package/dsh-unread-helper)
+[![npm version](https://img.shields.io/npm/v/dsh-session-radar)](https://www.npmjs.com/package/dsh-session-radar)
+[![npm downloads](https://img.shields.io/npm/dm/dsh-session-radar)](https://www.npmjs.com/package/dsh-session-radar)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![DSH plugin](https://img.shields.io/badge/DSH-plugin-4f46e5)](https://github.com/deepseek-ai/deepseek-harness)
 
@@ -33,7 +33,7 @@
 
 - 一个**红色角标**告诉你还欠几个「跑完没看」的会话，`⌘⇧J` 带你按顺序一个个过；
 - 一个**黄色角标**（铃铛左上角）告诉你谁在**等你输入**——提问、审批、计划审阅都算，`⌘⇧I` 带你处理，处理完再按一下会**原路返回**；
-- 两者的账本由 host 半边持有，写进 `$DSH_HOME/unread-helper.json`，**重启 dsh 后欠的账还在**。
+- 两者的账本由 host 半边持有，写进 `$DSH_HOME/session-radar.json`，**重启 dsh 后欠的账还在**。
 
 ## 效果
 
@@ -51,13 +51,13 @@
 ### npm（推荐）
 
 ```sh
-dsh plugin --profile web add dsh-unread-helper
+dsh plugin --profile web add dsh-session-radar
 ```
 
 ### GitHub
 
 ```sh
-dsh plugin --profile web add github:d0ublecl1ck/dsh-unread-helper
+dsh plugin --profile web add github:d0ublecl1ck/dsh-session-radar
 ```
 
 仓库把构建产物 `lib/` 一起提交了，git 安装不需要本地 build。
@@ -65,13 +65,13 @@ dsh plugin --profile web add github:d0ublecl1ck/dsh-unread-helper
 ### 本地目录
 
 ```sh
-dsh plugin --profile web add /绝对路径/dsh-unread-helper
+dsh plugin --profile web add /绝对路径/dsh-session-radar
 ```
 
 ### 装完让它生效
 
 1. 页面开着的话刷新一下；
-2. 卸载：`dsh plugin --profile web remove dsh-unread-helper`。
+2. 卸载：`dsh plugin --profile web remove dsh-session-radar`。
 
 > **改了 host 半边（`src/host.ts`）之后必须 `remove` + `add`**：宿主按 URL 缓存模块，只 `add` 不会重新导入；症状是"改了没生效"。
 
@@ -106,8 +106,8 @@ dsh plugin --profile web add /绝对路径/dsh-unread-helper
 
 | 命令 | 作用 | macOS（Desktop / Web） | Windows / Linux | Web Linux |
 | --- | --- | --- | --- | --- |
-| `unread-helper.jumpUnread` | 与铃铛左键同一个跳转（共享同一个游标） | `⌘⇧J`（`Mod+Shift+J`） | `Ctrl+Alt+J`（`Mod+Alt+J`） | 不绑默认 |
-| `unread-helper.jumpAsk` | 定位等待处理的会话，并沿原路返回 | `⌘⇧I`（`Mod+Shift+I`） | `Ctrl+Alt+I`（`Mod+Alt+I`） | 不绑默认 |
+| `session-radar.jumpUnread` | 与铃铛左键同一个跳转（共享同一个游标） | `⌘⇧J`（`Mod+Shift+J`） | `Ctrl+Alt+J`（`Mod+Alt+J`） | 不绑默认 |
+| `session-radar.jumpAsk` | 定位等待处理的会话，并沿原路返回 | `⌘⇧I`（`Mod+Shift+I`） | `Ctrl+Alt+I`（`Mod+Alt+I`） | 不绑默认 |
 
 两条命令的辅助键完全一致，只有字母不同：J 走未读，I 走等待处理。字母不能用 O——官方 `workspace.add`（桌面 `Mod+O`、Web `Mod+Alt+O`）与 `workspace.openLocal`（桌面 `Mod+Alt+O`、Web `Mod+Shift+O`）已经占满 O 的简单组合，而注册表在**任意** profile 上发现默认键重叠就会抛错，直接把整个客户端半边打挂。I 没有任何官方命令占用，也不是浏览器或系统快捷键。Web Linux 都只放行三个固定组合，所以两条都没有默认键。
 
@@ -123,7 +123,7 @@ macOS 只能用 `Mod+Shift+<字母>`，是两个约束卡在一起的结果：ma
 
 ## 未读从哪来（跨重启）
 
-host 半边持有账本 `$DSH_HOME/unread-helper.json`，原子写（临时文件 + rename）：
+host 半边持有账本 `$DSH_HOME/session-radar.json`，原子写（临时文件 + rename）：
 
 | 字段 | 含义 |
 | --- | --- |
@@ -179,7 +179,7 @@ host 半边持有账本 `$DSH_HOME/unread-helper.json`，原子写（临时文�
 - 两种版式：**胶囊**（默认，每项一个「图标 + 数字」）与**比例条**（运行 / 未读 / 待处理 / 闲置的堆叠条 + 完整数字）；侧边栏收成 56px 时折叠为单图标 + 未归档角标，悬停或键盘聚焦弹出完整读数。
 - 口径只有一份实现：`src/count.ts`；读数与设置行共用，数值不会两边打架。
 
-设置页 设置 → 通用 → **会话状态读数**：逐项开关、版式二选一、未归档告警阈值（默认 10，严格大于才告警）。偏好挂在本插件自己的 Config 命名空间（row id `unread-helper`）下，改动经 Host settings 落进 profile patch。Host 没有服务该命名空间时，设置行不注册，读数仍按默认偏好显示。
+设置页 设置 → 通用 → **会话状态读数**：逐项开关、版式二选一、未归档告警阈值（默认 10，严格大于才告警）。偏好挂在本插件自己的 Config 命名空间（row id `session-radar`）下，改动经 Host settings 落进 profile patch。Host 没有服务该命名空间时，设置行不注册，读数仍按默认偏好显示。
 
 读数只读 shell 已发布的三个标准快照（`useSessions` / `useSessionStatus` / `useWorkspaces`），不写任何会话或归档状态、不落盘、不联网。
 
@@ -203,11 +203,19 @@ host 半边持有账本 `$DSH_HOME/unread-helper.json`，原子写（临时文�
 - 浏览器半边固定 `platform: web`；Desktop 也以 `web` runtime 分发，所以两端行为一致。
 - 依赖官方客户端半边：`ui-sidebar`、`ui-workspace`、`ui-session`、`ui-slots`、`ui-renderer`、`ui-primitives`、`ui-settings`、`ui-settings-general`、`client-locale`、`client-shortcuts`（都是 `dsh-base` + `dsh-web-app` 自带的）。
 
+### 从 `dsh-unread-helper` 升级（1.0 改名）
+
+1.0 把包名与内部标识统一改成 `session-radar`：包名 `dsh-session-radar`、row id 与设置命名空间 `session-radar`、路由 `/session-radar`、账本 `$DSH_HOME/session-radar.json`、快捷键命令 id `session-radar.jumpUnread` / `session-radar.jumpAsk`。
+
+- 账本**不会丢**：启动时读不到 `session-radar.json`，host 会一次性抄自同目录的 `unread-helper.json`（旧文件保留原地，不删除），抄完立即写入新文件。
+- 旧安装要换依赖名：`dsh plugin --profile web remove dsh-unread-helper` 再 `dsh plugin --profile web add dsh-session-radar`。
+- 你在「设置 → 通用 → 快捷键」里给旧命令 id 改过的键位需要重设，因为命令 id 随包名一起改了。
+
 ## 开发
 
 ```sh
 npm ci
-npm run verify    # typecheck + build + 142 个测试
+npm run verify    # typecheck + build + 143 个测试
 ```
 
 `test/ledger.test.mjs` 覆盖账本状态机（未读、已读不回退、两种重启信号、存储器尾部扫描）；`test/host.test.mjs` 用假 ctx 挂载 host 半边，断言恢复扫描、live 清除与畸形输入；`test/jump.test.mjs` 覆盖未读选择与分组展开；`test/jump-command.test.mjs` 覆盖快捷键命令的座位、默认键位与 blocked/handled 解析；`test/manual-unread.test.mjs` 覆盖官方手动未读标记的解析与监听；`test/conversation-tail.test.mjs` 覆盖「对话在底部」的锚点；`test/ask-jump.test.mjs` 覆盖等待处理跳转的「队列 + 回栈」状态机；`test/activity-model.test.mjs` 覆盖活动投影与 pending 计数；`test/client-mount.test.mjs` 用真实客户端半边挂载，断言铃铛与状态读数分别是侧边栏 footer 的入口、黄色角标只数等待处理的会话、以及 I 的整条往返路径；`test/count.test.mjs` 覆盖六项口径、分区不变量与阈值边界；`test/client-render.test.mjs` 用 SSR 真渲染读数与设置行；`test/client-contract.test.mjs` 覆盖模块 id、inject 清单、三处注册与「Host 没服务命名空间就不注册设置行」。
@@ -224,11 +232,11 @@ MIT。`LICENSE` 保留上游版权行，并追加本项目版权行。
 
 ## English
 
-**dsh-unread-helper** adds an unread/attention bell to the DeepSeek Harness sidebar.
+**dsh-session-radar** adds an unread/attention bell to the DeepSeek Harness sidebar.
 
 - `⌘⇧J` (macOS) / `Ctrl+Alt+J` (Windows/Linux) walks unread sessions in order.
 - `⌘⇧I` / `Ctrl+Alt+I` walks sessions waiting for you (questions, approvals, plan reviews) and then retraces your path back.
-- A host-side ledger at `$DSH_HOME/unread-helper.json` keeps the unread/attention state across restarts.
+- A host-side ledger at `$DSH_HOME/session-radar.json` keeps the unread/attention state across restarts.
 - A sidebar-foot readout shows six Session counts (running / unread / pending / idle / unarchived / archived) in two layouts; Settings → General → Session status readout toggles each metric and sets the unarchived warning threshold.
 
-Install: `dsh plugin --profile web add dsh-unread-helper` (or `github:d0ublecl1ck/dsh-unread-helper`), then refresh the page. Originally derived from [minivv/dsh-activity-bell](https://github.com/minivv/dsh-activity-bell) (MIT; the upstream notice is retained in `LICENSE`); the status readout is merged from [dsh-session-watch](https://github.com/d0ublecl1ck/dsh-session-watch) (MIT).
+Install: `dsh plugin --profile web add dsh-session-radar` (or `github:d0ublecl1ck/dsh-session-radar`), then refresh the page. Originally derived from [minivv/dsh-activity-bell](https://github.com/minivv/dsh-activity-bell) (MIT; the upstream notice is retained in `LICENSE`); the status readout is merged from [dsh-session-watch](https://github.com/d0ublecl1ck/dsh-session-watch) (MIT).

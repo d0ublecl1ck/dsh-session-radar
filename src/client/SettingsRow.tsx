@@ -6,7 +6,7 @@
  * that needs no page of its own. The row draws its own labels, counts, and
  * write path, because that slot's owner projects none of them.
  *
- * @module dsh-unread-helper/client/SettingsRow
+ * @module dsh-session-radar/client/SettingsRow
  */
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { ALL_METRICS, metricLabel, metricValue, summaryText } from './summary.js'
@@ -26,7 +26,7 @@ export interface SettingsRowProps {
   readonly useWorkspaces: SnapshotSelectorHook
   /** Live preference owned by this plugin's config namespace. */
   readonly config: ConfigSource
-  /** Bound translate function for the unread-helper namespace. */
+  /** Bound translate function for the session-radar namespace. */
   readonly t: Translate
 }
 

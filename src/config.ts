@@ -5,12 +5,12 @@
  * read the same metric list, variants, and defaults from here, so adding a
  * metric never means editing three field maps by hand.
  *
- * @module dsh-unread-helper/config
+ * @module dsh-session-radar/config
  */
 import { METRICS, type Metric } from './count.js'
 
 /** Namespace row id; also the Settings namespace and both slot entry ids. */
-export const PLUGIN_ID = 'unread-helper'
+export const PLUGIN_ID = 'session-radar'
 
 /** The Config field that makes one metric visible. */
 export type VisibilityField =

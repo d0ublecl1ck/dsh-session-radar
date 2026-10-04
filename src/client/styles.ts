@@ -9,7 +9,7 @@
  * pair, and the panel paints the sidebar fill so the list underneath cannot
  * show through.
  *
- * @module dsh-unread-helper/client/styles
+ * @module dsh-session-radar/client/styles
  */
 
 const CSS = `
@@ -541,7 +541,7 @@ const CSS = `
 }
 `
 
-const PLUGIN_ID = 'dsh-unread-helper'
+const PLUGIN_ID = 'dsh-session-radar'
 
 let installed: HTMLStyleElement | undefined
 

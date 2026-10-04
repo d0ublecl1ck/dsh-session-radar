@@ -2,7 +2,7 @@
  * Pure presentation helpers shared by the readout and the Settings row: which
  * metrics to render, and the one-line summary both surfaces speak.
  *
- * @module dsh-unread-helper/client/summary
+ * @module dsh-session-radar/client/summary
  */
 import { type Metric, type SessionCounts } from '../count.js';
 import { visibleMetrics, type Visibility } from '../config.js';

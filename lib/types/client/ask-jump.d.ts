@@ -14,7 +14,7 @@
  * from A leads back to B, then to A. A session that is already on the trail is
  * never pushed twice, so wandering between asks cannot grow the walk home.
  *
- * @module dsh-unread-helper/client/ask-jump
+ * @module dsh-session-radar/client/ask-jump
  */
 /** One ask press's outcome: the Session to land on, and the trail that remains. */
 export interface AskJumpStep<Id extends string> {

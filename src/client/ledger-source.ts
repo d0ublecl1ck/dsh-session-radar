@@ -11,7 +11,7 @@
  * indistinguishable from "nothing to show", which is exactly the bug this file
  * was written to avoid.
  *
- * @module dsh-unread-helper/client/ledger-source
+ * @module dsh-session-radar/client/ledger-source
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
@@ -49,7 +49,7 @@ export interface LedgerSource {
   read(sessionId: SessionId, options?: LedgerReadOptions): void
 }
 
-const ROUTE = '/unread-helper'
+const ROUTE = '/session-radar'
 const POLL_MS = 5000
 /** The automatic restore that follows a restart is not an acknowledgement. */
 const BOOT_SETTLE_MS = 3000
@@ -95,7 +95,7 @@ export function createLedgerSource(
     })
     const payload = (await response.json()) as { ok?: boolean; value?: LedgerSnapshot }
     if (payload?.ok !== true || payload.value === undefined) {
-      throw new Error('unread-helper: host refused ' + endpoint + ' (HTTP ' + String(response.status) + ')')
+      throw new Error('session-radar: host refused ' + endpoint + ' (HTTP ' + String(response.status) + ')')
     }
     return { ...payload.value, error: null }
   }
@@ -155,7 +155,7 @@ export function createLedgerSource(
     clearTimeout(settleTimer)
     unsubscribe()
     listeners.clear()
-  }, 'unread-helper: bridge teardown')
+  }, 'session-radar: bridge teardown')
 
   return source
 }

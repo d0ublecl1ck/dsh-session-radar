@@ -10,7 +10,7 @@
  * against the current publication, and a resolved action captures the handler
  * it saw.
  *
- * @module dsh-unread-helper/client/jump-command
+ * @module dsh-session-radar/client/jump-command
  */
 import type { ShortcutCommand, ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
 
@@ -52,10 +52,10 @@ export function createJumpSeat(): JumpSeat {
 }
 
 /** Unread-walk command id. It keys the stored override, so it has to stay stable. */
-export const UNREAD_JUMP_COMMAND = 'unread-helper.jumpUnread' as ShortcutCommandId
+export const UNREAD_JUMP_COMMAND = 'session-radar.jumpUnread' as ShortcutCommandId
 
 /** Pending-ask command id. It keys the stored override, so it has to stay stable. */
-export const ASK_JUMP_COMMAND = 'unread-helper.jumpAsk' as ShortcutCommandId
+export const ASK_JUMP_COMMAND = 'session-radar.jumpAsk' as ShortcutCommandId
 
 /**
  * Per-profile default bindings for the unread walk.

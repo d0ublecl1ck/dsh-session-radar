@@ -12,7 +12,7 @@ export interface StatusWatchProps {
     readonly useWorkspaces: SnapshotSelectorHook;
     /** Live preference owned by this plugin's config namespace. */
     readonly config: ConfigSource;
-    /** Bound translate function for the unread-helper namespace. */
+    /** Bound translate function for the session-radar namespace. */
     readonly t: Translate;
 }
 /**

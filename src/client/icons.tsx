@@ -4,7 +4,7 @@
  * module draws them at the same weight (a 16px current-color outline with a
  * 1px stroke) and the bundle stays free of an icon dependency.
  *
- * @module dsh-unread-helper/client/icons
+ * @module dsh-session-radar/client/icons
  */
 import type { Metric } from '../count.js'
 

@@ -187,7 +187,7 @@ function fakeContext(values = {}) {
     ctx,
     disposers,
     opened,
-    get captured() { return registrations.get('sidebar.footer.action#unread-helper') },
+    get captured() { return registrations.get('sidebar.footer.action#session-radar') },
     get all() { return registrations },
     byId(name, id) { return registrations.get(name + '#' + id) },
     shortcut(id) { return shortcutCommands.get(id) },
@@ -266,21 +266,21 @@ test('the client half registers the bell, the readout, the gated settings row, a
   // readout's settings row lives in the settings list under the row id.
   assert.equal(handle.all.size, 3, 'bell + readout + settings row')
   assert.equal(captured().options.name, 'sidebar.footer.action')
-  assert.equal(captured().options.id, 'unread-helper')
-  assert.equal(captured().options.locale, 'unread-helper')
-  const readout = handle.byId('sidebar.footer.action', 'unread-helper.status')
+  assert.equal(captured().options.id, 'session-radar')
+  assert.equal(captured().options.locale, 'session-radar')
+  const readout = handle.byId('sidebar.footer.action', 'session-radar.status')
   assert.notEqual(readout, undefined, 'the status readout is registered in the footer slot')
-  assert.equal(readout.options.locale, 'unread-helper')
-  const settings = handle.byId('settings.general.item', 'unread-helper')
+  assert.equal(readout.options.locale, 'session-radar')
+  const settings = handle.byId('settings.general.item', 'session-radar')
   assert.notEqual(settings, undefined, 'the settings row is registered under the row id')
   const injected = captured().options.inject()
   assert.deepEqual(Object.keys(injected).sort(), [
     'archiveSession', 'askJump', 'ledger', 'openSession', 'pinSession', 'sessions', 'statuses',
     'unpinSession', 'unreadJump', 'workspaces',
   ])
-  assert.equal(document.querySelector('style[data-plugin="dsh-unread-helper"]') !== null, true)
+  assert.equal(document.querySelector('style[data-plugin="dsh-session-radar"]') !== null, true)
   for (const dispose of [...disposers].reverse()) dispose()
-  assert.equal(document.querySelector('style[data-plugin="dsh-unread-helper"]'), null)
+  assert.equal(document.querySelector('style[data-plugin="dsh-session-radar"]'), null)
 })
 
 test('the bell renders beside the search control with the unread badge', async () => {
@@ -309,7 +309,7 @@ test('the bell renders beside the search control with the unread badge', async (
   for (const dispose of [...disposers].reverse()) dispose()
   assert.equal(document.querySelector('.ab-bell'), null)
   assert.equal(document.querySelector('.ab-bell-host'), null)
-  assert.equal(document.querySelector('style[data-plugin="dsh-unread-helper"]'), null)
+  assert.equal(document.querySelector('style[data-plugin="dsh-session-radar"]'), null)
   assert.equal(shell.header.children.length, 3, 'the shell keeps only its own children')
 })
 
@@ -602,7 +602,7 @@ test('the registered unread-jump shortcut runs the bell\'s jump', async () => {
   const captured = () => handle.captured
   apply(ctx)
 
-  const command = handle.shortcut('unread-helper.jumpUnread')
+  const command = handle.shortcut('session-radar.jumpUnread')
   assert.ok(command, 'apply registers the unread-jump command')
   assert.equal(command.label(), '定位下一个未读')
   assert.deepEqual(command.defaults, {
@@ -785,11 +785,11 @@ test('a conversation at its tail tells the host ledger the Session is read', asy
     await React.act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
     assert.equal(document.querySelector('.ab-badge'), null, 'the tail never badges')
     assert.ok(
-      calls.some(call => call.target.endsWith('/unread-helper/read') && call.body?.sessionId === 's1'),
+      calls.some(call => call.target.endsWith('/session-radar/read') && call.body?.sessionId === 's1'),
       'the host ledger is told the Session is read',
     )
     assert.ok(
-      calls.some(call => call.target.endsWith('/unread-helper/read')
+      calls.some(call => call.target.endsWith('/session-radar/read')
         && call.body?.sessionId === 's1' && call.body?.acknowledgeInterrupt === true),
       'the tail read also acknowledges a restart-interrupted turn',
     )
@@ -888,7 +888,7 @@ test('the I shortcut walks the pending asks and retraces the path back', async (
     wide: true, t: translate, ...injected,
   }))
 
-  const command = handle.shortcut('unread-helper.jumpAsk')
+  const command = handle.shortcut('session-radar.jumpAsk')
   assert.ok(command, 'apply registers the ask-jump command')
   const press = async () => {
     const resolution = command.resolve({ region: 'page', modal: null, target: null })

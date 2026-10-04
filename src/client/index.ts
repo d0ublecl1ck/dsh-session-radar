@@ -1,5 +1,5 @@
 /**
- * Client half: inject the page styles, register the unread-helper
+ * Client half: inject the page styles, register the session-radar
  * dictionaries, register the unread and pending-ask shortcuts, mount the bell,
  * and add the merged status readout and its settings row.
  *
@@ -12,7 +12,7 @@
  * the preference row is gated on the Host actually serving this plugin's
  * config namespace.
  *
- * @module dsh-unread-helper/client
+ * @module dsh-session-radar/client
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
@@ -41,7 +41,7 @@ import type { ConfigFormsService, WatchSlotsService } from './watch-types.js'
 const NS = PLUGIN_ID
 
 /**
- * Entry id of the footer readout. The bell keeps the row id 'unread-helper' in
+ * Entry id of the footer readout. The bell keeps the row id 'session-radar' in
  * the same slot, so the readout needs its own entry key; the config namespace
  * stays the row id and is never used as a status slot id here.
  */
@@ -73,15 +73,15 @@ export function apply(ctx: Context): void {
       style.remove()
       removeStyles()
     }
-  }, 'unread-helper: styles')
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'unread-helper: dictionaries')
+  }, 'session-radar: styles')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'session-radar: dictionaries')
 
   // The settings service owns the plugin's config form; the readout reads it
   // through one observable source, and the settings row only registers while
   // the Host actually serves that namespace.
   const forms = (ctx as unknown as { configForms: ConfigFormsService }).configForms
   const config = createConfigSource(forms.get(PLUGIN_ID))
-  ctx.effect(() => () => config.dispose(), 'unread-helper: status config source')
+  ctx.effect(() => () => config.dispose(), 'session-radar: status config source')
 
   // The injected face binds the framework's own sources: the Session list the
   // browsing region reads, the UI status it derives row dots from, and the
@@ -101,13 +101,13 @@ export function apply(ctx: Context): void {
   const t = ctx.locale.bind(NS)
   ctx.effect(() => ctx.shortcuts.register(
     unreadJumpCommand(unreadJump, () => t('bell.show'), t('bell.noUnread')),
-  ), 'unread-helper: shortcut command')
+  ), 'session-radar: shortcut command')
   ctx.effect(() => ctx.shortcuts.register(
     askJumpCommand(askJump, () => t('bell.jumpAsk'), t('bell.noAsk')),
-  ), 'unread-helper: ask shortcut command')
+  ), 'session-radar: ask shortcut command')
   ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
     name: 'sidebar.footer.action',
-    id: 'unread-helper',
+    id: 'session-radar',
     order: 900,
     locale: NS,
     inject: () => ({
@@ -137,7 +137,7 @@ export function apply(ctx: Context): void {
     order: STATUS_ORDER,
     locale: NS,
     inject: () => ({ config }),
-  }, StatusWatch)), 'unread-helper: status readout')
+  }, StatusWatch)), 'session-radar: status readout')
 
   // The preference row follows the Host's own namespace: a deployment that
   // never served it shows no trace of the row.
@@ -147,5 +147,5 @@ export function apply(ctx: Context): void {
     order: SETTINGS_ORDER,
     locale: NS,
     inject: () => ({ config }),
-  }, SettingsRow))), 'unread-helper: status settings row')
+  }, SettingsRow))), 'session-radar: status settings row')
 }

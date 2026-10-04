@@ -1,9 +1,9 @@
 /**
- * `unread-helper` dictionaries. Simplified Chinese is the source of truth for
+ * `session-radar` dictionaries. Simplified Chinese is the source of truth for
  * the key set; English mirrors it one-to-one. The namespace carries both halves
  * of the plugin: the bell/activity copy and the status readout's copy.
  *
- * @module dsh-unread-helper/client/locales
+ * @module dsh-session-radar/client/locales
  */
 
 /** Simplified Chinese dictionary. */
@@ -64,10 +64,10 @@ export const zh = {
 }
 
 /** Every key this namespace owns. */
-export type UnreadHelperKey = keyof typeof zh
+export type SessionRadarKey = keyof typeof zh
 
 /** English dictionary; the key set is fixed by the Chinese source of truth. */
-export const en: Record<UnreadHelperKey, string> = {
+export const en: Record<SessionRadarKey, string> = {
   'bell.show': 'Jump to next unread',
   'bell.hide': 'Open recent activity',
   'bell.showUnread': 'Jump to next unread, {count} sessions finished unviewed',

@@ -14,7 +14,7 @@
  * validated by the search control it must contain, so an unrelated section
  * header elsewhere in the shell can never be mistaken for this one.
  *
- * @module dsh-unread-helper/client/anchors
+ * @module dsh-session-radar/client/anchors
  */
 /** Resolved sidebar-region anchors for one rendered shell. */
 export interface SidebarAnchors {

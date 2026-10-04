@@ -1,5 +1,5 @@
 /**
- * dsh-unread-helper — host entry.
+ * dsh-session-radar — host entry.
  *
  * The host half owns two things the browser half cannot: the cross-restart
  * ledger (behavior in `src/host.ts`, routed over the plugin's own
@@ -7,11 +7,11 @@
  * unarchived warning threshold, the readout layout, and one visibility switch
  * per metric, declared here as volatile Config fields. dsh-settings projects
  * exactly those fields into the Settings namespace named by this row's id
- * (`unread-helper`), which is what the merged client readout and its
+ * (`session-radar`), which is what the merged client readout and its
  * settings row read and write. Counting itself stays in the browser: every
  * number is derived from the snapshots the shell already publishes.
  *
- * @module dsh-unread-helper
+ * @module dsh-session-radar
  */
 import z from '@deepseek-ai/schemastery'
 import { DEFAULT_VARIANT, DEFAULT_VISIBILITY } from './config.js'
@@ -19,7 +19,7 @@ import { DEFAULT_THRESHOLD } from './count.js'
 import { mount } from './host.js'
 
 /** Stable cordis plugin name (the bundle row's `name` resolves to this package). */
-export const name = 'unread-helper'
+export const name = 'session-radar'
 
 /** The browser reaches this half through an authenticated webServer route. */
 export const inject = ['webServer', 'connection']

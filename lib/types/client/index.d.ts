@@ -1,5 +1,5 @@
 /**
- * Client half: inject the page styles, register the unread-helper
+ * Client half: inject the page styles, register the session-radar
  * dictionaries, register the unread and pending-ask shortcuts, mount the bell,
  * and add the merged status readout and its settings row.
  *
@@ -12,7 +12,7 @@
  * the preference row is gated on the Host actually serving this plugin's
  * config namespace.
  *
- * @module dsh-unread-helper/client
+ * @module dsh-session-radar/client
  */
 import type { Context } from '@deepseek-ai/cordis';
 import './types.js';

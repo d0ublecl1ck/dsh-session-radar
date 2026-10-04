@@ -11,7 +11,7 @@
  * indistinguishable from "nothing to show", which is exactly the bug this file
  * was written to avoid.
  *
- * @module dsh-unread-helper/client/ledger-source
+ * @module dsh-session-radar/client/ledger-source
  */
 import type { Context } from '@deepseek-ai/cordis';
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client';

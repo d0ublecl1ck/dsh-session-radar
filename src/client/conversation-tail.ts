@@ -10,7 +10,7 @@
  * tail. Both attributes are shipped DOM, so this is the one place that reads
  * them.
  *
- * @module dsh-unread-helper/client/conversation-tail
+ * @module dsh-session-radar/client/conversation-tail
  */
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 

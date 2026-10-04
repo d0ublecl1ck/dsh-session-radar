@@ -27,7 +27,7 @@ const {
   STATUS_ID,
 } = await import('./watch-harness.mjs')
 
-const NS = 'unread-helper'
+const NS = 'session-radar'
 
 /** Mount the built client half against a fake Host and return its records. */
 function mount(options = {}) {
@@ -39,8 +39,8 @@ function mount(options = {}) {
 test('the browser module registers under the package name', () => {
   const source = readFileSync(join(root, 'lib/client.js'), 'utf8')
   assert.match(source, /window\.__ModuleLoader__\.load\(\{/)
-  assert.match(source, /id: "dsh-unread-helper"/)
-  assert.equal(pkg.name, 'dsh-unread-helper')
+  assert.match(source, /id: "dsh-session-radar"/)
+  assert.equal(pkg.name, 'dsh-session-radar')
 })
 
 test('the factory exports apply and the service inject list', () => {
@@ -54,7 +54,7 @@ test('the factory exports apply and the service inject list', () => {
 test('applying registers the bell, the readout, the gated settings row, and both dictionaries', () => {
   const mounted = mount()
 
-  assert.notEqual(document.querySelector('style[data-plugin="dsh-unread-helper"]'), null)
+  assert.notEqual(document.querySelector('style[data-plugin="dsh-session-radar"]'), null)
 
   assert.deepEqual(mounted.locales.map((entry) => entry.ns), [NS])
   assert.deepEqual(Object.keys(mounted.locales[0].dicts), ['zh', 'en'])

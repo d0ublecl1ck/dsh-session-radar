@@ -6,7 +6,7 @@
  * numbers individually: a selector that returned the object would hand
  * useSyncExternalStore a new identity on every render.
  *
- * @module dsh-unread-helper/client/use-counts
+ * @module dsh-session-radar/client/use-counts
  */
 import { type SessionCounts } from '../count.js';
 import type { SnapshotSelectorHook } from './watch-types.js';

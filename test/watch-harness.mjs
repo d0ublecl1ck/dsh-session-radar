@@ -16,8 +16,8 @@ export const root = dirname(dirname(fileURLToPath(import.meta.url)))
 export const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
 
 /** Slot entry ids the merged client half registers. */
-export const BELL_ID = 'unread-helper'
-export const STATUS_ID = 'unread-helper.status'
+export const BELL_ID = 'session-radar'
+export const STATUS_ID = 'session-radar.status'
 export const SETTINGS_SLOT = 'settings.general.item'
 export const FOOTER_SLOT = 'sidebar.footer.action'
 

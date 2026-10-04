@@ -8,7 +8,7 @@
  * readout actually touches, and they keep the readout importable by the plain
  * node render tests.
  *
- * @module dsh-unread-helper/client/watch-types
+ * @module dsh-session-radar/client/watch-types
  */
 /** Translate one dictionary key, with optional named template params. */
 export type Translate = (key: string, params?: Record<string, unknown>) => string;

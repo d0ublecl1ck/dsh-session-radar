@@ -8,7 +8,7 @@
  * getSnapshot for useSyncExternalStore, and writes that publish the optimistic
  * value instead of waiting for the Host round-trip to re-render.
  *
- * @module dsh-unread-helper/client/config-source
+ * @module dsh-session-radar/client/config-source
  */
 import { METRICS, normalizeThreshold, type Metric } from '../count.js'
 import {

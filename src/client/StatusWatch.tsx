@@ -7,7 +7,7 @@
  * own. The same numbers feed the Settings row, so the two surfaces can never
  * disagree.
  *
- * @module dsh-unread-helper/client/StatusWatch
+ * @module dsh-session-radar/client/StatusWatch
  */
 import { useSyncExternalStore } from 'react'
 import { Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -30,7 +30,7 @@ export interface StatusWatchProps {
   readonly useWorkspaces: SnapshotSelectorHook
   /** Live preference owned by this plugin's config namespace. */
   readonly config: ConfigSource
-  /** Bound translate function for the unread-helper namespace. */
+  /** Bound translate function for the session-radar namespace. */
   readonly t: Translate
 }
 

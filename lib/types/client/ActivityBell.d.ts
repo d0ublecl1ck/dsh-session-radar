@@ -34,7 +34,7 @@ export interface ActivityBellInjected {
     readonly askJump: JumpSeat;
 }
 /** Composed props: shell share + locale seat + injected business face. */
-export type ActivityBellProps = PropsRuntime<'sidebar.footer.action'> & PropsLocale<'unread-helper'> & ActivityBellInjected;
+export type ActivityBellProps = PropsRuntime<'sidebar.footer.action'> & PropsLocale<'session-radar'> & ActivityBellInjected;
 /**
  * Render the bell into the sidebar header and, while active, the activity list
  * into the list seat it covers.
