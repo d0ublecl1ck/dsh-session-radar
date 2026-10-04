@@ -60,7 +60,7 @@ Workspace 归档集        ┘            ∪ 本地完成沿 ∪ 手动标记  
 
 ## 安装
 
-三档，任选一条。npm 上的发布版本可能落后于仓库 HEAD（例如 `⌘⇧K` 总览只在较新的版本里才有）——要用仓库最新功能就走 GitHub 或本地目录安装。版本变更记录见 [`CHANGELOG.md`](CHANGELOG.md)。
+三档，任选一条。npm 上的发布版本可能落后于仓库 HEAD——要用仓库最新功能就走 GitHub 或本地目录安装。版本变更记录见 [`CHANGELOG.md`](CHANGELOG.md)。
 
 ### npm（推荐）
 
