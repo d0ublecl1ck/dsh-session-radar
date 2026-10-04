@@ -355,22 +355,28 @@ function WaitingWindow({
           <span className="ov-kbd">Esc</span>
         </div>
         <div className="ov-body">
-          <WaitingZone
-            zone="ask"
-            cards={waiting.ask}
-            cursor={cursor}
-            now={now}
-            t={t}
-            onOpen={onOpen}
-          />
-          <WaitingZone
-            zone="unread"
-            cards={waiting.unread}
-            cursor={cursor}
-            now={now}
-            t={t}
-            onOpen={onOpen}
-          />
+          {waiting.ask.length === 0 && waiting.unread.length === 0
+            ? <div className="ov-empty">{t('overview.empty')}</div>
+            : (
+              <>
+                <WaitingZone
+                  zone="ask"
+                  cards={waiting.ask}
+                  cursor={cursor}
+                  now={now}
+                  t={t}
+                  onOpen={onOpen}
+                />
+                <WaitingZone
+                  zone="unread"
+                  cards={waiting.unread}
+                  cursor={cursor}
+                  now={now}
+                  t={t}
+                  onOpen={onOpen}
+                />
+              </>
+            )}
         </div>
       </div>
     </div>
@@ -710,11 +716,13 @@ export function ActivityBell({
   }), [askJump, jumpNextAsk, askOrder])
 
   // The waiting window's own seat. It stays available while the window is up,
-  // because the same press closes it again.
+  // because the same press closes it again, and it is available with nothing
+  // waiting too: the press then answers with the empty copy instead of doing
+  // nothing at all.
   useEffect(() => overviewJump.publish({
-    available: () => waitingOpen || waiting.ask.length > 0 || waiting.unread.length > 0,
+    available: () => true,
     run: toggleWaiting,
-  }), [overviewJump, toggleWaiting, waiting, waitingOpen])
+  }), [overviewJump, toggleWaiting])
 
   // Collapsing the sidebar unmounts the region the panel covers: leave the
   // activity view rather than keeping a flag nobody can see or clear.

@@ -1102,3 +1102,50 @@ test('the waiting window walks both zones with the arrow keys and closes on Esca
   await view.unmount()
   for (const dispose of [...disposers].reverse()) dispose()
 })
+
+test('the K shortcut answers with the empty copy when nothing waits', async () => {
+  document.body.innerHTML = ''
+  buildSidebar(document)
+  const handle = fakeContext({
+    sessions: source({
+      ids: ['s1'],
+      byId: {
+        s1: {
+          id: 's1', displayTitle: '安静会话', blank: false, running: false,
+          updatedAt: localAt(0, 9),
+        },
+      },
+      phase: 'ready',
+    }),
+    statuses: source(new Map([['s1', { running: false, completionUnread: false }]])),
+    workspaces: source({ items: [], archivedSessionIds: [] }),
+  })
+  const { ctx, disposers } = handle
+  const captured = () => handle.captured
+  apply(ctx)
+  const injected = captured().options.inject()
+  const view = await mount(React.createElement(captured().component, {
+    wide: true, t: translate, ...injected,
+  }))
+
+  // Nothing waits, so there is no card to offer — but the press still answers
+  // instead of dying as a blocked command.
+  const command = handle.shortcut('session-radar.overview')
+  const resolution = command.resolve({ region: 'page', modal: null, target: null })
+  assert.equal(resolution.status, 'handled', 'the window opens with nothing waiting')
+  await React.act(async () => { resolution.run() })
+
+  const dialog = document.querySelector('.ov-panel')
+  assert.ok(dialog, 'the empty window still opens')
+  assert.equal(dialog.querySelectorAll('.ov-card').length, 0, 'no cards to show')
+  assert.equal(dialog.querySelector('.ov-empty').textContent, '没有未读或待决策的会话。')
+  assert.equal(dialog.querySelector('.ov-zone'), null, 'the two zones give way to one line')
+
+  await React.act(async () => {
+    document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+  })
+  assert.equal(document.querySelector('.ov-panel'), null)
+
+  await view.unmount()
+  for (const dispose of [...disposers].reverse()) dispose()
+})

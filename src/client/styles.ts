@@ -436,6 +436,18 @@ const CSS = `
 .ov-zone-ask { flex: none; width: 268px; }
 .ov-zone-unread { flex: 1; }
 
+/* Nothing waiting: the press still answers, with one line instead of two
+   empty columns. */
+.ov-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 0;
+  font-size: 12.5px;
+  color: var(--dsw-alias-label-tertiary, #adb2b8);
+}
+
 .ov-zone-title {
   display: flex;
   align-items: center;
