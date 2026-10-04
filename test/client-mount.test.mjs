@@ -119,8 +119,9 @@ function mutableSource(initial) {
 function fakeContext(values = {}) {
   const disposers = []
   const opened = []
-  // A plugin may register more than one action; keep them all and let the
-  // tests address the bell by its id instead of by registration order.
+  // The merged plugin registers into two slots and the bell and the settings
+  // row share the row id, so the double keys by slot+id and lets the tests
+  // address the bell instead of a registration order.
   const registrations = new Map()
   // The shortcut registry is plugin-scope: `apply` registers one command, so
   // the double keeps the latest registration by id for the integration test.
@@ -148,12 +149,24 @@ function fakeContext(values = {}) {
     slots: {
       inject(_name, factory) { return factory() },
       register(options, component) {
-        registrations.set(options.id, { options, component })
-        return () => { registrations.delete(options.id) }
+        const key = options.name + '#' + options.id
+        registrations.set(key, { options, component })
+        return () => { registrations.delete(key) }
       },
     },
     get(name) {
       return name === 'sessions' ? { list: sessions } : { list: workspaces }
+    },
+    configForms: {
+      get: () => ({
+        getSnapshot: () => ({ value: {} }),
+        subscribe: () => () => {},
+        set: async () => true,
+      }),
+      whileServed(namespaces, register) {
+        const dispose = register(new Set(namespaces))
+        return () => { if (typeof dispose === 'function') dispose() }
+      },
     },
     uiSession: { sessionStatus: statuses },
     uiWorkspace: {
@@ -174,8 +187,9 @@ function fakeContext(values = {}) {
     ctx,
     disposers,
     opened,
-    get captured() { return registrations.get('unread-helper') },
+    get captured() { return registrations.get('sidebar.footer.action#session-radar') },
     get all() { return registrations },
+    byId(name, id) { return registrations.get(name + '#' + id) },
     shortcut(id) { return shortcutCommands.get(id) },
   }
 }
@@ -243,23 +257,30 @@ async function mount(element) {
   }
 }
 
-test('the client half registers one sidebar foot action and injects the framework sources', () => {
+test('the client half registers the bell, the readout, the gated settings row, and the framework sources', () => {
   const handle = fakeContext()
   const { ctx, disposers } = handle;
   const captured = () => handle.captured
   apply(ctx)
-  assert.equal(handle.all.size, 1, 'the chip was removed: the bell is the only registered action')
+  // The bell and the merged status readout share the sidebar foot slot; the
+  // readout's settings row lives in the settings list under the row id.
+  assert.equal(handle.all.size, 3, 'bell + readout + settings row')
   assert.equal(captured().options.name, 'sidebar.footer.action')
-  assert.equal(captured().options.id, 'unread-helper')
-  assert.equal(captured().options.locale, 'unread-helper')
+  assert.equal(captured().options.id, 'session-radar')
+  assert.equal(captured().options.locale, 'session-radar')
+  const readout = handle.byId('sidebar.footer.action', 'session-radar.status')
+  assert.notEqual(readout, undefined, 'the status readout is registered in the footer slot')
+  assert.equal(readout.options.locale, 'session-radar')
+  const settings = handle.byId('settings.general.item', 'session-radar')
+  assert.notEqual(settings, undefined, 'the settings row is registered under the row id')
   const injected = captured().options.inject()
   assert.deepEqual(Object.keys(injected).sort(), [
     'archiveSession', 'askJump', 'ledger', 'openSession', 'pinSession', 'sessions', 'statuses',
     'unpinSession', 'unreadJump', 'workspaces',
   ])
-  assert.equal(document.querySelector('style[data-plugin="dsh-unread-helper"]') !== null, true)
+  assert.equal(document.querySelector('style[data-plugin="dsh-session-radar"]') !== null, true)
   for (const dispose of [...disposers].reverse()) dispose()
-  assert.equal(document.querySelector('style[data-plugin="dsh-unread-helper"]'), null)
+  assert.equal(document.querySelector('style[data-plugin="dsh-session-radar"]'), null)
 })
 
 test('the bell renders beside the search control with the unread badge', async () => {
@@ -288,7 +309,7 @@ test('the bell renders beside the search control with the unread badge', async (
   for (const dispose of [...disposers].reverse()) dispose()
   assert.equal(document.querySelector('.ab-bell'), null)
   assert.equal(document.querySelector('.ab-bell-host'), null)
-  assert.equal(document.querySelector('style[data-plugin="dsh-unread-helper"]'), null)
+  assert.equal(document.querySelector('style[data-plugin="dsh-session-radar"]'), null)
   assert.equal(shell.header.children.length, 3, 'the shell keeps only its own children')
 })
 
@@ -581,7 +602,7 @@ test('the registered unread-jump shortcut runs the bell\'s jump', async () => {
   const captured = () => handle.captured
   apply(ctx)
 
-  const command = handle.shortcut('unread-helper.jumpUnread')
+  const command = handle.shortcut('session-radar.jumpUnread')
   assert.ok(command, 'apply registers the unread-jump command')
   assert.equal(command.label(), '定位下一个未读')
   assert.deepEqual(command.defaults, {
@@ -764,11 +785,11 @@ test('a conversation at its tail tells the host ledger the Session is read', asy
     await React.act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
     assert.equal(document.querySelector('.ab-badge'), null, 'the tail never badges')
     assert.ok(
-      calls.some(call => call.target.endsWith('/unread-helper/read') && call.body?.sessionId === 's1'),
+      calls.some(call => call.target.endsWith('/session-radar/read') && call.body?.sessionId === 's1'),
       'the host ledger is told the Session is read',
     )
     assert.ok(
-      calls.some(call => call.target.endsWith('/unread-helper/read')
+      calls.some(call => call.target.endsWith('/session-radar/read')
         && call.body?.sessionId === 's1' && call.body?.acknowledgeInterrupt === true),
       'the tail read also acknowledges a restart-interrupted turn',
     )
@@ -867,7 +888,7 @@ test('the I shortcut walks the pending asks and retraces the path back', async (
     wide: true, t: translate, ...injected,
   }))
 
-  const command = handle.shortcut('unread-helper.jumpAsk')
+  const command = handle.shortcut('session-radar.jumpAsk')
   assert.ok(command, 'apply registers the ask-jump command')
   const press = async () => {
     const resolution = command.resolve({ region: 'page', modal: null, target: null })

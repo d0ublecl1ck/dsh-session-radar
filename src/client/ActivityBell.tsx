@@ -15,7 +15,7 @@
  * green dots, and the ordering all recompute from those snapshots, so opening
  * a Session clears its dot exactly the way the shipped rows do.
  *
- * @module dsh-unread-helper/client/ActivityBell
+ * @module dsh-session-radar/client/ActivityBell
  */
 import {
   useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore,
@@ -82,10 +82,10 @@ export interface ActivityBellInjected {
 /** Composed props: shell share + locale seat + injected business face. */
 export type ActivityBellProps =
   PropsRuntime<'sidebar.footer.action'>
-  & PropsLocale<'unread-helper'>
+  & PropsLocale<'session-radar'>
   & ActivityBellInjected
 
-type Translate = PropsLocale<'unread-helper'>['t']
+type Translate = PropsLocale<'session-radar'>['t']
 
 /** Calendar bucket → section label. */
 function dayLabel(bucket: ActivityDayBucket, t: Translate, now: number): string {

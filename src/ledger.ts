@@ -1,5 +1,5 @@
 /**
- * dsh-unread-helper — the cross-restart session ledger.
+ * dsh-session-radar — the cross-restart session ledger.
  *
  * A pure, framework-free state machine. Everything the plugin remembers about a
  * Session lives here, so the persistence rules are unit-testable without a
@@ -11,7 +11,7 @@
  *   operator opened it: the red marker means "this turn never finished".
  * - Read markers never move backwards.
  *
- * @module dsh-unread-helper/ledger
+ * @module dsh-session-radar/ledger
  */
 
 /** Persisted document version; bump when the fold semantics change. */

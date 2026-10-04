@@ -1,5 +1,5 @@
-/** Stable cordis plugin name (the bundle row's id is `unread-helper`). */
-export declare const name = "unread-helper";
+/** Stable cordis plugin name (the bundle row's id is `session-radar`). */
+export declare const name = "session-radar";
 /**
  * Mount the host half.
  *

@@ -8,7 +8,7 @@
  * the ellipsis and the fade masks line up exactly as they do in the shipped
  * rows).
  *
- * @module dsh-unread-helper/client/marquee
+ * @module dsh-session-radar/client/marquee
  */
 import { useEffect, useMemo, useRef, type RefObject } from 'react'
 

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
-import { mkdtemp } from 'node:fs/promises'
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -34,8 +34,11 @@ function finishedSession(id) {
   }
 }
 
-async function harness({ agents } = {}) {
-  const dir = await mkdtemp(join(tmpdir(), 'unread-helper-host-'))
+async function harness({ agents, legacy } = {}) {
+  const dir = await mkdtemp(join(tmpdir(), 'session-radar-host-'))
+  if (legacy !== undefined) {
+    await writeFile(join(dir, 'unread-helper.json'), JSON.stringify(legacy), 'utf8')
+  }
   const listeners = new Map()
   const routes = new Map()
   const warnings = []
@@ -65,11 +68,11 @@ async function harness({ agents } = {}) {
     for (const listener of listeners.get(event) ?? []) listener(...args)
   }
   const post = async (endpoint, body) => {
-    const route = routes.get('/unread-helper')
+    const route = routes.get('/session-radar')
     assert.ok(route, 'the host half must register its route')
     const req = new EventEmitter()
     req.method = 'POST'
-    req.url = '/unread-helper/' + endpoint
+    req.url = '/session-radar/' + endpoint
     const res = {
       statusCode: 0,
       payload: '',
@@ -130,6 +133,37 @@ test('a live turn end after the scan resolves the restored orphan', async () => 
     [{ sessionId: 's1', at: T(9), kind: 'completed' }],
     'the resumed turn supersedes the orphan',
   )
+})
+
+test('a ledger written before the rename is carried over exactly once', async () => {
+  const migrated = {
+    version: 1,
+    sessions: {
+      s1: {
+        lastTurnEndAt: T(7),
+        lastTurnEndKind: 'completed',
+        interruptedAt: null,
+        lastAttentionAt: null,
+        lastAttentionKind: null,
+        lastReadAt: null,
+      },
+    },
+  }
+  const h = await harness({ legacy: migrated })
+  const body = await h.post('list')
+  assert.deepEqual(
+    body.value.unread,
+    [{ sessionId: 's1', at: T(7), kind: 'completed' }],
+    'the pre-rename ledger still decides what is unread',
+  )
+  assert.ok(
+    h.warnings.some((message) => message.includes('carried the ledger over')),
+    'the carry-over is announced instead of happening silently',
+  )
+  const written = JSON.parse(await readFile(join(h.dir, 'session-radar.json'), 'utf8'))
+  assert.deepEqual(written, migrated, 'the state lands in the new file name unchanged')
+  const untouched = JSON.parse(await readFile(join(h.dir, 'unread-helper.json'), 'utf8'))
+  assert.deepEqual(untouched, migrated, 'the legacy file is left in place, not deleted')
 })
 
 test('malformed sessions and event snapshots never throw', async () => {

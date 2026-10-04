@@ -15,7 +15,7 @@
  * own `__dsh_storage_sync__` channel. Both triggers only re-read the key and
  * notify when the id set actually changed.
  *
- * @module dsh-unread-helper/client/manual-unread
+ * @module dsh-session-radar/client/manual-unread
  */
 import type { SessionId } from '@deepseek-ai/dsh-session/types';
 /** The Workspace browser's persisted view-store key. */

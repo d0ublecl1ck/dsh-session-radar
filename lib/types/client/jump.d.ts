@@ -8,7 +8,7 @@
  * the ids the sidebar reports may change for reasons of their own, but neither
  * moves the operator off the position they reached by pressing.
  *
- * @module dsh-unread-helper/client/jump
+ * @module dsh-session-radar/client/jump
  */
 /** Minimal Session-list shape the current-Session lookup reads. */
 interface MainViewList<Id extends string> {

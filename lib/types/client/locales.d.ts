@@ -1,8 +1,9 @@
 /**
- * `unread-helper` dictionaries. Simplified Chinese is the source of truth for
- * the key set; English mirrors it one-to-one.
+ * `session-radar` dictionaries. Simplified Chinese is the source of truth for
+ * the key set; English mirrors it one-to-one. The namespace carries both halves
+ * of the plugin: the bell/activity copy and the status readout's copy.
  *
- * @module dsh-unread-helper/client/locales
+ * @module dsh-session-radar/client/locales
  */
 /** Simplified Chinese dictionary. */
 export declare const zh: {
@@ -37,8 +38,30 @@ export declare const zh: {
     'day.sat': string;
     'day.date': string;
     'day.dateYear': string;
+    'metric.running': string;
+    'metric.unread': string;
+    'metric.pending': string;
+    'metric.idle': string;
+    'metric.unarchived': string;
+    'metric.archived': string;
+    'watch.aria': string;
+    'watch.summaryItem': string;
+    'watch.summaryJoin': string;
+    'watch.railHint': string;
+    'watch.warn': string;
+    'watch.empty': string;
+    'row.title': string;
+    'row.description': string;
+    'row.showLabel': string;
+    'row.variantLabel': string;
+    'row.variant.chips': string;
+    'row.variant.meter': string;
+    'row.thresholdLabel': string;
+    'row.thresholdHint': string;
+    'row.inputLabel': string;
+    'row.saveFailed': string;
 };
 /** Every key this namespace owns. */
-export type ActivityBellKey = keyof typeof zh;
+export type SessionRadarKey = keyof typeof zh;
 /** English dictionary; the key set is fixed by the Chinese source of truth. */
-export declare const en: Record<ActivityBellKey, string>;
+export declare const en: Record<SessionRadarKey, string>;

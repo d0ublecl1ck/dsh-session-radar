@@ -41,8 +41,8 @@ test('a stale disposer never clears a newer handler', () => {
 
 test('the command keys its stored override on a stable id and name', () => {
   const command = unreadJumpCommand(createJumpSeat(), () => '定位下一个未读', '没有未读会话')
-  assert.equal(command.id, 'unread-helper.jumpUnread')
-  assert.equal(UNREAD_JUMP_COMMAND, 'unread-helper.jumpUnread')
+  assert.equal(command.id, 'session-radar.jumpUnread')
+  assert.equal(UNREAD_JUMP_COMMAND, 'session-radar.jumpUnread')
   assert.equal(command.label(), '定位下一个未读')
   assert.deepEqual(command.aliases, ['jump to next unread', 'next unread', 'unread'])
   assert.deepEqual(command.regions, ['page', 'editable'])
@@ -119,8 +119,8 @@ test('the handled resolution captures the handler published at resolve time', ()
 
 test('the ask command keys its stored override on a stable id and name', () => {
   const command = askJumpCommand(createJumpSeat(), () => '定位等待处理', '没有等待处理的会话')
-  assert.equal(command.id, 'unread-helper.jumpAsk')
-  assert.equal(ASK_JUMP_COMMAND, 'unread-helper.jumpAsk')
+  assert.equal(command.id, 'session-radar.jumpAsk')
+  assert.equal(ASK_JUMP_COMMAND, 'session-radar.jumpAsk')
   assert.equal(command.label(), '定位等待处理')
   assert.deepEqual(command.aliases, ['jump to pending ask', 'next ask', 'pending ask'])
   assert.deepEqual(command.regions, ['page', 'editable'])

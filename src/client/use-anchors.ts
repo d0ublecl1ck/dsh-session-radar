@@ -4,7 +4,7 @@
  * follows late-arriving siblings (the add-workspace button appears only after
  * a directory-flow occupant loads).
  *
- * @module dsh-unread-helper/client/use-anchors
+ * @module dsh-session-radar/client/use-anchors
  */
 import { useEffect, useState } from 'react'
 import {
