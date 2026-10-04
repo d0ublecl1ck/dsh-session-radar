@@ -29,7 +29,7 @@ import { PLUGIN_ID } from '../config.js'
 import './types.js'
 import { ActivityBell } from './ActivityBell.js'
 import { createConfigSource } from './config-source.js'
-import { askJumpCommand, createJumpSeat, unreadJumpCommand } from './jump-command.js'
+import { askJumpCommand, createJumpSeat, overviewCommand, unreadJumpCommand } from './jump-command.js'
 import { createLedgerSource } from './ledger-source.js'
 import { en, zh } from './locales.js'
 import { SettingsRow } from './SettingsRow.js'
@@ -95,9 +95,11 @@ export function apply(ctx: Context): void {
   const ledger = createLedgerSource(ctx, sessions)
   // Each shortcut is plugin-scope while its jump lives in the mounted bell, so
   // the bell publishes into one seat per walk and the command resolves against
-  // it. The two seats stay separate so neither walk can move the other's target.
+  // it. The seats stay separate so neither walk can move the other's target,
+  // and the waiting window's seat is a door rather than a target.
   const unreadJump = createJumpSeat()
   const askJump = createJumpSeat()
+  const overviewJump = createJumpSeat()
   const t = ctx.locale.bind(NS)
   ctx.effect(() => ctx.shortcuts.register(
     unreadJumpCommand(unreadJump, () => t('bell.show'), t('bell.noUnread')),
@@ -105,6 +107,9 @@ export function apply(ctx: Context): void {
   ctx.effect(() => ctx.shortcuts.register(
     askJumpCommand(askJump, () => t('bell.jumpAsk'), t('bell.noAsk')),
   ), 'session-radar: ask shortcut command')
+  ctx.effect(() => ctx.shortcuts.register(
+    overviewCommand(overviewJump, () => t('overview.open'), t('overview.noWaiting')),
+  ), 'session-radar: overview shortcut command')
   ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
     name: 'sidebar.footer.action',
     id: 'session-radar',
@@ -121,6 +126,7 @@ export function apply(ctx: Context): void {
       ledger,
       unreadJump,
       askJump,
+      overviewJump,
     }),
   }, ActivityBell))
 

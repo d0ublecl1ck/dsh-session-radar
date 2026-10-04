@@ -40,6 +40,8 @@ export declare function createJumpSeat(): JumpSeat;
 export declare const UNREAD_JUMP_COMMAND: ShortcutCommandId;
 /** Pending-ask command id. It keys the stored override, so it has to stay stable. */
 export declare const ASK_JUMP_COMMAND: ShortcutCommandId;
+/** Waiting-window command id. It keys the stored override, so it has to stay stable. */
+export declare const OVERVIEW_COMMAND: ShortcutCommandId;
 /**
  * Build the unread-walk command over a seat.
  * @param seat - the seat the mounted bell publishes into.
@@ -60,3 +62,16 @@ export declare function unreadJumpCommand(seat: JumpSeat, label: () => string, u
  * @returns the command definition for `ctx.shortcuts.register`.
  */
 export declare function askJumpCommand(seat: JumpSeat, label: () => string, unavailable: string): ShortcutCommand;
+/**
+ * Build the waiting-window command over a seat.
+ *
+ * Unlike the two walks, this one opens a surface rather than moving the
+ * conversation, and it toggles: the same press closes the window again. The
+ * bell keeps that state, so the command only has to reach it.
+ *
+ * @param seat - the seat the mounted bell publishes into.
+ * @param label - localized command name shown in the shortcut reference.
+ * @param unavailable - localized reason for a blocked resolution.
+ * @returns the command definition for `ctx.shortcuts.register`.
+ */
+export declare function overviewCommand(seat: JumpSeat, label: () => string, unavailable: string): ShortcutCommand;

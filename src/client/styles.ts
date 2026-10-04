@@ -341,6 +341,197 @@ const CSS = `
   to { opacity: 1; }
 }
 
+/* ── waiting window (the K overview) ─────────────────────────────────────
+   A page overlay instead of a sidebar cover: the two zones need more width
+   than the sidebar ever has, so this is the one surface that portals into the
+   document body. The ask zone keeps a fixed column and the unread zone takes
+   the rest, so "answer first" survives every window width. */
+.ov-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.ov-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: min(880px, 100%);
+  max-height: min(640px, 100%);
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid var(--dsw-alias-border-l2, #ffffff1f);
+  border-radius: 14px;
+  background: var(--dsw-alias-bg-layer-1, #1f1f21);
+  color: var(--dsw-alias-label-primary, #f9fafb);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.ov-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2, #ffffff14);
+  font-size: 13.5px;
+}
+
+.ov-title { font-weight: 560; color: var(--dsw-alias-label-primary, #f9fafb); }
+.ov-counts, .ov-hint { font-size: 12px; color: var(--dsw-alias-label-tertiary, #adb2b8); }
+.ov-grow { flex: 1; }
+
+.ov-close {
+  flex: none;
+  padding: 3px 10px;
+  border: 1px solid var(--dsw-alias-border-l2, #ffffff1f);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary, #cfd3d6);
+  font: inherit;
+  font-size: 12px;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.ov-close:hover {
+  background: var(--dsw-alias-interactive-bg-hover, #ffffff14);
+  color: var(--dsw-alias-label-primary, #f9fafb);
+}
+
+.ov-close:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary, currentColor); outline-offset: 1px; }
+
+.ov-kbd {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 19px;
+  padding: 0 5px;
+  border: 1px solid var(--dsw-alias-border-l2, #ffffff1f);
+  border-radius: 5px;
+  background: var(--dsw-alias-bg-layer-2, #ffffff10);
+  color: var(--dsw-alias-label-secondary, #cfd3d6);
+  font-size: 11px;
+}
+
+.ov-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 16px;
+  padding: 12px 16px 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.ov-zone { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.ov-zone-ask { flex: none; width: 268px; }
+.ov-zone-unread { flex: 1; }
+
+.ov-zone-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--dsw-alias-label-tertiary, #adb2b8);
+}
+
+/* The zone's priority mark: warning for an ask, unread red for a completion. */
+.ov-zone-title::before {
+  content: '';
+  width: 3px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--dsw-alias-state-warn-primary, #f5a623);
+}
+
+.ov-zone-unread .ov-zone-title::before { background: var(--dsw-alias-state-error-primary, #e5484d); }
+
+.ov-zone-count { color: var(--dsw-alias-label-secondary, #cfd3d6); font-weight: 620; }
+.ov-zone-empty { font-size: 12px; color: var(--dsw-alias-label-tertiary, #adb2b8); }
+
+.ov-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  align-content: start;
+}
+
+.ov-zone-ask .ov-grid { grid-template-columns: 1fr; }
+
+.ov-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: var(--dsw-alias-bg-layer-2, #2c2c2e);
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.ov-card:hover { border-color: var(--dsw-alias-border-l2, #ffffff1f); }
+.ov-card:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary, currentColor); outline-offset: -2px; }
+
+.ov-card-sel {
+  border-color: var(--dsw-alias-brand-primary, #7aaaff);
+  box-shadow: inset 0 0 0 1px var(--dsw-alias-brand-primary, #7aaaff);
+}
+
+/* The Session the conversation column already shows, so the window says where
+   the operator is standing. */
+.ov-card-current { background: var(--dsw-alias-interactive-bg-hover, #ffffff14); }
+
+.ov-card-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--dsw-alias-label-primary, #f9fafb);
+}
+
+.ov-tag {
+  align-self: flex-start;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--dsw-alias-state-warn-tertiary, rgba(245, 166, 35, 0.16));
+  color: var(--dsw-alias-state-warn-primary, #f5a623);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.ov-tag-unread { background: rgba(72, 199, 142, 0.16); color: #48c78e; }
+
+.ov-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--dsw-alias-label-tertiary, #adb2b8);
+}
+
+.ov-card-folder { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-card-when { flex: none; margin-inline-start: auto; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .ov-panel { animation: ab-panel-in 120ms var(--ds-ease-in-out, ease-out); }
+}
+
 /* ── status readout (merged from dsh-session-watch) ───────────────────────
    The six-metric footer readout and its settings row share this same
    stylesheet; the data-plugin marker and the fiber's removeStyles() cover the

@@ -6,7 +6,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  ASK_JUMP_COMMAND, askJumpCommand, createJumpSeat, unreadJumpCommand, UNREAD_JUMP_COMMAND,
+  ASK_JUMP_COMMAND, askJumpCommand, createJumpSeat, overviewCommand, OVERVIEW_COMMAND,
+  unreadJumpCommand, UNREAD_JUMP_COMMAND,
 } from '../.test-build/client/jump-command.js'
 // The shipped service's own rules: a default it rejects throws inside
 // `ctx.shortcuts.register` and takes the whole client half down with it.
@@ -207,4 +208,112 @@ test('the ask command blocks with the supplied reason while the walk has nowhere
   assert.deepEqual(command.resolve(CONTEXT), { status: 'blocked', reason: '没有等待处理的会话' })
   seat.publish({ available: () => false, run: () => { throw new Error('must not run') } })
   assert.deepEqual(command.resolve(CONTEXT), { status: 'blocked', reason: '没有等待处理的会话' })
+})
+
+/**
+ * The shipped command that owns every simple KeyK shape. `session.search`
+ * (dsh-client-ui-sidebar) takes Mod+K on desktop and Mod+Alt+K on web, so the
+ * waiting window cannot declare either; the registry throws "Conflicting
+ * shortcut defaults" on an overlap in ANY declared profile, not just the
+ * running one, which would take the whole client half down at boot.
+ */
+const SHIPPED_KEY_K_COMMANDS = {
+  'session.search': {
+    'desktop:macos': { code: 'KeyK', modifiers: ['primary'] },
+    'desktop:windows': { code: 'KeyK', modifiers: ['primary'] },
+    'desktop:linux': { code: 'KeyK', modifiers: ['primary'] },
+    'web:macos': { code: 'KeyK', modifiers: ['primary', 'alt'] },
+    'web:windows': { code: 'KeyK', modifiers: ['primary', 'alt'] },
+    'web:linux': { code: 'KeyK', modifiers: ['primary', 'alt'] },
+  },
+}
+
+test('the overview command keys its stored override on a stable id and name', () => {
+  const command = overviewCommand(createJumpSeat(), () => '打开待办总览', '没有未读或待决策的会话')
+  assert.equal(command.id, 'session-radar.overview')
+  assert.equal(OVERVIEW_COMMAND, 'session-radar.overview')
+  assert.equal(command.label(), '打开待办总览')
+  assert.deepEqual(command.aliases, ['overview', 'waiting overview', 'unread and pending'])
+  assert.deepEqual(command.regions, ['page', 'editable'])
+  assert.deepEqual(command.modals, [])
+})
+
+test('the overview defaults keep one letter and move the helper key to Shift', () => {
+  const command = overviewCommand(createJumpSeat(), () => 'x', 'y')
+  assert.deepEqual(command.defaults, {
+    'desktop:macos': { code: 'KeyK', modifiers: ['primary', 'shift'] },
+    'desktop:windows': { code: 'KeyK', modifiers: ['primary', 'shift'] },
+    'desktop:linux': { code: 'KeyK', modifiers: ['primary', 'shift'] },
+    'web:macos': { code: 'KeyK', modifiers: ['primary', 'shift'] },
+    'web:windows': { code: 'KeyK', modifiers: ['primary', 'shift'] },
+  })
+  // Linux Web admits none of those combinations, so the owner declares none.
+  assert.equal(command.defaults['web:linux'], undefined)
+})
+
+test('every overview default passes the shipped service legality checks', () => {
+  const command = overviewCommand(createJumpSeat(), () => 'x', 'y')
+  const profiles = Object.entries(command.defaults)
+  assert.equal(profiles.length, 5, 'the five supported profiles declare a default')
+  for (const [profile, binding] of profiles) {
+    const [runtime, platform] = profile.split(':')
+    const normalized = normalizeBinding(binding, platform)
+    assert.equal(
+      bindingIssue(normalized, runtime, platform), null,
+      `${profile} must not be reserved or unsupported`,
+    )
+    if (runtime === 'web') {
+      assert.equal(
+        isWebBindingAllowed(normalized, platform), true,
+        `${profile} must be a Web-legal combination`,
+      )
+    }
+  }
+})
+
+test('no overview default overlaps the shipped KeyK search binding', () => {
+  const command = overviewCommand(createJumpSeat(), () => 'x', 'y')
+  for (const [name, profiles] of Object.entries(SHIPPED_KEY_K_COMMANDS)) {
+    for (const [profile, official] of Object.entries(profiles)) {
+      const platform = profile.split(':')[1]
+      const ours = command.defaults[profile]
+      if (ours === undefined) continue
+      assert.equal(
+        overlappingBindings(normalizeBinding(ours, platform), normalizeBinding(official, platform)),
+        false,
+        `${profile} must not collide with ${name}`,
+      )
+    }
+  }
+})
+
+test('the three session-radar commands never overlap each other', () => {
+  const commands = [
+    unreadJumpCommand(createJumpSeat(), () => 'x', 'y'),
+    askJumpCommand(createJumpSeat(), () => 'x', 'y'),
+    overviewCommand(createJumpSeat(), () => 'x', 'y'),
+  ]
+  for (const profile of Object.keys(commands[0].defaults)) {
+    const platform = profile.split(':')[1]
+    for (let left = 0; left < commands.length; left += 1) {
+      for (let right = left + 1; right < commands.length; right += 1) {
+        assert.equal(
+          overlappingBindings(
+            normalizeBinding(commands[left].defaults[profile], platform),
+            normalizeBinding(commands[right].defaults[profile], platform),
+          ),
+          false,
+          `${profile}: ${commands[left].id} must not collide with ${commands[right].id}`,
+        )
+      }
+    }
+  }
+})
+
+test('the overview command blocks while nothing waits', () => {
+  const seat = createJumpSeat()
+  const command = overviewCommand(seat, () => 'x', '没有未读或待决策的会话')
+  assert.deepEqual(command.resolve(CONTEXT), { status: 'blocked', reason: '没有未读或待决策的会话' })
+  seat.publish({ available: () => false, run: () => { throw new Error('must not run') } })
+  assert.deepEqual(command.resolve(CONTEXT), { status: 'blocked', reason: '没有未读或待决策的会话' })
 })

@@ -11,9 +11,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![DSH plugin](https://img.shields.io/badge/DSH-plugin-4f46e5)](https://github.com/deepseek-ai/deepseek-harness)
 
-**DSH 侧边栏的未读与待办中枢：`⌘⇧J` 按顺序定位未读会话，`⌘⇧I` 处理正在等你输入的会话（提问 / 审批 / 计划审阅）；账本落在 host 半边，重启也不丢。侧边栏底部另有一行六项会话状态读数，设置页可逐项开关。**
+**DSH 侧边栏的未读与待办中枢：`⌘⇧J` 按顺序定位未读会话，`⌘⇧I` 处理正在等你输入的会话（提问 / 审批 / 计划审阅），`⌘⇧K` 弹出「等你处理」总览——所有未读与待决策的会话分成两区铺成卡片网格，一眼看清还欠多少；账本落在 host 半边，重启也不丢。侧边栏底部另有一行六项会话状态读数，设置页可逐项开关。**
 
-[效果](#效果) · [安装](#安装) · [装完怎么确认](#装完怎么确认) · [怎么用](#怎么用) · [会话状态读数](#会话状态读数六项计数) · [已知限制](#已知限制) · [安全边界](#安全边界) · [文件结构](#文件结构) · [兼容性](#兼容性) · [开发](#开发)
+[效果](#效果) · [安装](#安装) · [装完怎么确认](#装完怎么确认) · [怎么用](#怎么用) · [等你处理总览](#等你处理总览k) · [会话状态读数](#会话状态读数六项计数) · [已知限制](#已知限制) · [安全边界](#安全边界) · [文件结构](#文件结构) · [兼容性](#兼容性) · [开发](#开发)
 
 </div>
 
@@ -33,6 +33,7 @@
 
 - 一个**红色角标**告诉你还欠几个「跑完没看」的会话，`⌘⇧J` 带你按顺序一个个过；
 - 一个**黄色角标**（铃铛左上角）告诉你谁在**等你输入**——提问、审批、计划审阅都算，`⌘⇧I` 带你处理，处理完再按一下会**原路返回**；
+- 想知道**总账**时按 `⌘⇧K`：所有未读与待决策的会话在一个弹窗里铺成两区网格，不用一个接一个按过去才知道还有多少；
 - 两者的账本由 host 半边持有，写进 `$DSH_HOME/session-radar.json`，**重启 dsh 后欠的账还在**。
 
 ## 效果
@@ -42,7 +43,8 @@
 ![铃铛：左上黄色等待处理角标 + 右上红色未读角标](assets/ask-badge.png)
 
 - `⌘⇧J`：按顺序走未读会话，走到末尾绕回第一个；
-- `⌘⇧I`：先走等待项（最早开始等待的排最前），处理完再按就跳到下一个；没有等待项了，再按会**沿原路返回**你上一个停留点。
+- `⌘⇧I`：先走等待项（最早开始等待的排最前），处理完再按就跳到下一个；没有等待项了，再按会**沿原路返回**你上一个停留点；
+- `⌘⇧K`：弹出「等你处理」总览——左边一列是**待决策**（提问 / 审批 / 计划审阅），右边网格是**未读**，方向键选、Enter 打开、再按一次 `⌘⇧K` 或 Esc 关掉。
 
 ## 安装
 
@@ -81,7 +83,8 @@ dsh plugin --profile web add /绝对路径/dsh-session-radar
 | --- | --- | --- |
 | 侧边栏「工作区」标题右边多了一个铃铛 | 装上了 | — |
 | 铃铛右上角红色数字 | 有跑完没看的会话 | `⌘⇧J`，或点铃铛 |
-| 铃铛左上角黄色数字 | 有会话在等你处理 | `⌘⇧I` |
+| 铃铛左上角黄色数字 | 有会话在等你处理 | `⌘⇧I`，或 `⌘⇧K` 看总览 |
+| `⌘⇧K` 弹出「等你处理」两区网格 | 装上了 | 方向键选卡片，Enter 打开，Esc 关闭 |
 | 看不到铃铛 | 侧边栏折叠成了 56px 轨道 | 展开侧边栏 |
 | 铃铛在，但角标一直不清 | 浏览器到 host 的桥接失败 | 先刷新页面；仍不行看「已知限制」 |
 
@@ -94,6 +97,11 @@ dsh plugin --profile web add /绝对路径/dsh-session-radar
 | 黄色角标 | 正在等你处理的会话数：审批、计划审阅、提问都算；与红色角标分开计数，不会互相顶掉 |
 | 快捷键 J | 与左键点铃铛同一个跳转，默认 macOS `⌘⇧J`、Windows / Linux `Ctrl+Alt+J`，在 设置 → 通用 → 快捷键 改键 |
 | 快捷键 I | 定位等待处理的会话：优先到最早开始等待的那个；处理完再按一次——还有别的 ask 就跳过去，没有了就原路返回上一个停留点 |
+| 快捷键 K | 弹出「等你处理」总览：左列待决策（提问 / 审批 / 计划审阅），右区未读完成的会话，两边都是卡片网格；再按一次 K 关掉 |
+| 总览里按 ↑ ↓ | 在当前区内上下移动选中卡片（到末尾绕回开头） |
+| 总览里按 ← → | 在「待决策」与「未读」两区之间切换 |
+| 总览里按 Enter | 打开选中的会话（未读的会同时标为已读），并关掉总览 |
+| 总览里按 Esc / 点窗口外 / 点「关闭」 | 关掉总览，什么都不打开 |
 | 右键点铃铛 | 打开/关闭「最近活动」列表（按天分组） |
 | 点列表里的行 | 打开该会话并标为已读（与铃铛跳转同一路径） |
 | 在某会话行右键 →「标为未读」 | 该会话计入铃铛角标与跳转顺序，直到被打开；标记由官方侧边栏持有，插件只读 |
@@ -102,14 +110,17 @@ dsh plugin --profile web add /绝对路径/dsh-session-radar
 
 ## 快捷键
 
-两条官方命令，都通过 `ctx.shortcuts` 注册，所以出现在 设置 → 通用 → 快捷键 里，可以改键，也和其它命令一起做冲突检测。
+三条官方命令，都通过 `ctx.shortcuts` 注册，所以出现在 设置 → 通用 → 快捷键 里，可以改键，也和其它命令一起做冲突检测。
 
 | 命令 | 作用 | macOS（Desktop / Web） | Windows / Linux | Web Linux |
 | --- | --- | --- | --- | --- |
 | `session-radar.jumpUnread` | 与铃铛左键同一个跳转（共享同一个游标） | `⌘⇧J`（`Mod+Shift+J`） | `Ctrl+Alt+J`（`Mod+Alt+J`） | 不绑默认 |
 | `session-radar.jumpAsk` | 定位等待处理的会话，并沿原路返回 | `⌘⇧I`（`Mod+Shift+I`） | `Ctrl+Alt+I`（`Mod+Alt+I`） | 不绑默认 |
+| `session-radar.overview` | 弹出「等你处理」总览（待决策 + 未读两区网格），再按一次关掉 | `⌘⇧K`（`Mod+Shift+K`） | `Ctrl+Shift+K`（`Mod+Shift+K`） | 不绑默认 |
 
-两条命令的辅助键完全一致，只有字母不同：J 走未读，I 走等待处理。字母不能用 O——官方 `workspace.add`（桌面 `Mod+O`、Web `Mod+Alt+O`）与 `workspace.openLocal`（桌面 `Mod+Alt+O`、Web `Mod+Shift+O`）已经占满 O 的简单组合，而注册表在**任意** profile 上发现默认键重叠就会抛错，直接把整个客户端半边打挂。I 没有任何官方命令占用，也不是浏览器或系统快捷键。Web Linux 都只放行三个固定组合，所以两条都没有默认键。
+J 与 I 两条命令的辅助键完全一致，只有字母不同：J 走未读，I 走等待处理。字母不能用 O——官方 `workspace.add`（桌面 `Mod+O`、Web `Mod+Alt+O`）与 `workspace.openLocal`（桌面 `Mod+Alt+O`、Web `Mod+Shift+O`）已经占满 O 的简单组合，而注册表在**任意** profile 上发现默认键重叠就会抛错，直接把整个客户端半边打挂。I 没有任何官方命令占用，也不是浏览器或系统快捷键。Web Linux 都只放行三个固定组合，所以三条都没有默认键。
+
+K 也是同理：官方 `session.search`（搜索会话）占着桌面 `Mod+K` 与 Web `Mod+Alt+K`，所以总览**在所有平台都用 `Mod+Shift+K`**——这是三条命令里唯一不按 J / I 家族走的一条，Windows / Linux 上因此是 `Ctrl+Shift+K` 而不是 `Ctrl+Alt+K`。顺带记一笔：`P` 也被官方 `workspace.files` 占着（桌面 `Mod+P`、Web `Mod+Alt+P`），想换字母时别踩。
 
 ### I 的走法：先队列，再回栈
 
@@ -120,6 +131,18 @@ dsh plugin --profile web add /绝对路径/dsh-session-radar
 例：`A`（当前）按 I 到 `B` → 处理完 `B` 按 I 到 `C` → 处理完 `C` 按 I 回到 `B` → 再按 I 回到 `A` → 再按没有反应（没有 ask，回栈也空了）。
 
 macOS 只能用 `Mod+Shift+<字母>`，是两个约束卡在一起的结果：macOS Desktop 的 preload 会设 `data-dsh-desktop-web-shortcuts="true"`，runtime 因此是 `web`，所以（1）单 `⌘+字母` 被 Web 规则判 `unsupported-browser` 直接禁用——官方 `⌘K` 就因此无反应；（2）`⌘⌥U` 虽然注册合法，但 `Option+U` 是 macOS 死键，DOM 分发器把死键当输入法组合丢弃，框架只对 `⌘⌥N` 硬编码豁免。`Mod+Shift+J` 两个坑都躲开。R 系组合被官方 `session.rename`、`page.refresh` 占用；`⌘U` 则属于 Desktop 菜单的「检查更新」。要在 Web 改键，也在 设置 → 通用 → 快捷键 里录一个服务允许的组合；Web 默认值只保证注册合法，浏览器是否真的把按键送到页面仍需实测。
+
+## 等你处理总览（K）
+
+`⌘⇧K` 弹出的窗口把「还欠你的事」一次摆完：
+
+- **左列「待决策」**：正在等你回答的会话——提问、审批、计划审阅，每张卡片标出是哪一种。列宽固定，优先级不随窗口宽度漂移。
+- **右区「未读」**：跑完还没看的会话，卡片网格按可用宽度自动排布（每张最少 200px）。
+- 一个会话**同时**「等你回答」又「跑完没看」时只出现在左列：回答它才是真正要做的事；未读标记会在你打开它时一并清掉。
+- 点卡片与按 `Enter` 是同一个动作：打开该会话并关掉窗口，走的是和铃铛跳转完全相同的路径（含「打开即已读」与账本回写）。
+- 窗口只列侧边栏自己会显示的会话：归档的、子代理子会话、空白的新建座位都不出现。
+- 「对话栏当前打开的那个」会被高亮标出来，方便知道自己在哪。
+- 窗口是纯前端投影：不额外拉取数据、不写任何会话状态，用的就是铃铛角标那套未读并集与实时待交互状态，所以角标数字和窗口里的卡片永远对得上。
 
 ## 未读从哪来（跨重启）
 
@@ -198,9 +221,10 @@ host 半边持有账本 `$DSH_HOME/session-radar.json`，原子写（临时文�
 - 标记只在你让该会话再跑一轮（自己发消息，或别的插件补发）之后由 `turn/end` 清掉；本插件从不发送消息。
 - 浏览器到 host 的桥接失败会发布在账本快照的 `error` 上并保留上一次已知数据（不清空）；目前没有界面渲染它。
 - 手动「标为未读」不在任何公开快照里：插件直接读 Workspace 浏览器持久化的私有键 `dsh.workspace.view.v5`。官方改键名时这一路会静默失效，其它未读来源不受影响。
-- 快捷键默认值同时受官方服务、macOS 死键与 Desktop 菜单限制：macOS Desktop 以 `web` runtime 分发，单 `⌘+字母` 被判 `unsupported-browser`（官方 `⌘K` 也失效），`⌘⌥<死键>`（如 `U`）被当输入法组合丢弃，`⌘U` 又归 Desktop 菜单「检查更新」，R 系撞官方 `session.rename` / `page.refresh`，所以两条命令的 macOS 默认都用 `⌘⇧<字母>`（J / I）、Windows/Linux 用 `Ctrl+Alt+<字母>`；Linux Web 只放行三个固定组合，两条都没有默认键。
+- 快捷键默认值同时受官方服务、macOS 死键与 Desktop 菜单限制：macOS Desktop 以 `web` runtime 分发，单 `⌘+字母` 被判 `unsupported-browser`（官方 `⌘K` 也失效），`⌘⌥<死键>`（如 `U`）被当输入法组合丢弃，`⌘U` 又归 Desktop 菜单「检查更新」，R 系撞官方 `session.rename` / `page.refresh`，`Mod+K` 与 Web 上的 `Mod+Alt+K` 撞官方 `session.search`，`Mod+P` 与 Web 上的 `Mod+Alt+P` 撞官方 `workspace.files`；所以 J / I 的 macOS 默认用 `⌘⇧<字母>`、Windows/Linux 用 `Ctrl+Alt+<字母>`，K 则全域用 `Mod+Shift+K`（Windows/Linux 即 `Ctrl+Shift+K`）；Linux Web 只放行三个固定组合，三条都没有默认键。
 - 「等待处理」角标与 I 跳转覆盖审批、计划审阅、提问三类，数据来自实时状态；跳转顺序取活动列表「最新更新在前」的逆序，所以通常是**最早开始等待**的排最前。打开会话不会清掉等待处理，只有真正回答/批准/处理计划审阅才会清。
 - I 的回栈只活在当前页面的内存里：刷新页面后回栈清空（等待处理角标与队列会由实时状态重建）。
+- 「等你处理」总览（K）与角标共用同一份投影，窗口本身不缓存任何东西；窗口打开期间若某个会话被别处处理掉，卡片会立即跟着消失。K 在 Linux Web 同样没有默认键（该平台只放行三个固定组合），需要在 设置 → 通用 → 快捷键 里自己录一个。
 
 ## 安全边界
 
@@ -234,6 +258,7 @@ host 半边持有账本 `$DSH_HOME/session-radar.json`，原子写（临时文�
 | `src/index.ts` / `src/host.ts` | host 半边：账本、持久化、`/session-radar/*` 路由、Config schema |
 | `src/ledger.ts` / `src/activity-model.ts` | 纯状态机：未读判定、重启打断、活动投影（无框架依赖） |
 | `src/count.ts` | 六项计数的唯一口径，读数与设置行共用 |
+| `src/overview.ts` / `src/client/overview-cursor.ts` | 「等你处理」总览的纯投影（待决策 / 未读两区）与方向键游标（无框架依赖） |
 | `src/client/` | 浏览器半边：铃铛、跳转与快捷键、状态读数、设置行、样式与文案 |
 | `cordis.patch.yml` | bundle 层：往 profile 里插入 `session-radar` 这一行 |
 | `lib/` | 被跟踪的构建产物（Git 安装免 build） |
@@ -246,10 +271,10 @@ host 半边持有账本 `$DSH_HOME/session-radar.json`，原子写（临时文�
 
 ```sh
 npm ci
-npm run verify    # typecheck + build + 148 个测试
+npm run verify    # typecheck + build + 171 个测试
 ```
 
-`test/ledger.test.mjs` 覆盖账本状态机（未读、已读不回退、两种重启信号、存储器尾部扫描）；`test/host.test.mjs` 用假 ctx 挂载 host 半边，断言恢复扫描、live 清除与畸形输入；`test/jump.test.mjs` 覆盖未读选择与分组展开；`test/jump-command.test.mjs` 覆盖快捷键命令的座位、默认键位与 blocked/handled 解析；`test/manual-unread.test.mjs` 覆盖官方手动未读标记的解析与监听；`test/conversation-tail.test.mjs` 覆盖「对话在底部」的锚点；`test/ask-jump.test.mjs` 覆盖等待处理跳转的「队列 + 回栈」状态机；`test/activity-model.test.mjs` 覆盖活动投影与 pending 计数；`test/client-mount.test.mjs` 用真实客户端半边挂载，断言铃铛与状态读数分别是侧边栏 footer 的入口、黄色角标只数等待处理的会话、以及 I 的整条往返路径；`test/count.test.mjs` 覆盖六项口径、分区不变量与阈值边界；`test/client-render.test.mjs` 用 SSR 真渲染读数与设置行；`test/client-contract.test.mjs` 覆盖模块 id、inject 清单、三处注册与「Host 没服务命名空间就不注册设置行」；`test/official-contract.test.mjs` 把官方契约钉成快照——已装官方包版本必须落在 `peerDependencies` 声明范围内，读数与设置行读的字段、两个槽位、DOM 锚点与 `dsh.workspace.view.v5` 一旦从官方产物里消失即判失败（用 `node scripts/capture-official-contract.mjs` 重采复核）。
+`test/ledger.test.mjs` 覆盖账本状态机（未读、已读不回退、两种重启信号、存储器尾部扫描）；`test/host.test.mjs` 用假 ctx 挂载 host 半边，断言恢复扫描、live 清除与畸形输入；`test/jump.test.mjs` 覆盖未读选择与分组展开；`test/jump-command.test.mjs` 覆盖快捷键命令的座位、默认键位与 blocked/handled 解析；`test/manual-unread.test.mjs` 覆盖官方手动未读标记的解析与监听；`test/conversation-tail.test.mjs` 覆盖「对话在底部」的锚点；`test/ask-jump.test.mjs` 覆盖等待处理跳转的「队列 + 回栈」状态机；`test/activity-model.test.mjs` 覆盖活动投影与 pending 计数；`test/client-mount.test.mjs` 用真实客户端半边挂载，断言铃铛与状态读数分别是侧边栏 footer 的入口、黄色角标只数等待处理的会话、I 的整条往返路径、以及 K 总览的渲染 / 键盘 / 关闭三条路径；`test/overview.test.mjs` 覆盖总览的两区分割与去重口径；`test/overview-cursor.test.mjs` 覆盖方向键游标的环绕、切区与越界收敛；`test/count.test.mjs` 覆盖六项口径、分区不变量与阈值边界；`test/client-render.test.mjs` 用 SSR 真渲染读数与设置行；`test/client-contract.test.mjs` 覆盖模块 id、inject 清单、三处注册与「Host 没服务命名空间就不注册设置行」；`test/official-contract.test.mjs` 把官方契约钉成快照——已装官方包版本必须落在 `peerDependencies` 声明范围内，读数与设置行读的字段、两个槽位、DOM 锚点与 `dsh.workspace.view.v5` 一旦从官方产物里消失即判失败（用 `node scripts/capture-official-contract.mjs` 重采复核）。
 
 `lib/` 是被跟踪的构建产物（Git 安装免 build）：改 `src/` 后必须 `npm run build` 并一起提交，CI 会断言提交进库的 `lib/` 与构建产物一致。
 
@@ -267,6 +292,7 @@ MIT。`LICENSE` 保留上游版权行，并追加本项目版权行。
 
 - `⌘⇧J` (macOS) / `Ctrl+Alt+J` (Windows/Linux) walks unread sessions in order.
 - `⌘⇧I` / `Ctrl+Alt+I` walks sessions waiting for you (questions, approvals, plan reviews) and then retraces your path back.
+- `⌘⇧K` / `Ctrl+Shift+K` opens a waiting overview: pending asks in a fixed left column, unread completions in a grid beside them; arrows move, Enter opens the selected session, Esc (or the same shortcut again) closes it.
 - A host-side ledger at `$DSH_HOME/session-radar.json` keeps the unread/attention state across restarts.
 - A sidebar-foot readout shows six Session counts (running / unread / pending / idle / unarchived / archived) in two layouts; Settings → General → Session status readout toggles each metric and sets the unarchived warning threshold.
 

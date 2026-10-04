@@ -275,8 +275,8 @@ test('the client half registers the bell, the readout, the gated settings row, a
   assert.notEqual(settings, undefined, 'the settings row is registered under the row id')
   const injected = captured().options.inject()
   assert.deepEqual(Object.keys(injected).sort(), [
-    'archiveSession', 'askJump', 'ledger', 'openSession', 'pinSession', 'sessions', 'statuses',
-    'unpinSession', 'unreadJump', 'workspaces',
+    'archiveSession', 'askJump', 'ledger', 'openSession', 'overviewJump', 'pinSession', 'sessions',
+    'statuses', 'unpinSession', 'unreadJump', 'workspaces',
   ])
   assert.equal(document.querySelector('style[data-plugin="dsh-session-radar"]') !== null, true)
   for (const dispose of [...disposers].reverse()) dispose()
@@ -943,6 +943,161 @@ test('the I shortcut walks the pending asks and retraces the path back', async (
     { status: 'blocked', reason: '没有等待处理的会话' },
     'an exhausted trail leaves nothing to jump to',
   )
+
+  await view.unmount()
+  for (const dispose of [...disposers].reverse()) dispose()
+})
+
+/** The fixture the waiting-window tests share: two asks, one plain unread row. */
+function waitingFixture() {
+  const rows = [
+    { id: 'a', displayTitle: '审批 A', blank: false, running: false, updatedAt: localAt(0, 9) },
+    { id: 'b', displayTitle: '提问 B', blank: false, running: false, updatedAt: localAt(0, 11) },
+    { id: 'c', displayTitle: '未读 C', blank: false, running: false, updatedAt: localAt(0, 10) },
+    { id: 'd', displayTitle: '安静 D', blank: false, running: false, updatedAt: localAt(0, 8) },
+    { id: 'e', displayTitle: '归档未读 E', blank: false, running: false, updatedAt: localAt(0, 7) },
+  ]
+  return {
+    sessions: source({
+      ids: rows.map(row => row.id),
+      byId: Object.fromEntries(rows.map(row => [row.id, row])),
+      phase: 'ready',
+    }),
+    statuses: source(new Map([
+      ['a', { running: false, completionUnread: false, pendingInteraction: { kind: 'approval' } }],
+      ['b', { running: false, completionUnread: true, pendingInteraction: { kind: 'question' } }],
+      ['c', { running: false, completionUnread: true }],
+      ['d', { running: false, completionUnread: false }],
+      ['e', { running: false, completionUnread: true }],
+    ])),
+    workspaces: source({ items: [], archivedSessionIds: ['e'] }),
+  }
+}
+
+test('the K shortcut opens the waiting window over both zones', async () => {
+  document.body.innerHTML = ''
+  buildSidebar(document)
+  const handle = fakeContext(waitingFixture())
+  const { ctx, opened, disposers } = handle
+  const captured = () => handle.captured
+  apply(ctx)
+
+  const command = handle.shortcut('session-radar.overview')
+  assert.ok(command, 'apply registers the waiting-window command')
+  assert.equal(command.label(), '打开待办总览')
+  // Before the bell mounts there is nothing to open.
+  assert.deepEqual(
+    command.resolve({ region: 'page', modal: null, target: null }),
+    { status: 'blocked', reason: '没有未读或待决策的会话' },
+  )
+
+  const injected = captured().options.inject()
+  const view = await mount(React.createElement(captured().component, {
+    wide: true, t: translate, ...injected,
+  }))
+
+  const press = async () => {
+    const resolution = command.resolve({ region: 'page', modal: null, target: null })
+    assert.equal(resolution.status, 'handled')
+    await React.act(async () => { resolution.run() })
+  }
+
+  // Opening the window hands the sidebar list back to the shell: the two
+  // surfaces never stack.
+  await view.contextMenu(document.querySelector('.ab-bell'))
+  assert.ok(document.querySelector('.ab-panel'))
+  await press()
+  assert.equal(document.querySelector('.ab-panel'), null, 'the activity list closes')
+
+  const dialog = document.querySelector('.ov-panel')
+  assert.ok(dialog, 'the waiting window opens')
+  assert.equal(dialog.getAttribute('role'), 'dialog')
+  assert.equal(dialog.getAttribute('aria-modal'), 'true')
+  assert.equal(dialog.getAttribute('aria-label'), '未读与待决策会话总览')
+  assert.deepEqual(
+    [...document.querySelectorAll('.ov-zone-title')].map(node => node.textContent),
+    ['待决策 2', '未读 1'],
+  )
+  // Newest first inside the ask zone; the Session that both waits and is unread
+  // appears once, in the ask zone.
+  assert.deepEqual(
+    [...document.querySelectorAll('.ov-zone-ask .ov-card-title')].map(node => node.textContent),
+    ['提问 B', '审批 A'],
+  )
+  assert.deepEqual(
+    [...document.querySelectorAll('.ov-zone-ask .ov-tag')].map(node => node.textContent),
+    ['提问', '审批'],
+  )
+  assert.deepEqual(
+    [...document.querySelectorAll('.ov-zone-unread .ov-card-title')].map(node => node.textContent),
+    ['未读 C'],
+  )
+  assert.equal(dialog.textContent.includes('安静 D'), false, 'a quiet Session stays out')
+  assert.equal(dialog.textContent.includes('归档未读 E'), false, 'an archived Session stays out')
+  // The newest ask leads, so it is the card the window starts on.
+  assert.equal(document.querySelector('.ov-card-sel .ov-card-title').textContent, '提问 B')
+
+  await React.act(async () => {
+    document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+  })
+  assert.deepEqual(opened, [['open', 'b']], 'Enter opens the selected card')
+  assert.equal(document.querySelector('.ov-panel'), null, 'opening a card closes the window')
+
+  await view.unmount()
+  for (const dispose of [...disposers].reverse()) dispose()
+})
+
+test('the waiting window walks both zones with the arrow keys and closes on Escape', async () => {
+  document.body.innerHTML = ''
+  buildSidebar(document)
+  const handle = fakeContext(waitingFixture())
+  const { ctx, opened, disposers } = handle
+  const captured = () => handle.captured
+  apply(ctx)
+  const command = handle.shortcut('session-radar.overview')
+  const injected = captured().options.inject()
+  const view = await mount(React.createElement(captured().component, {
+    wide: true, t: translate, ...injected,
+  }))
+  const press = async () => {
+    const resolution = command.resolve({ region: 'page', modal: null, target: null })
+    if (resolution.status === 'handled') await React.act(async () => { resolution.run() })
+    return resolution
+  }
+  const key = async (name) => {
+    await React.act(async () => {
+      document.dispatchEvent(new window.KeyboardEvent('keydown', { key: name, bubbles: true }))
+    })
+  }
+  const selected = () => document.querySelector('.ov-card-sel .ov-card-title').textContent
+
+  await press()
+  assert.equal(selected(), '提问 B', 'the window opens on the newest ask')
+  await key('ArrowDown')
+  assert.equal(selected(), '审批 A', 'down walks the ask zone')
+  await key('ArrowDown')
+  assert.equal(selected(), '提问 B', 'down wraps around the ask zone')
+  await key('ArrowRight')
+  assert.equal(selected(), '未读 C', 'right switches to the unread zone')
+  await key('ArrowLeft')
+  assert.equal(selected(), '提问 B', 'left switches back')
+
+  await key('Escape')
+  assert.equal(document.querySelector('.ov-panel'), null, 'Escape closes the window')
+  assert.deepEqual(opened, [], 'closing opens nothing')
+
+  // The shortcut toggles: a second press while the window is up closes it.
+  await press()
+  assert.ok(document.querySelector('.ov-panel'))
+  await press()
+  assert.equal(document.querySelector('.ov-panel'), null, 'the shortcut toggles the window')
+
+  // A press on the veil dismisses the window; a press inside it does not.
+  await press()
+  await view.press(document.querySelector('.ov-panel'))
+  assert.ok(document.querySelector('.ov-panel'), 'a press inside the window keeps it open')
+  await view.press(document.querySelector('.ov-veil'))
+  assert.equal(document.querySelector('.ov-panel'), null, 'a press on the veil closes it')
 
   await view.unmount()
   for (const dispose of [...disposers].reverse()) dispose()

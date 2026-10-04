@@ -1,7 +1,8 @@
 /**
  * `session-radar` dictionaries. Simplified Chinese is the source of truth for
- * the key set; English mirrors it one-to-one. The namespace carries both halves
- * of the plugin: the bell/activity copy and the status readout's copy.
+ * the key set; English mirrors it one-to-one. The namespace carries every half
+ * of the plugin: the bell/activity copy, the waiting window's copy, and the
+ * status readout's copy.
  *
  * @module dsh-session-radar/client/locales
  */
@@ -17,6 +18,24 @@ export declare const zh: {
     'bell.openActivity': string;
     'panel.aria': string;
     'panel.empty': string;
+    'overview.open': string;
+    'overview.noWaiting': string;
+    'overview.aria': string;
+    'overview.title': string;
+    'overview.counts': string;
+    'overview.zone.ask': string;
+    'overview.zone.unread': string;
+    'overview.zoneEmpty': string;
+    'overview.hint': string;
+    'overview.close': string;
+    'overview.empty': string;
+    'attention.approval': string;
+    'attention.planReview': string;
+    'attention.question': string;
+    'when.now': string;
+    'when.minutes': string;
+    'when.hours': string;
+    'when.days': string;
     'row.untitled': string;
     'row.unread': string;
     'row.markedUnread': string;

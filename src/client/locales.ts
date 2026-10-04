@@ -1,7 +1,8 @@
 /**
  * `session-radar` dictionaries. Simplified Chinese is the source of truth for
- * the key set; English mirrors it one-to-one. The namespace carries both halves
- * of the plugin: the bell/activity copy and the status readout's copy.
+ * the key set; English mirrors it one-to-one. The namespace carries every half
+ * of the plugin: the bell/activity copy, the waiting window's copy, and the
+ * status readout's copy.
  *
  * @module dsh-session-radar/client/locales
  */
@@ -18,6 +19,24 @@ export const zh = {
   'bell.openActivity': '右键：打开最近活动列表',
   'panel.aria': '最近活动',
   'panel.empty': '还没有会话活动。',
+  'overview.open': '打开待办总览',
+  'overview.noWaiting': '没有未读或待决策的会话',
+  'overview.aria': '未读与待决策会话总览',
+  'overview.title': '等你处理',
+  'overview.counts': '未读 {unread} · 待决策 {ask}',
+  'overview.zone.ask': '待决策',
+  'overview.zone.unread': '未读',
+  'overview.zoneEmpty': '暂无',
+  'overview.hint': '↑↓ 移动 · ←→ 切区 · Enter 打开',
+  'overview.close': '关闭',
+  'overview.empty': '没有未读或待决策的会话。',
+  'attention.approval': '审批',
+  'attention.planReview': '计划审阅',
+  'attention.question': '提问',
+  'when.now': '刚刚',
+  'when.minutes': '{count} 分钟',
+  'when.hours': '{count} 小时',
+  'when.days': '{count} 天',
   'row.untitled': '未命名会话',
   'row.unread': '已完成未查看',
   'row.markedUnread': '标为未读',
@@ -78,6 +97,24 @@ export const en: Record<SessionRadarKey, string> = {
   'bell.openActivity': 'Right-click: recent activity list',
   'panel.aria': 'Recent activity',
   'panel.empty': 'No session activity yet.',
+  'overview.open': 'Open waiting overview',
+  'overview.noWaiting': 'No unread or pending sessions',
+  'overview.aria': 'Unread and pending session overview',
+  'overview.title': 'Waiting on you',
+  'overview.counts': 'Unread {unread} · Pending {ask}',
+  'overview.zone.ask': 'Pending',
+  'overview.zone.unread': 'Unread',
+  'overview.zoneEmpty': 'None',
+  'overview.hint': '↑↓ move · ←→ switch zone · Enter opens',
+  'overview.close': 'Close',
+  'overview.empty': 'No unread or pending sessions.',
+  'attention.approval': 'Approval',
+  'attention.planReview': 'Plan review',
+  'attention.question': 'Question',
+  'when.now': 'just now',
+  'when.minutes': '{count} min',
+  'when.hours': '{count} h',
+  'when.days': '{count} d',
   'row.untitled': 'Untitled session',
   'row.unread': 'Finished, unviewed',
   'row.markedUnread': 'Marked unread',

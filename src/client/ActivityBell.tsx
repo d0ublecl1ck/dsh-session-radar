@@ -32,8 +32,10 @@ import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controlle
 import type { SessionStatusSnapshot } from '@deepseek-ai/dsh-client-ui-session/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import {
-  buildActivityGroups, countPending, countUnread, type ActivityDayBucket, type ActivityRow,
+  buildActivityGroups, countPending, countUnread, type ActivityAttention, type ActivityDayBucket,
+  type ActivityRow,
 } from '../activity-model.js'
+import { buildOverview, type Overview, type OverviewCard } from '../overview.js'
 import {
   applyRowInset, ensurePositioned, measureRowInset, mountContainer, type SidebarAnchors,
 } from './anchors.js'
@@ -47,6 +49,10 @@ import type { JumpSeat } from './jump-command.js'
 import { readManualUnread, watchManualUnread } from './manual-unread.js'
 import { BellIcon } from './icons.js'
 import { useTitleMarquee } from './marquee.js'
+import {
+  moveCursor, seedCursor, selectedCard, zoneCards,
+  type OverviewCursor, type OverviewStep,
+} from './overview-cursor.js'
 import { useSidebarAnchors } from './use-anchors.js'
 import { useFollowingTailSession } from './use-conversation-tail.js'
 
@@ -77,6 +83,8 @@ export interface ActivityBellInjected {
   readonly unreadJump: JumpSeat
   /** Seat the plugin-scope pending-ask command reads to run this bell's walk. */
   readonly askJump: JumpSeat
+  /** Seat the plugin-scope waiting-window command reads to toggle the window. */
+  readonly overviewJump: JumpSeat
 }
 
 /** Composed props: shell share + locale seat + injected business face. */
@@ -212,6 +220,163 @@ function ActivityRowItem({
   )
 }
 
+/** Short age of a card, as the waiting window prints it. */
+function relativeWhen(updatedAt: number, now: number, t: Translate): string {
+  const minutes = Math.floor(Math.max(0, now - updatedAt) / 60_000)
+  if (minutes < 1) return t('when.now')
+  if (minutes < 60) return t('when.minutes', { count: minutes })
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return t('when.hours', { count: hours })
+  return t('when.days', { count: Math.floor(hours / 24) })
+}
+
+/** The copy for one pending-interaction kind. */
+function attentionLabel(kind: ActivityAttention, t: Translate): string {
+  switch (kind) {
+    case 'approval':
+      return t('attention.approval')
+    case 'plan-review':
+      return t('attention.planReview')
+    case 'question':
+      return t('attention.question')
+  }
+}
+
+/** One card of the waiting window. */
+function WaitingCard({
+  card, selected, now, t, onOpen,
+}: {
+  readonly card: OverviewCard<SessionId>
+  readonly selected: boolean
+  readonly now: number
+  readonly t: Translate
+  readonly onOpen: (sessionId: SessionId) => void
+}) {
+  const label = card.title === '' ? t('row.untitled') : card.title
+  const classes = ['ov-card']
+  if (selected) classes.push('ov-card-sel')
+  if (card.current) classes.push('ov-card-current')
+  return (
+    // A card is its own button: the whole surface is the open affordance, and
+    // the window renders no inner controls that would nest inside it.
+    <button
+      type="button"
+      className={classes.join(' ')}
+      title={label}
+      onClick={() => { onOpen(card.id) }}
+    >
+      <span className="ov-card-title">{label}</span>
+      {card.pending !== undefined
+        ? <span className="ov-tag">{attentionLabel(card.pending, t)}</span>
+        : card.unread
+          ? <span className="ov-tag ov-tag-unread">{t('row.unread')}</span>
+          : null}
+      <span className="ov-card-meta">
+        {card.folder !== '' && <span className="ov-card-folder">{card.folder}</span>}
+        <span className="ov-card-when">{relativeWhen(card.updatedAt, now, t)}</span>
+      </span>
+    </button>
+  )
+}
+
+/** One zone of the waiting window: a heading, then its cards. */
+function WaitingZone({
+  zone, cards, cursor, now, t, onOpen,
+}: {
+  readonly zone: 'ask' | 'unread'
+  readonly cards: readonly OverviewCard<SessionId>[]
+  readonly cursor: OverviewCursor | null
+  readonly now: number
+  readonly t: Translate
+  readonly onOpen: (sessionId: SessionId) => void
+}) {
+  return (
+    <section className={'ov-zone ov-zone-' + zone}>
+      <div className="ov-zone-title">
+        {t(zone === 'ask' ? 'overview.zone.ask' : 'overview.zone.unread')}{' '}
+        <span className="ov-zone-count">{cards.length}</span>
+      </div>
+      {cards.length === 0
+        ? <div className="ov-zone-empty">{t('overview.zoneEmpty')}</div>
+        : (
+          <div className="ov-grid">
+            {cards.map(card => (
+              <WaitingCard
+                key={card.id}
+                card={card}
+                selected={cursor?.zone === zone && cards[cursor.index]?.id === card.id}
+                now={now}
+                t={t}
+                onOpen={onOpen}
+              />
+            ))}
+          </div>
+        )}
+    </section>
+  )
+}
+
+/**
+ * The waiting window: every unread completion and every pending ask, split into
+ * the ask zone (answering is the higher-priority action, so it leads) and the
+ * unread zone beside it.
+ */
+function WaitingWindow({
+  waiting, cursor, now, t, onOpen, onClose,
+}: {
+  readonly waiting: Overview<SessionId>
+  readonly cursor: OverviewCursor | null
+  readonly now: number
+  readonly t: Translate
+  readonly onOpen: (sessionId: SessionId) => void
+  readonly onClose: () => void
+}) {
+  return (
+    <div
+      className="ov-veil"
+      // A press on the veil dismisses the window; a press inside it belongs to
+      // the card under the pointer.
+      onPointerDown={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+    >
+      <div className="ov-panel" role="dialog" aria-modal="true" aria-label={t('overview.aria')}>
+        <div className="ov-head">
+          <span className="ov-title">{t('overview.title')}</span>
+          <span className="ov-counts">
+            {t('overview.counts', {
+              unread: waiting.unread.length,
+              ask: waiting.ask.length,
+            })}
+          </span>
+          <span className="ov-grow" />
+          <span className="ov-hint">{t('overview.hint')}</span>
+          <button type="button" className="ov-close" onClick={onClose}>{t('overview.close')}</button>
+          <span className="ov-kbd">Esc</span>
+        </div>
+        <div className="ov-body">
+          <WaitingZone
+            zone="ask"
+            cards={waiting.ask}
+            cursor={cursor}
+            now={now}
+            t={t}
+            onOpen={onOpen}
+          />
+          <WaitingZone
+            zone="unread"
+            cards={waiting.unread}
+            cursor={cursor}
+            now={now}
+            t={t}
+            onOpen={onOpen}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /** Subscribe to one observable snapshot. */
 function useSnapshot<T>(source: SnapshotSource<T>): T {
   const subscribe = useCallback((listener: () => void) => source.subscribe(listener), [source])
@@ -306,7 +471,7 @@ function useHosts(anchors: SidebarAnchors | undefined, wide: boolean, active: bo
  */
 export function ActivityBell({
   wide, t, openSession, pinSession, unpinSession, archiveSession, sessions, statuses, workspaces, ledger,
-  unreadJump, askJump,
+  unreadJump, askJump, overviewJump,
 }: ActivityBellProps): ReactElement | null {
   const anchors = useSidebarAnchors()
   const list = useSnapshot(sessions)
@@ -316,6 +481,11 @@ export function ActivityBell({
   const tail = useFollowingTailSession()
   const now = useMinuteTick()
   const [active, setActive] = useState(false)
+  // The waiting window is its own surface: a full-page overlay rather than a
+  // cover over the sidebar list, so it neither needs `wide` nor shares the
+  // activity list's host.
+  const [waitingOpen, setWaitingOpen] = useState(false)
+  const [waitingCursor, setWaitingCursor] = useState<OverviewCursor | null>(null)
   const [pending, setPending] = useState<ReadonlySet<SessionId>>(() => new Set())
   const facts = useRef<ReadonlyMap<SessionId, SessionFacts> | undefined>(undefined)
   const [notice, setNotice] = useState<string | null>(null)
@@ -381,23 +551,27 @@ export function ActivityBell({
     ledger.read(sessionId)
   }, [ledger])
 
-  const view = useMemo(() => {
-    const inputs = {
-      sessions: list,
-      statuses: statusMap,
-      workspaces: workspaceSnapshot,
-      completedSince: pending,
-      ledgerUnread,
-      viewingTail: tail,
-      manualUnread,
-    }
-    return {
-      groups: buildActivityGroups<SessionId>(inputs, now),
-      unread: countUnread<SessionId>(inputs),
-      pendingCount: countPending<SessionId>(inputs),
-    }
-  }, [list, statusMap, workspaceSnapshot, pending, ledgerUnread, tail, manualUnread, now])
+  // The three snapshots plus this surface's own edge memory, in the shape both
+  // projections read: the activity list and the waiting window must agree on
+  // visibility, unread, and pending, so they fold the same inputs.
+  const inputs = useMemo(() => ({
+    sessions: list,
+    statuses: statusMap,
+    workspaces: workspaceSnapshot,
+    completedSince: pending,
+    ledgerUnread,
+    viewingTail: tail,
+    manualUnread,
+  }), [list, statusMap, workspaceSnapshot, pending, ledgerUnread, tail, manualUnread])
+
+  const view = useMemo(() => ({
+    groups: buildActivityGroups<SessionId>(inputs, now),
+    unread: countUnread<SessionId>(inputs),
+    pendingCount: countPending<SessionId>(inputs),
+  }), [inputs, now])
   const { groups, unread, pendingCount } = view
+  // The waiting window lists what the bell counts, split into its two zones.
+  const waiting = useMemo(() => buildOverview<SessionId>(inputs, now), [inputs, now])
 
   // The jump order the badge counts. It is the order the activity list already
   // sorts - newest first - so the bell walks the Sessions the way the operator
@@ -462,6 +636,65 @@ export function ActivityBell({
     openSession(step.target)
   }, [askOrder, list, openSession, revealSession])
 
+  // The waiting window's cursor. Null means "not chosen yet", so the seed is
+  // recomputed against the current projection on every render instead of being
+  // kept as state that could point at a card which has since left.
+  const activeCursor = waitingCursor ?? seedCursor(waiting)
+
+  const toggleWaiting = useCallback((): void => {
+    // The two surfaces never stack: the window covers the whole page, so the
+    // activity list hands the sidebar region back as it opens.
+    setActive(false)
+    setWaitingCursor(null)
+    setWaitingOpen(current => !current)
+  }, [])
+
+  const closeWaiting = useCallback((): void => {
+    setWaitingOpen(false)
+    setWaitingCursor(null)
+  }, [])
+
+  // Opening from the window is the same acknowledgement as opening from the
+  // list or by pressing the bell: the window is a way to reach the Session,
+  // not a second kind of visit.
+  const openWaitingCard = useCallback((sessionId: SessionId): void => {
+    acknowledge(sessionId)
+    openSession(sessionId)
+    closeWaiting()
+  }, [acknowledge, openSession, closeWaiting])
+
+  // While the window is up it owns the arrows, Enter, and Escape. The listener
+  // sits on the document because the window is a page overlay: the keyboard
+  // focus may still be on the sidebar behind it.
+  useEffect(() => {
+    if (!waitingOpen) return
+    const onKeyDown = (event: KeyboardEvent): void => {
+      const step: OverviewStep | null = event.key === 'ArrowDown' ? 'down'
+        : event.key === 'ArrowUp' ? 'up'
+          : event.key === 'ArrowRight' ? 'right'
+            : event.key === 'ArrowLeft' ? 'left'
+              : null
+      if (step !== null) {
+        event.preventDefault()
+        setWaitingCursor(current => moveCursor(current, waiting, step))
+        return
+      }
+      if (event.key === 'Enter') {
+        const card = selectedCard(waiting, activeCursor)
+        if (card === null) return
+        event.preventDefault()
+        openWaitingCard(card.id)
+        return
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        closeWaiting()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => { document.removeEventListener('keydown', onKeyDown) }
+  }, [waitingOpen, waiting, activeCursor, openWaitingCard, closeWaiting])
+
   // Each seat is its plugin-scope command's only way to reach this component's
   // jump: publish while mounted, clear on unmount, and re-publish whenever the
   // order or the closure's anchors change. The ask seat's availability reads
@@ -475,6 +708,13 @@ export function ActivityBell({
     available: () => askOrder.length > 0 || askTrail.current.length > 0,
     run: jumpNextAsk,
   }), [askJump, jumpNextAsk, askOrder])
+
+  // The waiting window's own seat. It stays available while the window is up,
+  // because the same press closes it again.
+  useEffect(() => overviewJump.publish({
+    available: () => waitingOpen || waiting.ask.length > 0 || waiting.unread.length > 0,
+    run: toggleWaiting,
+  }), [overviewJump, toggleWaiting, waiting, waitingOpen])
 
   // Collapsing the sidebar unmounts the region the panel covers: leave the
   // activity view rather than keeping a flag nobody can see or clear.
@@ -621,6 +861,22 @@ export function ActivityBell({
     <>
       {createPortal(bell, hosts.bell)}
       {active && hosts.panel !== null ? createPortal(panel, hosts.panel) : null}
+      {/* The waiting window is a page overlay, not a sidebar cover: it portals
+          into the document body so neither the sidebar's width nor its list
+          seat shapes it. */}
+      {waitingOpen
+        ? createPortal(
+          <WaitingWindow
+            waiting={waiting}
+            cursor={activeCursor}
+            now={now}
+            t={t}
+            onOpen={openWaitingCard}
+            onClose={closeWaiting}
+          />,
+          document.body,
+        )
+        : null}
     </>
   )
 }

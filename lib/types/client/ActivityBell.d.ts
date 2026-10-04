@@ -32,6 +32,8 @@ export interface ActivityBellInjected {
     readonly unreadJump: JumpSeat;
     /** Seat the plugin-scope pending-ask command reads to run this bell's walk. */
     readonly askJump: JumpSeat;
+    /** Seat the plugin-scope waiting-window command reads to toggle the window. */
+    readonly overviewJump: JumpSeat;
 }
 /** Composed props: shell share + locale seat + injected business face. */
 export type ActivityBellProps = PropsRuntime<'sidebar.footer.action'> & PropsLocale<'session-radar'> & ActivityBellInjected;
@@ -41,4 +43,4 @@ export type ActivityBellProps = PropsRuntime<'sidebar.footer.action'> & PropsLoc
  * @param props - shell share, locale seat, and injected business face.
  * @returns the two portals, or null before the sidebar region exists.
  */
-export declare function ActivityBell({ wide, t, openSession, pinSession, unpinSession, archiveSession, sessions, statuses, workspaces, ledger, unreadJump, askJump, }: ActivityBellProps): ReactElement | null;
+export declare function ActivityBell({ wide, t, openSession, pinSession, unpinSession, archiveSession, sessions, statuses, workspaces, ledger, unreadJump, askJump, overviewJump, }: ActivityBellProps): ReactElement | null;

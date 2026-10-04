@@ -1,6 +1,6 @@
 # dsh-session-radar
 
-DSH Web 插件，合并了两半能力：侧边栏**未读铃铛**（左键顺序定位未读、右键最近活动；另有黄色警告角标与 I 快捷键，专走「等待你处理」的会话），以及侧边栏底部的**会话状态读数**（运行中 / 未读 / 待处理 / 闲置 / 未归档 / 已归档六项计数；两种版式；设置页可逐项开关、切换版式、设未归档告警阈值）。host 半边持有一份**跨重启的会话账本**（账本里的 `interruptedAt` 只用来让被重启打断的会话保持未读）以及本插件的偏好 **Config**。
+DSH Web 插件，合并了三半能力：侧边栏**未读铃铛**（左键顺序定位未读、右键最近活动；另有黄色警告角标与 I 快捷键，专走「等待你处理」的会话；K 快捷键弹出「等你处理」总览，把未读与待决策的会话铺成两区卡片网格）、侧边栏底部的**会话状态读数**（运行中 / 未读 / 待处理 / 闲置 / 未归档 / 已归档六项计数；两种版式；设置页可逐项开关、切换版式、设未归档告警阈值），以及 host 半边的**跨重启的会话账本**（账本里的 `interruptedAt` 只用来让被重启打断的会话保持未读）与本插件的偏好 **Config**。
 
 最初源自 `minivv/dsh-activity-bell`（MIT，版权与许可原文保留在 `LICENSE`）。上游主交互是「换掉整个侧边栏列表」；本项目把它改成「定位」，再在 host 侧补上账本。状态读数与其设置行合并自同一作者的 `dsh-session-watch`（MIT）。已与上游脱钩：本地不再保留 upstream remote，也不再合并上游改动。
 
@@ -26,10 +26,11 @@ DSH Web 插件，合并了两半能力：侧边栏**未读铃铛**（左键顺�
 - `src/host.ts` —— host 行为：`session/event` 记账、重启孤儿扫描（`session/created` + 启动时扫一遍 live agents 的 `snapshotEvents()`）、`$DSH_HOME/session-radar.json` 原子写、`POST /session-radar/*` 路由（`connection.requestRejection` 鉴权）。`src/index.ts` 只做导出接线。
 - `src/count.ts` —— 纯计数口径：`countSessions` 六项、`countUnarchived`、`normalizeThreshold`、`shouldWarn`；无框架依赖，读数与设置行共用。
 - `src/config.ts` —— 指标清单（`METRICS`）、Config 字段名（`METRIC_FIELD`）、默认可见性、版式清单（`VARIANTS`）、`PLUGIN_ID`（= row id = settings 命名空间 = locale NS = `session-radar`）。
+- `src/overview.ts` —— 「等你处理」总览的纯投影：折叠活动列表自己的行，再切成「待决策」与「未读」两区（无框架依赖，单测直接打它）。
 - `src/client/ledger-source.ts` —— 浏览器到账本的唯一桥（同源 `fetch`），把桥接失败**发布**出去而不是吞掉。
-- `src/client/ActivityBell.tsx` 铃铛与活动面板；`jump.ts` 未读选择、当前会话与行定位；`ask-jump.ts` 等待处理跳转的「队列 + 回栈」纯状态机；`jump-command.ts` 两条快捷键命令（未读 J / 等待处理 I）与各自独立的铃铛座位（官方 `ctx.shortcuts`）；`completions.ts` 本地边沿记账；`manual-unread.ts` 读官方侧边栏的「标为未读」并监听其写入；`conversation-tail.ts` + `use-conversation-tail.ts` 判断对话是否停在底部；`anchors.ts` 官方 DOM 锚点；`locales.ts` 文案。
+- `src/client/ActivityBell.tsx` 铃铛、活动面板与 K 总览弹窗（弹窗 portal 到 `document.body`，全页浮层，不依赖 `wide`）；`jump.ts` 未读选择、当前会话与行定位；`ask-jump.ts` 等待处理跳转的「队列 + 回栈」纯状态机；`overview-cursor.ts` 总览的两区键盘游标（纯状态机）；`jump-command.ts` 三条快捷键命令（未读 J / 等待处理 I / 总览 K）与各自独立的铃铛座位（官方 `ctx.shortcuts`）；`completions.ts` 本地边沿记账；`manual-unread.ts` 读官方侧边栏的「标为未读」并监听其写入；`conversation-tail.ts` + `use-conversation-tail.ts` 判断对话是否停在底部；`anchors.ts` 官方 DOM 锚点；`locales.ts` 文案。
 - `src/client/StatusWatch.tsx` 侧边栏底部读数（胶囊 / 比例条 / rail 三态）；`SettingsRow.tsx` 设置页偏好行；`config-source.ts` 把 config form 投影成可订阅偏好；`use-counts.ts` 从三个标准 hook 读出六项；`summary.ts` 指标名与一行摘要；`watch-types.ts` 官方 configForms / slots 的结构化类型。
-- `src/client/styles.ts` 是**唯一**样式表：`ab-*`（铃铛/面板）与 `sw-*`（读数/设置行）同在一个 `<style data-plugin="dsh-session-radar">` 里。
+- `src/client/styles.ts` 是**唯一**样式表：`ab-*`（铃铛/面板）、`ov-*`（K 总览浮层）与 `sw-*`（读数/设置行）同在一个 `<style data-plugin="dsh-session-radar">` 里。
 - `test/` 与 `src/` 同名对应；`test/watch-harness.mjs` 是读数测试的假 client context 与快照夹具；`scripts/build.mjs`、`scripts/build-tests.mjs` 是构建入口。
 - `assets/` —— README 用的真实截图；由 `scripts/capture-bell.mjs` 从运行中的实例裁剪生成（只裁侧栏标题行，不含会话名/项目名/账号；不要用活动面板或列表区截图）。
 - 依赖官方 DOM 契约：`[data-row-key="session:<id>"]`、`[class*="listArea"]`、`[class*="sectionHeader"]`、`[data-conversation-region="chat"][data-conversation-session]`、`[data-chat-following-tail]`。
@@ -43,11 +44,13 @@ DSH Web 插件，合并了两半能力：侧边栏**未读铃铛**（左键顺�
 - **六项口径只有一份实现**（`src/count.ts`）：读数与设置行共用；筛选依赖 `SessionListState.ids/byId`、`WorkspaceSnapshot.archivedSessionIds` 与 `SessionStatus.running/completionUnread/pendingInteraction`，官方改字段名会静默把数字变成 0 或偏大。
 - **活动四项是分区**：`待处理 > 运行中 > 未读 > 闲置`，四者之和恒等于未归档；阈值告警严格大于（第 11 个才告警）。
 - **读数/设置行不写任何会话或归档状态**：唯一写入是用户在设置里改的偏好字段。
+- **快捷键默认位受官方注册表约束**：注册表对**任意**声明 profile 的默认键做重叠检查，撞上官方命令就抛 `Conflicting shortcut defaults`，把整个客户端半边打成 failed。已知占满简单组合的官方命令：`session.search` = 桌面 `Mod+K` / Web `Mod+Alt+K`，`workspace.add` = 桌面 `Mod+O` / Web `Mod+Alt+O`，`workspace.openLocal` = 桌面 `Mod+Alt+O` / Web `Mod+Shift+O`，`workspace.files` = 桌面 `Mod+P` / Web `Mod+Alt+P`。所以 J / I 用 `Mod+Shift`（macOS）与 `Mod+Alt`（Windows/Linux），总览 K 在**所有**平台都用 `Mod+Shift+K`（`Mod+Alt+K` 在 Web 上属于 `session.search`）。新增或改动任何默认键前 **MUST** 先核对官方注册表并在真实实例里做一次激活验证。
 
 ## 当前状态与下一步
 
 - 已实现：账本持久化（未读跨刷新/重启）、铃铛角标与跳转读「账本 ∪ 官方 completionUnread ∪ 本地完成边沿 ∪ 官方手动未读」（侧边栏只有铃铛一个入口）、对话停在底部即视为已读（并立刻回写账本 read）、打开会话回写已读、启动静默窗避免"自动恢复=已读"、被重启打断的会话以「读到对话尾部」为确认（单纯打开不算）、未读跳转的官方快捷键命令（macOS `⌘⇧J`；Windows/Linux `Ctrl+Alt+J`，可在 设置→通用→快捷键 改键）、待处理提醒（审批/计划审阅/提问在铃铛左上角单独用黄色警告角标计数；I 快捷键先走等待队列、每处理完一个就跳下一个，没有等待项时沿回栈原路返回，辅助键与 J 一致：macOS `⌘⇧I`；Windows/Linux `Ctrl+Alt+I`。字母不能选 O：官方 `workspace.add` / `workspace.openLocal` 已占满 O 的简单组合，注册默认键重叠会挂掉整个客户端半边）。
 - 已实现（本次合并）：会话状态读数（六项计数、胶囊 / 比例条、rail 折叠为单图标 + 未归档角标）、设置页逐项开关 + 版式 + 阈值，偏好挂在 row id `session-radar` 的 Config 下（八个 volatile 字段）；读数与铃铛在同一 `sidebar.footer.action` 区域（读数 order 890，铃铛 900），仍是一个客户端入口。版本号保持 0.2.0。
 - 偏好迁移：`dsh-session-watch` 的旧偏好（row id `session-watch`）**不自动迁移**；两个插件是不同 row，卸载旧插件后在本插件的设置行重设即可（默认值与 0.4.0 相同）。
+- 已实现（本次）：**「等你处理」总览**——官方快捷键命令 `session-radar.overview`（全域 `Mod+Shift+K`，Linux Web 无默认键），弹出全页浮层：左列「待决策」按最新更新在前，右区「未读」自适应网格，两区去重（同时待决策又未读的只在左列），↑↓ 区内环绕、←→ 切区、Enter 打开并关窗、Esc / 点遮罩 / 点关闭 / 再按一次 K 关窗；投影是 `src/overview.ts`（折叠 `buildActivityGroups` 的行，口径与角标一致），游标是 `src/client/overview-cursor.ts`。弹窗 portal 到 `document.body`，因此不受侧边栏宽度限制。
 - 被打断的判据是 `turn/end` 的两种重启信号：优雅退出的 `aborted` + cause `disposed`（走 `session/event`），以及崩溃修复补写的 `interrupted`（只存在于存储器快照里，host 靠 `session/created` 与启动扫描读取，因为构造 seed 不发 `session/event`）。
 - 下一步（未做）：把桥接失败（账本快照 `error`）重新露出到铃铛、跨工作区排序。

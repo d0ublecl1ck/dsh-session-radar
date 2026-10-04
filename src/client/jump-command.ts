@@ -101,8 +101,31 @@ const ASK_JUMP_DEFAULTS: ShortcutCommand['defaults'] = {
   'web:windows': { code: 'KeyI', modifiers: ['primary', 'alt'] },
 }
 
+/** Waiting-window command id. It keys the stored override, so it has to stay stable. */
+export const OVERVIEW_COMMAND = 'session-radar.overview' as ShortcutCommandId
+
 /**
- * Build one jump command over a seat.
+ * Per-profile default bindings for the waiting window.
+ *
+ * Every simple KeyK shape is already spoken for: the shipped `session.search`
+ * owns `Mod+K` on desktop and `Mod+Alt+K` on web. The registry throws on
+ * overlapping defaults in *any* declared profile — not just the running one —
+ * so declaring either took the whole client half down at boot. The window
+ * therefore takes the Shift helper key everywhere, which is why it does not
+ * follow the walks' Mod+Alt family on Windows and Linux. Linux Web admits none
+ * of these combinations, so no default is declared for it.
+ */
+const OVERVIEW_DEFAULTS: ShortcutCommand['defaults'] = {
+  'desktop:macos': { code: 'KeyK', modifiers: ['primary', 'shift'] },
+  'desktop:windows': { code: 'KeyK', modifiers: ['primary', 'shift'] },
+  'desktop:linux': { code: 'KeyK', modifiers: ['primary', 'shift'] },
+  'web:macos': { code: 'KeyK', modifiers: ['primary', 'shift'] },
+  'web:windows': { code: 'KeyK', modifiers: ['primary', 'shift'] },
+}
+
+/**
+ * Build one seat command: the application command that resolves against
+ * whatever the mounted bell published into the seat.
  * @param id - stable command id.
  * @param seat - the seat the mounted bell publishes into.
  * @param label - localized command name shown in the shortcut reference.
@@ -111,7 +134,7 @@ const ASK_JUMP_DEFAULTS: ShortcutCommand['defaults'] = {
  * @param defaults - per-profile default bindings.
  * @returns the command definition for `ctx.shortcuts.register`.
  */
-function jumpCommand(
+function seatCommand(
   id: ShortcutCommandId,
   seat: JumpSeat,
   label: () => string,
@@ -150,7 +173,7 @@ export function unreadJumpCommand(
   label: () => string,
   unavailable: string,
 ): ShortcutCommand {
-  return jumpCommand(
+  return seatCommand(
     UNREAD_JUMP_COMMAND, seat, label, unavailable,
     ['jump to next unread', 'next unread', 'unread'], UNREAD_JUMP_DEFAULTS,
   )
@@ -172,8 +195,31 @@ export function askJumpCommand(
   label: () => string,
   unavailable: string,
 ): ShortcutCommand {
-  return jumpCommand(
+  return seatCommand(
     ASK_JUMP_COMMAND, seat, label, unavailable,
     ['jump to pending ask', 'next ask', 'pending ask'], ASK_JUMP_DEFAULTS,
+  )
+}
+
+/**
+ * Build the waiting-window command over a seat.
+ *
+ * Unlike the two walks, this one opens a surface rather than moving the
+ * conversation, and it toggles: the same press closes the window again. The
+ * bell keeps that state, so the command only has to reach it.
+ *
+ * @param seat - the seat the mounted bell publishes into.
+ * @param label - localized command name shown in the shortcut reference.
+ * @param unavailable - localized reason for a blocked resolution.
+ * @returns the command definition for `ctx.shortcuts.register`.
+ */
+export function overviewCommand(
+  seat: JumpSeat,
+  label: () => string,
+  unavailable: string,
+): ShortcutCommand {
+  return seatCommand(
+    OVERVIEW_COMMAND, seat, label, unavailable,
+    ['overview', 'waiting overview', 'unread and pending'], OVERVIEW_DEFAULTS,
   )
 }
