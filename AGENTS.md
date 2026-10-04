@@ -28,6 +28,8 @@ DSH Web 插件，合并了三半能力：侧边栏**未读铃铛**（左键顺�
 - `test/official-contract.test.mjs` 把官方契约钉成快照（已装官方包版本必须落在 `peerDependencies` 内、读数与设置行依赖的字段与槽位、DOM 锚点与 `dsh.workspace.view.v5`），重采用 `node scripts/capture-official-contract.mjs`。
 - 构建与分发：`cordis.patch.yml` 是 bundle 层（往 profile 插入 `session-radar` 一行）；`lib/` 是被跟踪的构建产物（Git 安装免 build），改 `src/` 后必须 `npm run build` 并一起提交，CI 会断言提交进库的 `lib/` 与构建产物一致。
 - 截图：`scripts/capture-bell.mjs` 从运行实例生成 README 用的侧栏标题行截图（headless Chrome，只截不含会话名 / 项目名的行）。
+- 展示类截图 **MUST** 走受控路径：在**示例工作区**（如 `/tmp/<name>-shot-workspace`）里用 `workspace/create` + `session/create` + `session/prompt` 造示例会话，用无头 Chromium 只截目标 UI（不截侧栏其它工作区名、账号、余额），截完立刻 `session/delete` + `workspace/delete` 复原，并在汇报里给出 `session/list` 的复查证据；**MUST NOT** 直接截操作者正在看的真实界面。`assets/overview.png`（⌘⇧K 总览）就是这样产生的。
+- 造状态时的两个已知坑：`ask_user_question` 在**没有客户端订阅该会话**时会被立即结算（提问不落地），要么先让 UI 打开该会话再投递，要么改用「手动未读」这类合法来源把另一区补出来；`session/delete` 之前先 `session/cancel`，否则正在跑的回合会被 `dsh-client-auto-continue` 一类插件派生出一条指向同一 `cwd` 的续跑会话，须一并清理并复查 `cwd`。
 
 ## 文档约定
 
