@@ -14,7 +14,8 @@
     "url": "https://github.com/d0ublecl1ck/dsh-unread-helper/issues"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
