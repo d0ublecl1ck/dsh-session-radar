@@ -13,7 +13,7 @@
 
 **DSH 侧边栏的未读与待办中枢：`⌘⇧J` 按顺序定位未读会话，`⌘⇧I` 处理正在等你输入的会话（提问 / 审批 / 计划审阅）；账本落在 host 半边，重启也不丢。侧边栏底部另有一行六项会话状态读数，设置页可逐项开关。**
 
-[效果](#效果) · [安装](#安装) · [装完怎么确认](#装完怎么确认) · [怎么用](#怎么用) · [会话状态读数](#会话状态读数六项计数) · [已知限制](#已知限制) · [兼容性](#兼容性) · [开发](#开发)
+[效果](#效果) · [安装](#安装) · [装完怎么确认](#装完怎么确认) · [怎么用](#怎么用) · [会话状态读数](#会话状态读数六项计数) · [已知限制](#已知限制) · [安全边界](#安全边界) · [文件结构](#文件结构) · [兼容性](#兼容性) · [开发](#开发)
 
 </div>
 
@@ -123,7 +123,10 @@ macOS 只能用 `Mod+Shift+<字母>`，是两个约束卡在一起的结果：ma
 
 ## 未读从哪来（跨重启）
 
-host 半边持有账本 `$DSH_HOME/session-radar.json`，原子写（临时文件 + rename）：
+host 半边持有账本 `$DSH_HOME/session-radar.json`，原子写（临时文件 + rename）。
+
+<details>
+<summary>账本字段</summary>
 
 | 字段 | 含义 |
 | --- | --- |
@@ -131,6 +134,8 @@ host 半边持有账本 `$DSH_HOME/session-radar.json`，原子写（临时文�
 | `lastAttentionAt` / `lastAttentionKind` | 最后一次待交互（approval / question） |
 | `interruptedAt` | 被宿主退出切断的那一轮（`turn/end` 的 `aborted` + cause `disposed`） |
 | `lastReadAt` | 操作者最后确认到的时间 |
+
+</details>
 
 - 未读 = `interruptedAt` 有值，**或** `max(turnEnd, attention) > lastReadAt`
 - 记账来源：`session/event` 的 `turn/end` 与 `approval/asked`，加上 `ask_user_question` 的工具分发
@@ -197,6 +202,16 @@ host 半边持有账本 `$DSH_HOME/session-radar.json`，原子写（临时文�
 - 「等待处理」角标与 I 跳转覆盖审批、计划审阅、提问三类，数据来自实时状态；跳转顺序取活动列表「最新更新在前」的逆序，所以通常是**最早开始等待**的排最前。打开会话不会清掉等待处理，只有真正回答/批准/处理计划审阅才会清。
 - I 的回栈只活在当前页面的内存里：刷新页面后回栈清空（等待处理角标与队列会由实时状态重建）。
 
+## 安全边界
+
+这个插件写出去的东西只有两处，其余全是只读：
+
+- **只写自己的账本**：`$DSH_HOME/session-radar.json`（临时文件 + rename 的原子写），加上你在设置页改的那几个偏好。
+- **不碰会话数据**：不归档、不删除、不改写会话内容或工作区注册；状态读数只读官方已发布的三份快照。
+- **从不替你发消息**：被重启打断的会话只做标记，继不继续、什么时候继续由你决定 —— 代码里没有任何发送消息的路径。
+- **不联网**：除 host 半边的本地路由（浏览器半边读账本）外，不发起任何外部请求。
+- **只读 DOM 做定位，不读内容**：靠官方 DOM 契约找会话行与对话区（见「已知限制」），不解析、不上传会话正文。
+
 ## 兼容性
 
 - DSH `0.1.x`（含 `0.1.7-rc`）与 `0.2.0-rc.1` 起的 `0.2.x`。
@@ -210,6 +225,19 @@ host 半边持有账本 `$DSH_HOME/session-radar.json`，原子写（临时文�
 - 账本**不会丢**：启动时读不到 `session-radar.json`，host 会一次性抄自同目录的 `unread-helper.json`（旧文件保留原地，不删除），抄完立即写入新文件。
 - 旧安装要换依赖名：`dsh plugin --profile web remove dsh-unread-helper` 再 `dsh plugin --profile web add dsh-session-radar`。
 - 你在「设置 → 通用 → 快捷键」里给旧命令 id 改过的键位需要重设，因为命令 id 随包名一起改了。
+
+## 文件结构
+
+| 路径 | 作用 |
+| --- | --- |
+| `src/index.ts` / `src/host.ts` | host 半边：账本、持久化、`/session-radar/*` 路由、Config schema |
+| `src/ledger.ts` / `src/activity-model.ts` | 纯状态机：未读判定、重启打断、活动投影（无框架依赖） |
+| `src/count.ts` | 六项计数的唯一口径，读数与设置行共用 |
+| `src/client/` | 浏览器半边：铃铛、跳转与快捷键、状态读数、设置行、样式与文案 |
+| `cordis.patch.yml` | bundle 层：往 profile 里插入 `session-radar` 这一行 |
+| `lib/` | 被跟踪的构建产物（Git 安装免 build） |
+| `test/` | `node --test` + jsdom，`npm run verify` 一次跑完 |
+| `scripts/capture-bell.mjs` | 可复现的截图脚本（headless Chrome，只截不含内容的侧栏行） |
 
 ## 开发
 
@@ -238,5 +266,7 @@ MIT。`LICENSE` 保留上游版权行，并追加本项目版权行。
 - `⌘⇧I` / `Ctrl+Alt+I` walks sessions waiting for you (questions, approvals, plan reviews) and then retraces your path back.
 - A host-side ledger at `$DSH_HOME/session-radar.json` keeps the unread/attention state across restarts.
 - A sidebar-foot readout shows six Session counts (running / unread / pending / idle / unarchived / archived) in two layouts; Settings → General → Session status readout toggles each metric and sets the unarchived warning threshold.
+
+It writes exactly two things: its own ledger (`$DSH_HOME/session-radar.json`) and your own preferences in Settings. It never archives, deletes, rewrites or sends anything on your Sessions, and never talks to the network.
 
 Install: `dsh plugin --profile web add dsh-session-radar` (or `github:d0ublecl1ck/dsh-session-radar`), then refresh the page. Originally derived from [minivv/dsh-activity-bell](https://github.com/minivv/dsh-activity-bell) (MIT; the upstream notice is retained in `LICENSE`); the status readout is merged from [dsh-session-watch](https://github.com/d0ublecl1ck/dsh-session-watch) (MIT).
