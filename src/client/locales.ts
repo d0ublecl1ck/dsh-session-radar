@@ -1,6 +1,7 @@
 /**
  * `unread-helper` dictionaries. Simplified Chinese is the source of truth for
- * the key set; English mirrors it one-to-one.
+ * the key set; English mirrors it one-to-one. The namespace carries both halves
+ * of the plugin: the bell/activity copy and the status readout's copy.
  *
  * @module dsh-unread-helper/client/locales
  */
@@ -38,13 +39,35 @@ export const zh = {
   'day.sat': '星期六',
   'day.date': '{month}月{day}日',
   'day.dateYear': '{year}年{month}月{day}日',
+  'metric.running': '运行中',
+  'metric.unread': '未读',
+  'metric.pending': '待处理',
+  'metric.idle': '闲置',
+  'metric.unarchived': '未归档',
+  'metric.archived': '已归档',
+  'watch.aria': '会话状态：{summary}',
+  'watch.summaryItem': '{label} {count} 个',
+  'watch.summaryJoin': '，',
+  'watch.railHint': '会话状态 · {unarchived} 个未归档',
+  'watch.warn': '未归档 {count} 个，已超过阈值 {threshold} 个',
+  'watch.empty': '没有要显示的计数项',
+  'row.title': '会话状态读数',
+  'row.description': '选择侧边栏底部读数显示哪些会话计数。当前：{summary}',
+  'row.showLabel': '显示项目',
+  'row.variantLabel': '版式',
+  'row.variant.chips': '胶囊',
+  'row.variant.meter': '比例条',
+  'row.thresholdLabel': '未归档告警阈值',
+  'row.thresholdHint': '未归档超过该数量时，未归档计数进入告警色。',
+  'row.inputLabel': '未归档会话阈值',
+  'row.saveFailed': '保存失败，请重试',
 }
 
 /** Every key this namespace owns. */
-export type ActivityBellKey = keyof typeof zh
+export type UnreadHelperKey = keyof typeof zh
 
 /** English dictionary; the key set is fixed by the Chinese source of truth. */
-export const en: Record<ActivityBellKey, string> = {
+export const en: Record<UnreadHelperKey, string> = {
   'bell.show': 'Jump to next unread',
   'bell.hide': 'Open recent activity',
   'bell.showUnread': 'Jump to next unread, {count} sessions finished unviewed',
@@ -76,4 +99,26 @@ export const en: Record<ActivityBellKey, string> = {
   'day.sat': 'Saturday',
   'day.date': '{month}/{day}',
   'day.dateYear': '{year}/{month}/{day}',
+  'metric.running': 'Running',
+  'metric.unread': 'Unread',
+  'metric.pending': 'Pending',
+  'metric.idle': 'Idle',
+  'metric.unarchived': 'Unarchived',
+  'metric.archived': 'Archived',
+  'watch.aria': 'Session status: {summary}',
+  'watch.summaryItem': '{label} {count}',
+  'watch.summaryJoin': ', ',
+  'watch.railHint': 'Session status · {unarchived} unarchived',
+  'watch.warn': 'Unarchived {count}, above the threshold of {threshold}',
+  'watch.empty': 'No metric is shown',
+  'row.title': 'Session status readout',
+  'row.description': 'Choose which Session counts the sidebar foot readout shows. Currently: {summary}',
+  'row.showLabel': 'Shown metrics',
+  'row.variantLabel': 'Layout',
+  'row.variant.chips': 'Chips',
+  'row.variant.meter': 'Meter',
+  'row.thresholdLabel': 'Unarchived warning threshold',
+  'row.thresholdHint': 'The unarchived count turns warning-coloured above this number.',
+  'row.inputLabel': 'Unarchived session threshold',
+  'row.saveFailed': 'Could not save; try again',
 }

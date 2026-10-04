@@ -119,8 +119,9 @@ function mutableSource(initial) {
 function fakeContext(values = {}) {
   const disposers = []
   const opened = []
-  // A plugin may register more than one action; keep them all and let the
-  // tests address the bell by its id instead of by registration order.
+  // The merged plugin registers into two slots and the bell and the settings
+  // row share the row id, so the double keys by slot+id and lets the tests
+  // address the bell instead of a registration order.
   const registrations = new Map()
   // The shortcut registry is plugin-scope: `apply` registers one command, so
   // the double keeps the latest registration by id for the integration test.
@@ -148,12 +149,24 @@ function fakeContext(values = {}) {
     slots: {
       inject(_name, factory) { return factory() },
       register(options, component) {
-        registrations.set(options.id, { options, component })
-        return () => { registrations.delete(options.id) }
+        const key = options.name + '#' + options.id
+        registrations.set(key, { options, component })
+        return () => { registrations.delete(key) }
       },
     },
     get(name) {
       return name === 'sessions' ? { list: sessions } : { list: workspaces }
+    },
+    configForms: {
+      get: () => ({
+        getSnapshot: () => ({ value: {} }),
+        subscribe: () => () => {},
+        set: async () => true,
+      }),
+      whileServed(namespaces, register) {
+        const dispose = register(new Set(namespaces))
+        return () => { if (typeof dispose === 'function') dispose() }
+      },
     },
     uiSession: { sessionStatus: statuses },
     uiWorkspace: {
@@ -174,8 +187,9 @@ function fakeContext(values = {}) {
     ctx,
     disposers,
     opened,
-    get captured() { return registrations.get('unread-helper') },
+    get captured() { return registrations.get('sidebar.footer.action#unread-helper') },
     get all() { return registrations },
+    byId(name, id) { return registrations.get(name + '#' + id) },
     shortcut(id) { return shortcutCommands.get(id) },
   }
 }
@@ -243,15 +257,22 @@ async function mount(element) {
   }
 }
 
-test('the client half registers one sidebar foot action and injects the framework sources', () => {
+test('the client half registers the bell, the readout, the gated settings row, and the framework sources', () => {
   const handle = fakeContext()
   const { ctx, disposers } = handle;
   const captured = () => handle.captured
   apply(ctx)
-  assert.equal(handle.all.size, 1, 'the chip was removed: the bell is the only registered action')
+  // The bell and the merged status readout share the sidebar foot slot; the
+  // readout's settings row lives in the settings list under the row id.
+  assert.equal(handle.all.size, 3, 'bell + readout + settings row')
   assert.equal(captured().options.name, 'sidebar.footer.action')
   assert.equal(captured().options.id, 'unread-helper')
   assert.equal(captured().options.locale, 'unread-helper')
+  const readout = handle.byId('sidebar.footer.action', 'unread-helper.status')
+  assert.notEqual(readout, undefined, 'the status readout is registered in the footer slot')
+  assert.equal(readout.options.locale, 'unread-helper')
+  const settings = handle.byId('settings.general.item', 'unread-helper')
+  assert.notEqual(settings, undefined, 'the settings row is registered under the row id')
   const injected = captured().options.inject()
   assert.deepEqual(Object.keys(injected).sort(), [
     'archiveSession', 'askJump', 'ledger', 'openSession', 'pinSession', 'sessions', 'statuses',

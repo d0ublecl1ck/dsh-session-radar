@@ -1,10 +1,13 @@
 {
   "name": "dsh-unread-helper",
   "version": "0.2.0",
-  "description": "DSH Web 未读助手：侧边栏铃铛顺序定位未读，host 半边持有跨重启的会话账本。Fork of dsh-activity-bell.",
+  "description": "DSH Web 未读助手：侧边栏铃铛顺序定位未读，host 半边持有跨重启的会话账本。",
   "type": "module",
   "license": "MIT",
-  "author": "Wei <minivv@users.noreply.github.com> (upstream dsh-activity-bell)",
+  "author": "d0ublecl1ck",
+  "contributors": [
+    "Wei <minivv@users.noreply.github.com> (upstream dsh-activity-bell)"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/d0ublecl1ck/dsh-unread-helper.git"
@@ -66,6 +69,8 @@
         "@deepseek-ai/dsh-client-ui-sidebar",
         "@deepseek-ai/dsh-client-ui-workspace",
         "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-settings-general",
         "@deepseek-ai/dsh-client-ui-slots",
         "@deepseek-ai/dsh-client-ui-renderer",
         "@deepseek-ai/dsh-client-ui-primitives",
@@ -80,6 +85,9 @@
     "test": "node scripts/build-tests.mjs && node --import ./test/register-css.mjs --test test/*.test.mjs",
     "verify": "npm run typecheck && npm run build && npm test",
     "prepublishOnly": "npm run verify"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "^3.18.4"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.4",

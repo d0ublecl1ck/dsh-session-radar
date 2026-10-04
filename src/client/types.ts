@@ -5,12 +5,12 @@
  *
  * @module dsh-unread-helper/client/types
  */
-import type { ActivityBellKey } from './locales.js'
+import type { UnreadHelperKey } from './locales.js'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
-    /** Activity bell, activity panel, and day-section copy. */
-    'unread-helper': ActivityBellKey
+    /** Bell/activity copy plus the status readout and its settings row. */
+    'unread-helper': UnreadHelperKey
   }
 }
 

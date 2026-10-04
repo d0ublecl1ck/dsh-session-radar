@@ -11,9 +11,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![DSH plugin](https://img.shields.io/badge/DSH-plugin-4f46e5)](https://github.com/deepseek-ai/deepseek-harness)
 
-**DSH 侧边栏的未读与待办中枢：`⌘⇧J` 按顺序定位未读会话，`⌘⇧I` 处理正在等你输入的会话（提问 / 审批 / 计划审阅）；账本落在 host 半边，重启也不丢。**
+**DSH 侧边栏的未读与待办中枢：`⌘⇧J` 按顺序定位未读会话，`⌘⇧I` 处理正在等你输入的会话（提问 / 审批 / 计划审阅）；账本落在 host 半边，重启也不丢。侧边栏底部另有一行六项会话状态读数，设置页可逐项开关。**
 
-[效果](#效果) · [安装](#安装) · [装完怎么确认](#装完怎么确认) · [怎么用](#怎么用) · [已知限制](#已知限制) · [兼容性](#兼容性) · [开发](#开发)
+[效果](#效果) · [安装](#安装) · [装完怎么确认](#装完怎么确认) · [怎么用](#怎么用) · [会话状态读数](#会话状态读数六项计数) · [已知限制](#已知限制) · [兼容性](#兼容性) · [开发](#开发)
 
 </div>
 
@@ -160,6 +160,29 @@ host 半边持有账本 `$DSH_HOME/unread-helper.json`，原子写（临时文�
   - 其后出现 `turn/start` 或 `user/message` 视为已被取代，不再算被打断
 - 插件**只标记、不发消息**：重启后要不要继续、什么时候继续，由你自己决定
 
+## 会话状态读数（六项计数）
+
+侧边栏底部还有一行常驻读数，把六种会话状态一起摆出来：
+
+| 计数 | 含义 | 数据来源 |
+| --- | --- | --- |
+| 运行中 | 会话的 Agent 正在跑 | 官方会话 UI 状态的 `running` |
+| 未读 | 在你没看的时候停下来、还没确认 | 官方会话 UI 状态的 `completionUnread` |
+| 待处理 | 有审批 / 计划审阅 / 提问在等你回答 | 官方会话 UI 状态的 `pendingInteraction` |
+| 闲置 | 上面三种都不是的未归档会话 | 由前几项派生 |
+| 未归档 | 普通会话里不在归档集里的数量 | 官方会话列表 + Workspace 归档集 |
+| 已归档 | 普通会话里在归档集里的数量 | 同上 |
+
+- **范围**：只数「普通会话」——排除子代理子会话，也排除空白的新建会话座位。
+- **归档轴**：普通会话要么算「未归档」，要么算「已归档」，互斥。
+- **活动轴**：未归档的普通会话按 `待处理 > 运行中 > 未读 > 闲置` 的优先级恰好落进一类，四项之和恒等于未归档数，不会把一个「一边跑一边等你审批」的会话数两遍。
+- 两种版式：**胶囊**（默认，每项一个「图标 + 数字」）与**比例条**（运行 / 未读 / 待处理 / 闲置的堆叠条 + 完整数字）；侧边栏收成 56px 时折叠为单图标 + 未归档角标，悬停或键盘聚焦弹出完整读数。
+- 口径只有一份实现：`src/count.ts`；读数与设置行共用，数值不会两边打架。
+
+设置页 设置 → 通用 → **会话状态读数**：逐项开关、版式二选一、未归档告警阈值（默认 10，严格大于才告警）。偏好挂在本插件自己的 Config 命名空间（row id `unread-helper`）下，改动经 Host settings 落进 profile patch。Host 没有服务该命名空间时，设置行不注册，读数仍按默认偏好显示。
+
+读数只读 shell 已发布的三个标准快照（`useSessions` / `useSessionStatus` / `useWorkspaces`），不写任何会话或归档状态、不落盘、不联网。
+
 ## 已知限制
 
 - 依赖官方 DOM 契约 `[data-row-key="session:<id>"]` / `[class*="listArea"]` / `[class*="sectionHeader"]`，官方改版可能失效。
@@ -178,26 +201,26 @@ host 半边持有账本 `$DSH_HOME/unread-helper.json`，原子写（临时文�
 
 - DSH `0.1.x`（含 `0.1.7-rc`）与 `0.2.0-rc.1` 起的 `0.2.x`。
 - 浏览器半边固定 `platform: web`；Desktop 也以 `web` runtime 分发，所以两端行为一致。
-- 依赖官方客户端半边：`ui-sidebar`、`ui-workspace`、`ui-session`、`ui-slots`、`ui-renderer`、`ui-primitives`、`client-locale`、`client-shortcuts`（都是 `dsh-base` + `dsh-web-app` 自带的）。
+- 依赖官方客户端半边：`ui-sidebar`、`ui-workspace`、`ui-session`、`ui-slots`、`ui-renderer`、`ui-primitives`、`ui-settings`、`ui-settings-general`、`client-locale`、`client-shortcuts`（都是 `dsh-base` + `dsh-web-app` 自带的）。
 
 ## 开发
 
 ```sh
 npm ci
-npm run verify    # typecheck + build + 111 个测试
+npm run verify    # typecheck + build + 142 个测试
 ```
 
-`test/ledger.test.mjs` 覆盖账本状态机（未读、已读不回退、两种重启信号、存储器尾部扫描）；`test/host.test.mjs` 用假 ctx 挂载 host 半边，断言恢复扫描、live 清除与畸形输入；`test/jump.test.mjs` 覆盖未读选择与分组展开；`test/jump-command.test.mjs` 覆盖快捷键命令的座位、默认键位与 blocked/handled 解析；`test/manual-unread.test.mjs` 覆盖官方手动未读标记的解析与监听；`test/conversation-tail.test.mjs` 覆盖「对话在底部」的锚点；`test/ask-jump.test.mjs` 覆盖等待处理跳转的「队列 + 回栈」状态机；`test/activity-model.test.mjs` 覆盖活动投影与 pending 计数；`test/client-mount.test.mjs` 用真实客户端半边挂载，断言铃铛是唯一的侧边栏入口、黄色角标只数等待处理的会话、以及 I 的整条往返路径。
+`test/ledger.test.mjs` 覆盖账本状态机（未读、已读不回退、两种重启信号、存储器尾部扫描）；`test/host.test.mjs` 用假 ctx 挂载 host 半边，断言恢复扫描、live 清除与畸形输入；`test/jump.test.mjs` 覆盖未读选择与分组展开；`test/jump-command.test.mjs` 覆盖快捷键命令的座位、默认键位与 blocked/handled 解析；`test/manual-unread.test.mjs` 覆盖官方手动未读标记的解析与监听；`test/conversation-tail.test.mjs` 覆盖「对话在底部」的锚点；`test/ask-jump.test.mjs` 覆盖等待处理跳转的「队列 + 回栈」状态机；`test/activity-model.test.mjs` 覆盖活动投影与 pending 计数；`test/client-mount.test.mjs` 用真实客户端半边挂载，断言铃铛与状态读数分别是侧边栏 footer 的入口、黄色角标只数等待处理的会话、以及 I 的整条往返路径；`test/count.test.mjs` 覆盖六项口径、分区不变量与阈值边界；`test/client-render.test.mjs` 用 SSR 真渲染读数与设置行；`test/client-contract.test.mjs` 覆盖模块 id、inject 清单、三处注册与「Host 没服务命名空间就不注册设置行」。
 
 `lib/` 是被跟踪的构建产物（Git 安装免 build）：改 `src/` 后必须 `npm run build` 并一起提交，CI 会断言提交进库的 `lib/` 与构建产物一致。
 
 ## 致谢
 
-fork 自 [minivv/dsh-activity-bell](https://github.com/minivv/dsh-activity-bell)（MIT，作者 Wei）。上游把「点铃铛」做成换一份活动列表；本 fork 改成**顺序定位未读**，并补上 host 账本与「等待你处理」队列。
+最初源自 [minivv/dsh-activity-bell](https://github.com/minivv/dsh-activity-bell)（MIT，作者 Wei）。上游把「点铃铛」做成换一份活动列表；本项目改成**顺序定位未读**，并补上 host 账本与「等待你处理」队列。此后独立演进，不再跟踪上游；上游版权与许可原文按 MIT 要求保留在 `LICENSE`。侧边栏底部的会话状态读数与其设置行合并自同一作者的 [dsh-session-watch](https://github.com/d0ublecl1ck/dsh-session-watch)（MIT）。
 
 ## License
 
-MIT（沿用上游）。`LICENSE` 保持上游原文。
+MIT。`LICENSE` 保留上游版权行，并追加本项目版权行。
 
 ## English
 
@@ -206,5 +229,6 @@ MIT（沿用上游）。`LICENSE` 保持上游原文。
 - `⌘⇧J` (macOS) / `Ctrl+Alt+J` (Windows/Linux) walks unread sessions in order.
 - `⌘⇧I` / `Ctrl+Alt+I` walks sessions waiting for you (questions, approvals, plan reviews) and then retraces your path back.
 - A host-side ledger at `$DSH_HOME/unread-helper.json` keeps the unread/attention state across restarts.
+- A sidebar-foot readout shows six Session counts (running / unread / pending / idle / unarchived / archived) in two layouts; Settings → General → Session status readout toggles each metric and sets the unarchived warning threshold.
 
-Install: `dsh plugin --profile web add dsh-unread-helper` (or `github:d0ublecl1ck/dsh-unread-helper`), then refresh the page. Fork of [minivv/dsh-activity-bell](https://github.com/minivv/dsh-activity-bell) (MIT).
+Install: `dsh plugin --profile web add dsh-unread-helper` (or `github:d0ublecl1ck/dsh-unread-helper`), then refresh the page. Originally derived from [minivv/dsh-activity-bell](https://github.com/minivv/dsh-activity-bell) (MIT; the upstream notice is retained in `LICENSE`); the status readout is merged from [dsh-session-watch](https://github.com/d0ublecl1ck/dsh-session-watch) (MIT).
