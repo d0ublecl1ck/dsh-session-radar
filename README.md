@@ -214,7 +214,8 @@ host 半边持有账本 `$DSH_HOME/session-radar.json`，原子写（临时文�
 
 ## 兼容性
 
-- DSH `0.1.x`（含 `0.1.7-rc`）与 `0.2.0-rc.1` 起的 `0.2.x`。
+- DSH `0.1.x`（含 `0.1.7-rc`）与 `0.2.0-rc.1` 起的 `0.2.x`（`peerDependencies` 里逐包声明，`0.2.1-alpha` 也在范围内）。
+- 升级 DSH 后若安装被拒（报 peer 范围不含当前 dsh 版本），先按 `peerDependencies` 补上新的版本段，再跑 `node scripts/capture-official-contract.mjs` 核对官方契约是否仍成立、`npm run verify` 是否通过；`test/official-contract.test.mjs` 会把「装了但没声明」直接判失败，避免又出现「README 说支持、peer 范围没跟上」。
 - 浏览器半边固定 `platform: web`；Desktop 也以 `web` runtime 分发，所以两端行为一致。
 - 依赖官方客户端半边：`ui-sidebar`、`ui-workspace`、`ui-session`、`ui-slots`、`ui-renderer`、`ui-primitives`、`ui-settings`、`ui-settings-general`、`client-locale`、`client-shortcuts`（都是 `dsh-base` + `dsh-web-app` 自带的）。
 
@@ -237,16 +238,18 @@ host 半边持有账本 `$DSH_HOME/session-radar.json`，原子写（临时文�
 | `cordis.patch.yml` | bundle 层：往 profile 里插入 `session-radar` 这一行 |
 | `lib/` | 被跟踪的构建产物（Git 安装免 build） |
 | `test/` | `node --test` + jsdom，`npm run verify` 一次跑完 |
+| `test/official-contract.test.mjs` | 官方契约快照：peer 范围是否覆盖已装版本、读数与设置行依赖的字段与槽位、DOM 锚点与视图 store 键 |
 | `scripts/capture-bell.mjs` | 可复现的截图脚本（headless Chrome，只截不含内容的侧栏行） |
+| `scripts/capture-official-contract.mjs` | 重采官方契约片段，供 `test/official-contract.test.mjs` 的夹具比对 |
 
 ## 开发
 
 ```sh
 npm ci
-npm run verify    # typecheck + build + 143 个测试
+npm run verify    # typecheck + build + 148 个测试
 ```
 
-`test/ledger.test.mjs` 覆盖账本状态机（未读、已读不回退、两种重启信号、存储器尾部扫描）；`test/host.test.mjs` 用假 ctx 挂载 host 半边，断言恢复扫描、live 清除与畸形输入；`test/jump.test.mjs` 覆盖未读选择与分组展开；`test/jump-command.test.mjs` 覆盖快捷键命令的座位、默认键位与 blocked/handled 解析；`test/manual-unread.test.mjs` 覆盖官方手动未读标记的解析与监听；`test/conversation-tail.test.mjs` 覆盖「对话在底部」的锚点；`test/ask-jump.test.mjs` 覆盖等待处理跳转的「队列 + 回栈」状态机；`test/activity-model.test.mjs` 覆盖活动投影与 pending 计数；`test/client-mount.test.mjs` 用真实客户端半边挂载，断言铃铛与状态读数分别是侧边栏 footer 的入口、黄色角标只数等待处理的会话、以及 I 的整条往返路径；`test/count.test.mjs` 覆盖六项口径、分区不变量与阈值边界；`test/client-render.test.mjs` 用 SSR 真渲染读数与设置行；`test/client-contract.test.mjs` 覆盖模块 id、inject 清单、三处注册与「Host 没服务命名空间就不注册设置行」。
+`test/ledger.test.mjs` 覆盖账本状态机（未读、已读不回退、两种重启信号、存储器尾部扫描）；`test/host.test.mjs` 用假 ctx 挂载 host 半边，断言恢复扫描、live 清除与畸形输入；`test/jump.test.mjs` 覆盖未读选择与分组展开；`test/jump-command.test.mjs` 覆盖快捷键命令的座位、默认键位与 blocked/handled 解析；`test/manual-unread.test.mjs` 覆盖官方手动未读标记的解析与监听；`test/conversation-tail.test.mjs` 覆盖「对话在底部」的锚点；`test/ask-jump.test.mjs` 覆盖等待处理跳转的「队列 + 回栈」状态机；`test/activity-model.test.mjs` 覆盖活动投影与 pending 计数；`test/client-mount.test.mjs` 用真实客户端半边挂载，断言铃铛与状态读数分别是侧边栏 footer 的入口、黄色角标只数等待处理的会话、以及 I 的整条往返路径；`test/count.test.mjs` 覆盖六项口径、分区不变量与阈值边界；`test/client-render.test.mjs` 用 SSR 真渲染读数与设置行；`test/client-contract.test.mjs` 覆盖模块 id、inject 清单、三处注册与「Host 没服务命名空间就不注册设置行」；`test/official-contract.test.mjs` 把官方契约钉成快照——已装官方包版本必须落在 `peerDependencies` 声明范围内，读数与设置行读的字段、两个槽位、DOM 锚点与 `dsh.workspace.view.v5` 一旦从官方产物里消失即判失败（用 `node scripts/capture-official-contract.mjs` 重采复核）。
 
 `lib/` 是被跟踪的构建产物（Git 安装免 build）：改 `src/` 后必须 `npm run build` 并一起提交，CI 会断言提交进库的 `lib/` 与构建产物一致。
 
