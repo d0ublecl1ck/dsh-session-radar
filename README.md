@@ -13,7 +13,7 @@
 
 **DSH 侧边栏的未读与待办中枢：`⌘⇧J` 按顺序定位未读会话，`⌘⇧I` 处理正在等你输入的会话（提问 / 审批 / 计划审阅），`⌘⇧K` 弹出「等你处理」总览——所有未读与待决策的会话分成两区铺成卡片网格，一眼看清还欠多少；账本落在 host 半边，重启也不丢。侧边栏底部另有一行六项会话状态读数，设置页可逐项开关。**
 
-[效果](#效果) · [安装](#安装) · [装完怎么确认](#装完怎么确认) · [怎么用](#怎么用) · [等你处理总览](#等你处理总览k) · [会话状态读数](#会话状态读数六项计数) · [已知限制](#已知限制) · [安全边界](#安全边界) · [文件结构](#文件结构) · [兼容性](#兼容性) · [开发](#开发)
+[效果](#效果) · [安装](#安装) · [装完怎么确认](#装完怎么确认) · [怎么用](#怎么用) · [等你处理总览](#等你处理总览k) · [会话状态读数](#会话状态读数六项计数) · [已知限制](#已知限制) · [安全边界](#安全边界) · [兼容性](#兼容性)
 
 </div>
 
@@ -48,7 +48,7 @@
 
 ## 安装
 
-三档，任选一条。
+三档，任选一条。npm 上的发布版本可能落后于仓库 HEAD（例如 `⌘⇧K` 总览只在较新的版本里才有）——要用仓库最新功能就走 GitHub 或本地目录安装。版本变更记录见 [`CHANGELOG.md`](CHANGELOG.md)。
 
 ### npm（推荐）
 
@@ -251,33 +251,6 @@ host 半边持有账本 `$DSH_HOME/session-radar.json`，原子写（临时文�
 - 账本**不会丢**：启动时读不到 `session-radar.json`，host 会一次性抄自同目录的 `unread-helper.json`（旧文件保留原地，不删除），抄完立即写入新文件。
 - 旧安装要换依赖名：`dsh plugin --profile web remove dsh-unread-helper` 再 `dsh plugin --profile web add dsh-session-radar`。
 - 你在「设置 → 通用 → 快捷键」里给旧命令 id 改过的键位需要重设，因为命令 id 随包名一起改了。
-
-## 文件结构
-
-| 路径 | 作用 |
-| --- | --- |
-| `src/index.ts` / `src/host.ts` | host 半边：账本、持久化、`/session-radar/*` 路由、Config schema |
-| `src/ledger.ts` / `src/activity-model.ts` | 纯状态机：未读判定、重启打断、活动投影（无框架依赖） |
-| `src/count.ts` | 六项计数的唯一口径，读数与设置行共用 |
-| `src/overview.ts` / `src/client/overview-cursor.ts` | 「等你处理」总览的纯投影（待决策 / 未读两区）与方向键游标（无框架依赖） |
-| `src/client/` | 浏览器半边：铃铛、跳转与快捷键、状态读数、设置行、样式与文案 |
-| `cordis.patch.yml` | bundle 层：往 profile 里插入 `session-radar` 这一行 |
-| `lib/` | 被跟踪的构建产物（Git 安装免 build） |
-| `test/` | `node --test` + jsdom，`npm run verify` 一次跑完 |
-| `test/official-contract.test.mjs` | 官方契约快照：peer 范围是否覆盖已装版本、读数与设置行依赖的字段与槽位、DOM 锚点与视图 store 键 |
-| `scripts/capture-bell.mjs` | 可复现的截图脚本（headless Chrome，只截不含内容的侧栏行） |
-| `scripts/capture-official-contract.mjs` | 重采官方契约片段，供 `test/official-contract.test.mjs` 的夹具比对 |
-
-## 开发
-
-```sh
-npm ci
-npm run verify    # typecheck + build + 171 个测试
-```
-
-`test/ledger.test.mjs` 覆盖账本状态机（未读、已读不回退、两种重启信号、存储器尾部扫描）；`test/host.test.mjs` 用假 ctx 挂载 host 半边，断言恢复扫描、live 清除与畸形输入；`test/jump.test.mjs` 覆盖未读选择与分组展开；`test/jump-command.test.mjs` 覆盖快捷键命令的座位、默认键位与 blocked/handled 解析；`test/manual-unread.test.mjs` 覆盖官方手动未读标记的解析与监听；`test/conversation-tail.test.mjs` 覆盖「对话在底部」的锚点；`test/ask-jump.test.mjs` 覆盖等待处理跳转的「队列 + 回栈」状态机；`test/activity-model.test.mjs` 覆盖活动投影与 pending 计数；`test/client-mount.test.mjs` 用真实客户端半边挂载，断言铃铛与状态读数分别是侧边栏 footer 的入口、黄色角标只数等待处理的会话、I 的整条往返路径、以及 K 总览的渲染 / 键盘 / 关闭三条路径；`test/overview.test.mjs` 覆盖总览的两区分割与去重口径；`test/overview-cursor.test.mjs` 覆盖方向键游标的环绕、切区与越界收敛；`test/count.test.mjs` 覆盖六项口径、分区不变量与阈值边界；`test/client-render.test.mjs` 用 SSR 真渲染读数与设置行；`test/client-contract.test.mjs` 覆盖模块 id、inject 清单、三处注册与「Host 没服务命名空间就不注册设置行」；`test/official-contract.test.mjs` 把官方契约钉成快照——已装官方包版本必须落在 `peerDependencies` 声明范围内，读数与设置行读的字段、两个槽位、DOM 锚点与 `dsh.workspace.view.v5` 一旦从官方产物里消失即判失败（用 `node scripts/capture-official-contract.mjs` 重采复核）。
-
-`lib/` 是被跟踪的构建产物（Git 安装免 build）：改 `src/` 后必须 `npm run build` 并一起提交，CI 会断言提交进库的 `lib/` 与构建产物一致。
 
 ## 致谢
 
