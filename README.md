@@ -72,7 +72,7 @@ dsh plugin --profile web add /绝对路径/dsh-session-radar
 
 ### 装完让它生效
 
-1. 页面开着的话刷新一下；
+1. 页面开着的话刷新一下；**如果这次是插件代码本身的更新，请来一次硬刷新（`⌘⇧R` / `Ctrl+Shift+R`）**——客户端 bundle 由宿主以 `cache-control: public, max-age=31536000, immutable` 分发，普通刷新可能直接命中旧缓存，症状是「功能明明装了却完全没反应」；
 2. 卸载：`dsh plugin --profile web remove dsh-session-radar`。
 
 > **改了 host 半边（`src/host.ts`）之后必须 `remove` + `add`**：宿主按 URL 缓存模块，只 `add` 不会重新导入；症状是"改了没生效"。

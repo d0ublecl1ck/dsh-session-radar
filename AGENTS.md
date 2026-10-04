@@ -11,6 +11,7 @@ DSH Web 插件，合并了三半能力：侧边栏**未读铃铛**（左键顺�
 - 装进实例：`dsh plugin --profile web add <本目录绝对路径>`，然后刷新页面。
 - `lib/` 是**被跟踪的构建产物**：改 `src/` 后必须 `npm run build` 并一起提交，否则安装方拿到旧 bundle。
 - **改了 host 半边必须 `remove` + `add`**：宿主按 URL 缓存模块，只 `add` 不会重新导入；症状是"改了没生效"。**IF** 改包名或目录后宿主行第一次激活失败 -> **MUST** 重启 DSH Desktop；运行中的实例会把那次模块解析失败缓存住，之后即使文件系统已正确，`setBundleEnabled` 重挂也一直报 `Cannot find package …index.js`。
+- **只改了客户端半边**：宿主按 `/plugins/…&rev=<hash>` 分发 bundle，响应头是 `cache-control: public, max-age=31536000, immutable`，所以普通刷新可能命中旧缓存 —— 验证新代码 **MUST** 用硬刷新（`⌘⇧R` / `Ctrl+Shift+R`），否则会把「缓存里还是旧 bundle」误判成「功能没生效」。
 
 ## 技术栈
 
