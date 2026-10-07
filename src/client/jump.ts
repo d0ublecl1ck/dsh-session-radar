@@ -10,6 +10,7 @@
  *
  * @module dsh-session-radar/client/jump
  */
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 
 /** Structural element check; the page's HTMLElement is not a global the module can assume. */
 function isElement(value: unknown): value is HTMLElement {
@@ -64,6 +65,21 @@ export function nextUnreadId<Id extends string>(order: readonly Id[], cursor: Id
  */
 export function sessionRowKey(sessionId: string): string {
   return `session:${sessionId}`
+}
+
+/**
+ * Read the Session back out of a rendered row key.
+ *
+ * The sidebar's rows are keyed by kind, so this is how a click on one of them
+ * becomes "the operator opened this Session" rather than "a row moved".
+ *
+ * @param value - a `data-row-key` attribute value, as the DOM reports it.
+ * @returns the Session id, or null for any other kind of row.
+ */
+export function sessionIdOfRowKey(value: unknown): SessionId | null {
+  if (typeof value !== 'string' || !value.startsWith('session:')) return null
+  const sessionId = value.slice('session:'.length)
+  return sessionId === '' ? null : (sessionId as SessionId)
 }
 
 /**

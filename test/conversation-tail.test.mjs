@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 const { JSDOM } = await import('jsdom')
-const { tailSessionId } = await import('../.test-build/client/conversation-tail.js')
+const { tailLedgerRead, tailSessionId } = await import('../.test-build/client/conversation-tail.js')
 
 /** Build a document from a fragment, detached from any live page. */
 function doc(html) {
@@ -37,4 +37,45 @@ test('tailSessionId is null while the conversation is scrolled up or absent', ()
 test('tailSessionId only trusts a following region inside the region itself', () => {
   const outside = doc(region('session-a') + '<div data-chat-following-tail=""></div>')
   assert.equal(tailSessionId(outside), null, 'a stray tail marker elsewhere does not count')
+})
+
+const unfinished = { interrupted: true }
+const finished = { interrupted: false }
+
+test('a tail the shell restored by itself does not spend an unfinished turn', () => {
+  assert.deepEqual(
+    tailLedgerRead({ tail: 's1', reminder: unfinished, restored: 's1', openedByUser: null }),
+    { send: false },
+    'the reminder waits for the operator to choose the Session',
+  )
+})
+
+test('the operator opening the Session themselves spends it', () => {
+  for (const openedByUser of ['s1', null]) {
+    const restored = openedByUser === null ? 's2' : 's1'
+    assert.deepEqual(
+      tailLedgerRead({ tail: 's1', reminder: unfinished, restored, openedByUser }),
+      { send: true, acknowledgeInterrupt: true },
+      'restored=' + String(restored) + ' opened=' + String(openedByUser),
+    )
+  }
+})
+
+test('a finished turn behind a restored Session is still read, without excusing an interrupt', () => {
+  assert.deepEqual(
+    tailLedgerRead({ tail: 's1', reminder: finished, restored: 's1', openedByUser: null }),
+    { send: true, acknowledgeInterrupt: false },
+  )
+})
+
+test('a tail with nothing on the ledger sends no read at all', () => {
+  assert.deepEqual(
+    tailLedgerRead({ tail: null, reminder: unfinished, restored: null, openedByUser: null }),
+    { send: false },
+  )
+  assert.deepEqual(
+    tailLedgerRead({ tail: 's1', reminder: null, restored: 's1', openedByUser: null }),
+    { send: false },
+    'the ledger has nothing to say about this Session',
+  )
 })

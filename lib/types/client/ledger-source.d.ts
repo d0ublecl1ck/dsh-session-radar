@@ -21,6 +21,8 @@ export interface LedgerUnreadRow {
     readonly sessionId: string;
     readonly at: number;
     readonly kind: string | null;
+    /** The reminder is a turn that never finished, not a finished one. */
+    readonly interrupted: boolean;
 }
 /** Everything the bell renders. */
 export interface LedgerSnapshot {

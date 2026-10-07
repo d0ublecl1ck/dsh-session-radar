@@ -747,9 +747,9 @@ test('a completion is unread while scrolled up and read once the conversation re
   for (const dispose of [...disposers].reverse()) dispose()
 })
 
-test('a conversation at its tail tells the host ledger the Session is read', async () => {
+test('the restored conversation sitting at its tail does not acknowledge an interrupted turn', async () => {
   document.body.innerHTML = ''
-  buildSidebar(document)
+  const sidebar = buildSidebar(document)
   const row = {
     id: 's1', displayTitle: '当前对话', blank: false, running: false,
     updatedAt: Date.now(), retainedBy: { mainView: 1 },
@@ -757,7 +757,7 @@ test('a conversation at its tail tells the host ledger the Session is read', asy
   const empty = {
     now: Date.now(), unread: [],
   }
-  const listed = { ...empty, unread: [{ sessionId: 's1', at: Date.now(), kind: 'completed' }] }
+  const listed = { ...empty, unread: [{ sessionId: 's1', at: Date.now(), kind: 'aborted', interrupted: true }] }
   const calls = []
   const originalFetch = globalThis.fetch
   globalThis.fetch = async (url, init) => {
@@ -783,15 +783,26 @@ test('a conversation at its tail tells the host ledger the Session is read', asy
       wide: true, t: translate, ...injected,
     }))
     await React.act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
-    assert.equal(document.querySelector('.ab-badge'), null, 'the tail never badges')
-    assert.ok(
-      calls.some(call => call.target.endsWith('/session-radar/read') && call.body?.sessionId === 's1'),
-      'the host ledger is told the Session is read',
+    assert.equal(
+      calls.some(call => call.target.endsWith('/session-radar/read')),
+      false,
+      'the unfinished turn of the Session the shell reopened is left alone',
     )
+    assert.equal(
+      calls.some(call => call.body?.acknowledgeInterrupt === true),
+      false,
+      'and it is certainly not acknowledged',
+    )
+
+    // Opening the row by hand is the acknowledgement, and the marker goes.
+    const rowElement = document.createElement('div')
+    rowElement.setAttribute('data-row-key', 'session:s1')
+    sidebar.listArea.appendChild(rowElement)
+    await view.press(rowElement)
     assert.ok(
       calls.some(call => call.target.endsWith('/session-radar/read')
         && call.body?.sessionId === 's1' && call.body?.acknowledgeInterrupt === true),
-      'the tail read also acknowledges a restart-interrupted turn',
+      'the operator opening the Session themselves does acknowledge the interrupted turn',
     )
 
     await view.unmount()

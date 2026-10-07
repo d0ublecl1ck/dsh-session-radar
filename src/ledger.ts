@@ -9,13 +9,16 @@
  * - A Session is unread when it has an event newer than its read marker.
  * - An interrupted Session stays unread until a later turn ends, even if the
  *   operator opened it: the red marker means "this turn never finished".
+ * - An open turn is on the record: whoever starts the next process turns a
+ *   leftover one into an interruption, so a run nothing ever closed is still
+ *   remembered after the process that ran it is gone.
  * - Read markers never move backwards.
  *
  * @module dsh-session-radar/ledger
  */
 
 /** Persisted document version; bump when the fold semantics change. */
-export const LEDGER_VERSION = 1
+export const LEDGER_VERSION = 2
 
 /** The graceful-dispose cancel cause that means a restart cut the turn off. */
 export const INTERRUPT_CAUSE = 'disposed'
@@ -58,6 +61,11 @@ export interface LedgerEntry {
   lastAttentionKind: string | null
   /** Epoch ms the operator last acknowledged this Session. */
   lastReadAt: number | null
+  /**
+   * Epoch ms the currently open turn started, or null when no turn is open.
+   * A process that finds a leftover value here died with that turn running.
+   */
+  runningSince: number | null
 }
 
 /** The whole persisted document. */
@@ -71,6 +79,11 @@ export interface UnreadRow {
   readonly sessionId: string
   readonly at: number
   readonly kind: string | null
+  /**
+   * The reminder is a turn that never finished. Reading the Session's tail does
+   * not spend it on its own, so the browser has to know the difference.
+   */
+  readonly interrupted: boolean
 }
 
 /** A fresh, empty ledger. */
@@ -99,6 +112,7 @@ function normalizeEntry(raw: unknown): LedgerEntry | null {
     lastAttentionAt: finiteOrNull(raw.lastAttentionAt),
     lastAttentionKind: textOrNull(raw.lastAttentionKind),
     lastReadAt: finiteOrNull(raw.lastReadAt),
+    runningSince: finiteOrNull(raw.runningSince),
   }
 }
 
@@ -137,6 +151,7 @@ function ensureEntry(ledger: LedgerState, sessionId: string): LedgerEntry {
     lastAttentionAt: null,
     lastAttentionKind: null,
     lastReadAt: null,
+    runningSince: null,
   }
   ledger.sessions[sessionId] = created
   return created
@@ -197,6 +212,12 @@ export function restartInterruptedTail(events: readonly TailEventLike[]): Interr
   return { at, kind, cause }
 }
 
+/** Record that a turn is running: until its boundary lands, nothing is missing. */
+export function recordTurnStart(ledger: LedgerState, input: { sessionId: string; at: number }): void {
+  const entry = ensureEntry(ledger, input.sessionId)
+  entry.runningSince = finiteOrNull(input.at)
+}
+
 /** Record one durable turn boundary. */
 export function recordTurnEnd(
   ledger: LedgerState,
@@ -206,6 +227,37 @@ export function recordTurnEnd(
   entry.lastTurnEndAt = finiteOrNull(input.at)
   entry.lastTurnEndKind = textOrNull(input.kind)
   entry.interruptedAt = isRestartInterrupt(input.kind, input.cause) ? finiteOrNull(input.at) : null
+  entry.runningSince = null
+}
+
+/**
+ * Turn every turn still marked open into an interruption, once per process.
+ *
+ * A process that starts reads the ledger the previous one left behind. A turn
+ * still marked open there is a turn nothing closed: DSH's own repair signal
+ * only reaches a plugin when the Session is resumed, and a hard kill never
+ * publishes one at all, so this leftover is the only proof the run was cut off.
+ *
+ * A marker dated at or after this process's own start belongs to *this* run —
+ * a remount only re-read the file — and a boundary newer than the marker means
+ * the turn did close, so neither is an interruption.
+ *
+ * @param ledger - the freshly loaded ledger.
+ * @param processStartedAt - epoch ms this process began.
+ * @returns how many open-turn markers were spent (0 means nothing to write back).
+ */
+export function adoptAbandonedTurns(ledger: LedgerState, processStartedAt: number): number {
+  let spent = 0
+  for (const entry of Object.values(ledger.sessions)) {
+    const openedAt = entry.runningSince
+    if (openedAt === null) continue
+    entry.runningSince = null
+    spent += 1
+    if (openedAt >= processStartedAt) continue
+    if (entry.lastTurnEndAt !== null && entry.lastTurnEndAt >= openedAt) continue
+    entry.interruptedAt = openedAt
+  }
+  return spent
 }
 
 /** Record a pending interaction: the agent is waiting for the operator. */
@@ -250,14 +302,20 @@ interface Newest {
   readonly kind: string | null
 }
 
+/**
+ * The newest fact on one Session's row, so the reminder is dated by whatever
+ * armed it: the boundary, the pending question, or the orphaned turn.
+ */
 function newestOf(entry: LedgerEntry): Newest | null {
-  const turnAt = entry.lastTurnEndAt
-  const attentionAt = entry.lastAttentionAt
-  if (turnAt === null && attentionAt === null) return null
-  if (attentionAt !== null && (turnAt === null || attentionAt > turnAt)) {
-    return { at: attentionAt, kind: entry.lastAttentionKind }
+  let newest: Newest | null = null
+  const consider = (at: number | null, kind: string | null): void => {
+    if (at === null) return
+    if (newest === null || at > newest.at) newest = { at, kind }
   }
-  return { at: turnAt ?? 0, kind: entry.lastTurnEndKind }
+  consider(entry.lastTurnEndAt, entry.lastTurnEndKind)
+  consider(entry.lastAttentionAt, entry.lastAttentionKind)
+  consider(entry.interruptedAt, INTERRUPT_REASON)
+  return newest
 }
 
 /**
@@ -287,7 +345,12 @@ export function listUnread(ledger: LedgerState): UnreadRow[] {
     const entry = ledger.sessions[sessionId]
     const newest = newestOf(entry)
     if (newest === null) continue
-    rows.push({ sessionId, at: newest.at, kind: newest.kind })
+    rows.push({
+      sessionId,
+      at: newest.at,
+      kind: newest.kind,
+      interrupted: entry.interruptedAt !== null,
+    })
   }
   return rows.sort((left, right) => right.at - left.at || (left.sessionId < right.sessionId ? -1 : 1))
 }

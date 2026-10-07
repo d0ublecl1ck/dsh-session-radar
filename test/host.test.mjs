@@ -34,10 +34,13 @@ function finishedSession(id) {
   }
 }
 
-async function harness({ agents, legacy } = {}) {
+async function harness({ agents, legacy, state } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'session-radar-host-'))
   if (legacy !== undefined) {
     await writeFile(join(dir, 'unread-helper.json'), JSON.stringify(legacy), 'utf8')
+  }
+  if (state !== undefined) {
+    await writeFile(join(dir, 'session-radar.json'), JSON.stringify(state), 'utf8')
   }
   const listeners = new Map()
   const routes = new Map()
@@ -97,7 +100,7 @@ test('a restored session whose tail was crash-repaired stays unread', async () =
   const body = await h.post('list')
   assert.equal(body.ok, true)
   assert.equal('interrupted' in body.value, false, 'the chip was removed; the snapshot carries no interrupted list')
-  assert.deepEqual(body.value.unread, [{ sessionId: 's1', at: T(5), kind: 'interrupted' }])
+  assert.deepEqual(body.value.unread, [{ sessionId: 's1', at: T(5), kind: 'interrupted', interrupted: true }])
 })
 
 test('a tail read acknowledges a restored interrupted Session for good', async () => {
@@ -112,7 +115,7 @@ test('a tail read acknowledges a restored interrupted Session for good', async (
 test('sessions restored before the plugin mounted are scanned once', async () => {
   const h = await harness({ agents: { list: () => [{ session: crashTailSession('s0', T(3)) }] } })
   const body = await h.post('list')
-  assert.deepEqual(body.value.unread, [{ sessionId: 's0', at: T(3), kind: 'interrupted' }])
+  assert.deepEqual(body.value.unread, [{ sessionId: 's0', at: T(3), kind: 'interrupted', interrupted: true }])
 })
 
 test('a restored Session that finished normally is not a reminder', async () => {
@@ -130,7 +133,7 @@ test('a live turn end after the scan resolves the restored orphan', async () => 
   const body = await h.post('list')
   assert.deepEqual(
     body.value.unread,
-    [{ sessionId: 's1', at: T(9), kind: 'completed' }],
+    [{ sessionId: 's1', at: T(9), kind: 'completed', interrupted: false }],
     'the resumed turn supersedes the orphan',
   )
 })
@@ -153,7 +156,7 @@ test('a ledger written before the rename is carried over exactly once', async ()
   const body = await h.post('list')
   assert.deepEqual(
     body.value.unread,
-    [{ sessionId: 's1', at: T(7), kind: 'completed' }],
+    [{ sessionId: 's1', at: T(7), kind: 'completed', interrupted: false }],
     'the pre-rename ledger still decides what is unread',
   )
   assert.ok(
@@ -161,7 +164,10 @@ test('a ledger written before the rename is carried over exactly once', async ()
     'the carry-over is announced instead of happening silently',
   )
   const written = JSON.parse(await readFile(join(h.dir, 'session-radar.json'), 'utf8'))
-  assert.deepEqual(written, migrated, 'the state lands in the new file name unchanged')
+  assert.equal(written.version, 2, 'the carried ledger is written back in the current shape')
+  assert.equal(written.sessions.s1.lastTurnEndAt, T(7), 'the carried fact is preserved')
+  assert.equal(written.sessions.s1.lastTurnEndKind, 'completed')
+  assert.equal(written.sessions.s1.runningSince, null, 'a ledger without the field carries no open turn')
   const untouched = JSON.parse(await readFile(join(h.dir, 'unread-helper.json'), 'utf8'))
   assert.deepEqual(untouched, migrated, 'the legacy file is left in place, not deleted')
 })
@@ -174,4 +180,62 @@ test('malformed sessions and event snapshots never throw', async () => {
   h.emit('session/created', null)
   const body = await h.post('list')
   assert.deepEqual(body.value.unread, [])
+})
+
+/** One persisted row, in the shape a previous process would have left behind. */
+function entry(overrides = {}) {
+  return {
+    lastTurnEndAt: null,
+    lastTurnEndKind: null,
+    interruptedAt: null,
+    lastAttentionAt: null,
+    lastAttentionKind: null,
+    lastReadAt: null,
+    runningSince: null,
+    ...overrides,
+  }
+}
+
+test('a turn the previous process left open is a reminder on the next start', async () => {
+  const h = await harness({
+    state: {
+      version: 2,
+      sessions: { s1: entry({ lastTurnEndAt: T(2), lastTurnEndKind: 'completed', lastReadAt: T(3), runningSince: T(4) }) },
+    },
+  })
+  const body = await h.post('list')
+  assert.deepEqual(
+    body.value.unread,
+    [{ sessionId: 's1', at: T(4), kind: 'interrupted', interrupted: true }],
+    'the run that never finished survives the restart as a reminder',
+  )
+  const written = JSON.parse(await readFile(join(h.dir, 'session-radar.json'), 'utf8'))
+  assert.equal(written.sessions.s1.runningSince, null, 'the spent marker is written back')
+  assert.equal(written.sessions.s1.interruptedAt, T(4))
+})
+
+test('a turn opened in this process is not mistaken for a restart orphan', async () => {
+  const h = await harness()
+  h.emit('session/event', { id: 's1' }, { type: 'turn/start', time: T(1), data: { turn: 1 } })
+  assert.deepEqual((await h.post('list')).value.unread, [], 'a running turn is not a reminder')
+  await new Promise((resolve) => setTimeout(resolve, 400))
+  const running = JSON.parse(await readFile(join(h.dir, 'session-radar.json'), 'utf8'))
+  assert.equal(running.sessions.s1.runningSince, T(1), 'the open turn is persisted')
+  h.emit('session/event', { id: 's1' }, { type: 'turn/end', time: T(2), data: { turn: 1, reason: { kind: 'completed' } } })
+  await new Promise((resolve) => setTimeout(resolve, 400))
+  const closed = JSON.parse(await readFile(join(h.dir, 'session-radar.json'), 'utf8'))
+  assert.equal(closed.sessions.s1.runningSince, null, 'the boundary closes the open turn')
+  assert.deepEqual(
+    (await h.post('list')).value.unread,
+    [{ sessionId: 's1', at: T(2), kind: 'completed', interrupted: false }],
+    'and the finished turn is the reminder',
+  )
+})
+
+test('a turn still running at mount is not a restart orphan', async () => {
+  const h = await harness({
+    state: { version: 2, sessions: { s1: entry({ runningSince: Date.now() }) } },
+  })
+  const body = await h.post('list')
+  assert.deepEqual(body.value.unread, [], 'a marker from this process means the mount only re-read the file')
 })

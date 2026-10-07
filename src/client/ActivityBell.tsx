@@ -55,6 +55,8 @@ import {
 } from './overview-cursor.js'
 import { useSidebarAnchors } from './use-anchors.js'
 import { useFollowingTailSession } from './use-conversation-tail.js'
+import { tailLedgerRead } from './conversation-tail.js'
+import { useUserOpenedSession } from './use-user-open.js'
 
 /** Structural view of the observable snapshots this plugin subscribes to. */
 export interface SnapshotSource<T> {
@@ -485,6 +487,7 @@ export function ActivityBell({
   const workspaceSnapshot = useSnapshot(workspaces)
   const manualUnread = useManualUnread()
   const tail = useFollowingTailSession()
+  const opened = useUserOpenedSession()
   const now = useMinuteTick()
   const [active, setActive] = useState(false)
   // The waiting window is its own surface: a full-page overlay rather than a
@@ -528,6 +531,23 @@ export function ActivityBell({
     for (const row of ledgerSnapshot.unread) ids.add(row.sessionId as SessionId)
     return ids
   }, [ledgerSnapshot])
+  // The ledger's own row for the Session on screen, which knows whether its
+  // reminder is a turn that never finished.
+  const reminder = useMemo(
+    () => ledgerSnapshot.unread.find((row) => row.sessionId === tail) ?? null,
+    [ledgerSnapshot, tail],
+  )
+
+  // Which conversation the shell put on screen by itself. The first Session this
+  // page shows before the operator has opened anything is the one DSH restored
+  // after the last start; the tail it renders is not a read of it.
+  const restored = useRef<SessionId | null>(null)
+  const shown = useMemo(() => currentSessionId(list), [list])
+  useEffect(() => {
+    if (restored.current !== null || shown === null) return
+    if (opened.current === shown) return
+    restored.current = shown
+  }, [shown, opened.current])
 
   // The conversation at its tail is read: drop the surface's own reminder for it
   // and tell the host, so scrolling away can re-arm neither source. The host
@@ -541,10 +561,21 @@ export function ActivityBell({
       return next
     })
   }, [tail, pending])
+  // The Session DSH reopened by itself is left out of the interrupt
+  // acknowledgement: after a restart it is usually the very Session the restart
+  // cut off, and spending its reminder before the operator chose to open it is
+  // how the marker went missing. The tail is still a read of the Session's
+  // finished turns.
   useEffect(() => {
-    if (tail === null) return
-    if (ledgerUnread.has(tail)) ledger.read(tail, { acknowledgeInterrupt: true })
-  }, [tail, ledgerUnread, ledger])
+    const next = tailLedgerRead({
+      tail,
+      reminder,
+      restored: restored.current,
+      openedByUser: opened.current,
+    })
+    if (!next.send) return
+    ledger.read(tail as SessionId, next.acknowledgeInterrupt ? { acknowledgeInterrupt: true } : undefined)
+  }, [tail, reminder, ledger, opened.current, restored])
 
   const acknowledge = useCallback((sessionId: SessionId): void => {
     setPending((current) => {
@@ -619,6 +650,14 @@ export function ActivityBell({
     }
   }, [anchors, workspaceSnapshot])
 
+  // Opening a Session the operator asked for. The bell's own jumps and list all
+  // come through here, so the one acknowledgement the shell's automatic restore
+  // must not earn is the only one that never does.
+  const openByUser = useCallback((target: SessionId): void => {
+    opened.mark(target)
+    openSession(target)
+  }, [openSession, opened.mark])
+
   // One press advances to the next unread Session: its sidebar row is scrolled
   // into view and the conversation column opens it. The cursor is what keeps
   // the walk sequential - the unread set shrinks as each opened Session clears.
@@ -628,8 +667,8 @@ export function ActivityBell({
     cursor.current = target
     revealSession(target)
     acknowledge(target)
-    openSession(target)
-  }, [acknowledge, openSession, revealSession, unreadOrder])
+    openByUser(target)
+  }, [acknowledge, openByUser, revealSession, unreadOrder])
 
   // One press walks the pending asks; once none is left it retraces the trail
   // of Sessions the walk came through. Unlike the unread walk it acknowledges
@@ -639,8 +678,8 @@ export function ActivityBell({
     askTrail.current = step.stack
     if (step.target === null) return
     revealSession(step.target)
-    openSession(step.target)
-  }, [askOrder, list, openSession, revealSession])
+    openByUser(step.target)
+  }, [askOrder, list, openByUser, revealSession])
 
   // The waiting window's cursor. Null means "not chosen yet", so the seed is
   // recomputed against the current projection on every render instead of being
@@ -665,9 +704,9 @@ export function ActivityBell({
   // not a second kind of visit.
   const openWaitingCard = useCallback((sessionId: SessionId): void => {
     acknowledge(sessionId)
-    openSession(sessionId)
+    openByUser(sessionId)
     closeWaiting()
-  }, [acknowledge, openSession, closeWaiting])
+  }, [acknowledge, openByUser, closeWaiting])
 
   // While the window is up it owns the arrows, Enter, and Escape. The listener
   // sits on the document because the window is a page overlay: the keyboard
@@ -854,7 +893,7 @@ export function ActivityBell({
                   key={row.id}
                   row={row}
                   t={t}
-                  onOpen={(sessionId) => { acknowledge(sessionId); openSession(sessionId) }}
+                  onOpen={(sessionId) => { acknowledge(sessionId); openByUser(sessionId) }}
                   onTogglePin={togglePin}
                   onArchive={archive}
                 />

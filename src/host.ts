@@ -18,12 +18,14 @@ import { dirname, join } from 'node:path'
 
 import {
   acknowledgeInterrupt,
+  adoptAbandonedTurns,
   emptyLedger,
   listUnread,
   markRead,
   normalizeLedger,
   recordAttention,
   recordTurnEnd,
+  recordTurnStart,
   restartInterruptedTail,
   type LedgerState,
   type TailEventLike,
@@ -71,6 +73,13 @@ interface Snapshot {
  */
 export function mount(rawCtx: any): void {
   const ctx = rawCtx as LedgerContext
+
+  /**
+   * When this process began, in the ledger's own clock. A turn marked open
+   * before this instant was left behind by the previous process; one marked
+   * after it belongs to this run.
+   */
+  const processStartedAt = Date.now() - Math.round(process.uptime() * 1000)
 
   const homePath = ctx.get('dshHomePath')
   const statePath =
@@ -239,6 +248,12 @@ export function mount(rawCtx: any): void {
     const at = typeof event.time === 'number' ? event.time : Date.now()
 
     whenLoaded(() => {
+      if (event.type === 'turn/start') {
+        recordTurnStart(ledger, { sessionId, at })
+        schedulePersist()
+        return
+      }
+
       if (event.type === 'turn/end') {
         const reason = event.data?.reason ?? {}
         const kind = typeof reason.kind === 'string' ? reason.kind : 'unknown'
@@ -326,7 +341,7 @@ export function mount(rawCtx: any): void {
   }
 
   async function dispatch(endpoint: string, body: any): Promise<{ status: number; value: unknown }> {
-    await load()
+    await ready
     if (endpoint === 'list') return { status: 200, value: { ok: true, value: snapshot() } }
     if (endpoint === 'read') {
       if (typeof body?.sessionId !== 'string') {
@@ -357,7 +372,16 @@ export function mount(rawCtx: any): void {
     },
   }), 'session-radar: POST ' + ROUTE_PATH + '/<endpoint>')
 
-  void load().then(scanRestoredSessions)
+  /**
+   * The ledger is usable — persisted facts adopted, restored Sessions scanned —
+   * once this resolves. Every read path waits on it, so a request can never
+   * observe the placeholder or a half-adopted file.
+   */
+  const ready = load().then(async () => {
+    // Turns the previous process left open are this restart's interruptions.
+    if (adoptAbandonedTurns(ledger, processStartedAt) > 0) await persistNow()
+    scanRestoredSessions()
+  })
 
   ctx.effect(() => () => {
     if (persistTimer !== null) clearTimeout(persistTimer)

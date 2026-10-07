@@ -10,6 +10,7 @@
  *
  * @module dsh-session-radar/client/jump
  */
+import type { SessionId } from '@deepseek-ai/dsh-session/types';
 /** Minimal Session-list shape the current-Session lookup reads. */
 interface MainViewList<Id extends string> {
     readonly ids: readonly Id[];
@@ -44,6 +45,16 @@ export declare function nextUnreadId<Id extends string>(order: readonly Id[], cu
  * @returns the data-row-key value the shipped browser renders for that row.
  */
 export declare function sessionRowKey(sessionId: string): string;
+/**
+ * Read the Session back out of a rendered row key.
+ *
+ * The sidebar's rows are keyed by kind, so this is how a click on one of them
+ * becomes "the operator opened this Session" rather than "a row moved".
+ *
+ * @param value - a `data-row-key` attribute value, as the DOM reports it.
+ * @returns the Session id, or null for any other kind of row.
+ */
+export declare function sessionIdOfRowKey(value: unknown): SessionId | null;
 /**
  * Find the rendered sidebar row for a Session.
  *

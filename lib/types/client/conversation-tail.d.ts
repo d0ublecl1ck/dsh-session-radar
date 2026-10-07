@@ -24,3 +24,41 @@ export declare const FOLLOWING_TAIL_SELECTOR = "[data-chat-following-tail]";
  * @returns the Session id, or null while no conversation follows its tail.
  */
 export declare function tailSessionId(root: ParentNode): SessionId | null;
+/** What the tail has to know before it can excuse an unfinished turn. */
+export interface TailAcknowledgement {
+    /** The Session whose conversation follows its tail, or null. */
+    readonly tail: SessionId | null;
+    /** The ledger's reminder for that Session, or null when it carries none. */
+    readonly reminder: {
+        readonly interrupted: boolean;
+    } | null;
+    /** The Session the shell reopened by itself after the last start, or null. */
+    readonly restored: SessionId | null;
+    /** The Session the operator opened themselves, or null. */
+    readonly openedByUser: SessionId | null;
+}
+/** What the tail owes the host ledger for the Session it shows. */
+export type TailLedgerRead = {
+    readonly send: false;
+} | {
+    readonly send: true;
+    readonly acknowledgeInterrupt: boolean;
+};
+/**
+ * Decide the one read the visible tail reports to the host ledger.
+ *
+ * The tail is normally the acknowledgement of whatever the ledger remembers —
+ * but not the tail the shell put on screen by itself. DSH reopens the Session
+ * that was open when the process ended, and that Session is usually the one the
+ * restart cut off; treating its tail as a read would spend the reminder before
+ * the operator ever chose to look at it, which is exactly how an unfinished run
+ * got forgotten. Only an explicit open is that choice.
+ *
+ * A finished turn behind a restored Session is still read (the tail is the
+ * tail); the unfinished one waits to be chosen, and stays quiet while it waits
+ * so the poll cannot re-report it forever.
+ *
+ * @param input - the tail, the ledger's reminder for it, and the two ids.
+ * @returns the read to send, or `send: false` to send none.
+ */
+export declare function tailLedgerRead(input: TailAcknowledgement): TailLedgerRead;

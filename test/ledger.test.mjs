@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   acknowledgeInterrupt,
+  adoptAbandonedTurns,
   emptyLedger,
   isRestartInterrupt,
   listUnread,
@@ -9,6 +10,7 @@ import {
   normalizeLedger,
   recordAttention,
   recordTurnEnd,
+  recordTurnStart,
   restartInterruptedTail,
 } from '../.test-build/ledger.js'
 import * as ledgerModule from '../.test-build/ledger.js'
@@ -18,7 +20,7 @@ const T = (n) => 1_700_000_000_000 + n
 test('a turn end marks the session unread', () => {
   const ledger = emptyLedger()
   recordTurnEnd(ledger, { sessionId: 's1', at: T(1), kind: 'completed', cause: null })
-  assert.deepEqual(listUnread(ledger), [{ sessionId: 's1', at: T(1), kind: 'completed' }])
+  assert.deepEqual(listUnread(ledger), [{ sessionId: 's1', at: T(1), kind: 'completed', interrupted: false }])
 })
 
 test('markRead clears unread and a newer turn end re-arms it', () => {
@@ -27,21 +29,21 @@ test('markRead clears unread and a newer turn end re-arms it', () => {
   markRead(ledger, 's1', T(2))
   assert.deepEqual(listUnread(ledger), [])
   recordTurnEnd(ledger, { sessionId: 's1', at: T(3), kind: 'completed', cause: null })
-  assert.deepEqual(listUnread(ledger), [{ sessionId: 's1', at: T(3), kind: 'completed' }])
+  assert.deepEqual(listUnread(ledger), [{ sessionId: 's1', at: T(3), kind: 'completed', interrupted: false }])
 })
 
 test('attention alone is unread, and the newer of the two wins', () => {
   const ledger = emptyLedger()
   recordAttention(ledger, { sessionId: 's1', at: T(9), kind: 'question' })
   recordTurnEnd(ledger, { sessionId: 's1', at: T(7), kind: 'completed', cause: null })
-  assert.deepEqual(listUnread(ledger), [{ sessionId: 's1', at: T(9), kind: 'question' }])
+  assert.deepEqual(listUnread(ledger), [{ sessionId: 's1', at: T(9), kind: 'question', interrupted: false }])
 })
 
 test('aborted by host disposal is interrupted; aborted by the user is not', () => {
   const disposed = emptyLedger()
   recordTurnEnd(disposed, { sessionId: 's1', at: T(1), kind: 'aborted', cause: 'disposed' })
   assert.equal(disposed.sessions.s1.interruptedAt, T(1), 'the disposed turn is flagged as a restart orphan')
-  assert.deepEqual(listUnread(disposed), [{ sessionId: 's1', at: T(1), kind: 'aborted' }])
+  assert.deepEqual(listUnread(disposed), [{ sessionId: 's1', at: T(1), kind: 'aborted', interrupted: true }])
 
   const byUser = emptyLedger()
   recordTurnEnd(byUser, { sessionId: 's2', at: T(2), kind: 'aborted', cause: 'user' })
@@ -84,7 +86,7 @@ test('a serialize/parse round trip preserves the reminder', () => {
   recordTurnEnd(ledger, { sessionId: 's2', at: T(2), kind: 'completed', cause: null })
   markRead(ledger, 's2', T(3))
   const round = normalizeLedger(JSON.parse(JSON.stringify(ledger)))
-  assert.deepEqual(listUnread(round), [{ sessionId: 's1', at: T(1), kind: 'aborted' }])
+  assert.deepEqual(listUnread(round), [{ sessionId: 's1', at: T(1), kind: 'aborted', interrupted: true }])
   assert.equal(round.sessions.s1.interruptedAt, T(1), 'the orphan flag survives the round trip')
 })
 
@@ -105,7 +107,7 @@ test('a crash-repaired turn end is a restart interrupt too', () => {
   const ledger = emptyLedger()
   recordTurnEnd(ledger, { sessionId: 's1', at: T(4), kind: 'interrupted', cause: null })
   assert.equal(ledger.sessions.s1.interruptedAt, T(4))
-  assert.deepEqual(listUnread(ledger), [{ sessionId: 's1', at: T(4), kind: 'interrupted' }])
+  assert.deepEqual(listUnread(ledger), [{ sessionId: 's1', at: T(4), kind: 'interrupted', interrupted: true }])
 })
 
 test('only the two restart signals count as an interrupt', () => {
@@ -158,6 +160,53 @@ test('the stored-history scanner reports only an orphaned restart tail', () => {
   ]) {
     assert.equal(restartInterruptedTail(events), null, JSON.stringify(events))
   }
+})
+
+test('an open turn is remembered, and its boundary closes it', () => {
+  const ledger = emptyLedger()
+  recordTurnStart(ledger, { sessionId: 's1', at: T(1) })
+  assert.equal(ledger.sessions.s1.runningSince, T(1), 'the open turn is on the record')
+  assert.deepEqual(listUnread(ledger), [], 'a turn still running is not a reminder')
+  recordTurnEnd(ledger, { sessionId: 's1', at: T(3), kind: 'completed', cause: null })
+  assert.equal(ledger.sessions.s1.runningSince, null, 'the boundary closes the open turn')
+})
+
+test('a turn the previous process left open becomes an interrupted reminder', () => {
+  const ledger = emptyLedger()
+  recordTurnStart(ledger, { sessionId: 's1', at: T(5) })
+  assert.equal(adoptAbandonedTurns(ledger, T(9)), 1, 'the abandoned turn was adopted')
+  assert.equal(ledger.sessions.s1.runningSince, null, 'the open marker is spent')
+  assert.equal(ledger.sessions.s1.interruptedAt, T(5), 'the orphan is dated at its own turn start')
+  assert.deepEqual(listUnread(ledger), [{ sessionId: 's1', at: T(5), kind: 'interrupted', interrupted: true }])
+})
+
+test('a turn this process opened is not an abandonment', () => {
+  const ledger = emptyLedger()
+  recordTurnStart(ledger, { sessionId: 's1', at: T(9) })
+  assert.equal(adoptAbandonedTurns(ledger, T(9)), 1, 'the marker is still spent')
+  assert.equal(ledger.sessions.s1.interruptedAt, null, 'a remount only re-read the file')
+  assert.deepEqual(listUnread(ledger), [], 'nothing was cut off')
+})
+
+test('a turn whose boundary is newer than its start is not an abandonment', () => {
+  const ledger = emptyLedger()
+  recordTurnStart(ledger, { sessionId: 's1', at: T(5) })
+  recordTurnEnd(ledger, { sessionId: 's1', at: T(6), kind: 'completed', cause: null })
+  ledger.sessions.s1.runningSince = T(5) // a file written before the boundary landed
+  assert.equal(adoptAbandonedTurns(ledger, T(9)), 1)
+  assert.equal(ledger.sessions.s1.interruptedAt, null, 'the later boundary is the newer fact')
+})
+
+test('the open-turn marker survives a round trip, and older ledgers read as none', () => {
+  const ledger = emptyLedger()
+  recordTurnStart(ledger, { sessionId: 's1', at: T(5) })
+  const round = normalizeLedger(JSON.parse(JSON.stringify(ledger)))
+  assert.equal(round.sessions.s1.runningSince, T(5), 'the marker is durable')
+  const older = normalizeLedger({
+    version: 1,
+    sessions: { s2: { lastTurnEndAt: T(1), lastTurnEndKind: 'completed', lastReadAt: null } },
+  })
+  assert.equal(older.sessions.s2.runningSince, null, 'a ledger written before the field existed has no open turn')
 })
 
 test('the chip-only interrupted reader is gone from the ledger surface', () => {

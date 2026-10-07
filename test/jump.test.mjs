@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { JSDOM } from 'jsdom'
 import {
-  expandOwningGroup, findSessionRow, nextUnreadId, owningWorkspaceKey, sessionRowKey,
+  expandOwningGroup, findSessionRow, nextUnreadId, owningWorkspaceKey, sessionIdOfRowKey, sessionRowKey,
 } from '../.test-build/client/jump.js'
 
 test('no unread Session yields no jump target', () => {
@@ -75,6 +75,16 @@ test('the owning Workspace of a Session is resolved from the registry', () => {
   assert.equal(owningWorkspaceKey(items, 'b'), 'w2')
   assert.equal(owningWorkspaceKey(items, 'a'), 'w1')
   assert.equal(owningWorkspaceKey(items, 'gone'), undefined)
+})
+
+test('the Session behind a sidebar row key is read back out of it', () => {
+  assert.equal(sessionIdOfRowKey(sessionRowKey('s1')), 's1')
+  assert.equal(sessionIdOfRowKey('session:'), null, 'a key without an id names no Session')
+  assert.equal(sessionIdOfRowKey('workspace:w1'), null, 'a Workspace row is not a Session')
+  assert.equal(sessionIdOfRowKey('s1'), null, 'a bare id is not a row key')
+  for (const value of [null, undefined, 7, '']) {
+    assert.equal(sessionIdOfRowKey(value), null, String(value))
+  }
 })
 
 test('a collapsed group is expanded by pressing its row, an expanded one is left alone', () => {
