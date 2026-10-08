@@ -11,7 +11,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![DSH plugin](https://img.shields.io/badge/DSH-plugin-4f46e5)](https://github.com/deepseek-ai/deepseek-harness)
 
-**DSH 侧边栏的未读与待办中枢：`⌘⇧J` 按顺序定位未读会话，`⌘⇧I` 处理正在等你输入的会话（提问 / 审批 / 计划审阅），`⌘⇧K` 弹出「等你处理」总览——所有未读与待决策的会话分成两区铺成卡片网格，一眼看清还欠多少；账本落在 host 半边，重启也不丢——**上次退出时还在跑的会话，下次启动就算未读**，`⌘⇧J` 一步走到。侧边栏底部另有一行六项会话状态读数，设置页可逐项开关。**
+**DSH 侧边栏的未读与待办中枢：`⌘⇧J` 按顺序定位未读会话，`⌘⇧I` 处理正在等你输入的会话（提问 / 审批 / 计划审阅），`⌘⇧K` 弹出「等你处理」总览——所有未读与待决策的会话分成两区铺成卡片网格，一眼看清还欠多少；账本落在 host 半边，重启也不丢——**上次退出时还在跑的会话，下次启动就算未读**，`⌘⇧J` 一步走到。侧边栏底部另有一行六项会话状态读数——每个图标都能点，点一下跳到下一个同类会话，设置页可逐项开关。**
 
 [效果](#效果) · [安装](#安装) · [装完怎么确认](#装完怎么确认) · [怎么用](#怎么用) · [等你处理总览](#等你处理总览k) · [会话状态读数](#会话状态读数六项计数) · [已知限制](#已知限制) · [安全边界](#安全边界) · [兼容性](#兼容性)
 
@@ -110,6 +110,7 @@ dsh plugin --profile web add /绝对路径/dsh-session-radar
 | --- | --- |
 | 左键点铃铛 | 定位到下一个未读会话：滚动到可见并在对话栏打开；再点继续往后走，末尾绕回第一个 |
 | 红色角标 | 已完成未查看的会话数（见「未读从哪来」） |
+| 点读数里的图标 | 跳到下一个该类型的会话：滚到可见并在对话栏打开；再点继续往后走，末尾绕回第一个。「已归档」点不动——它只报数（见「会话状态读数」） |
 | 会话行上的绿色小标 | 账本里还欠你的会话在行首显示绿点（官方那套「跑完没看」的标记重启后会丢，这个不会）；打开它、把对话滚到底，或在官方行菜单里「标为已读」，绿点都会消失 |
 | 黄色角标 | 正在等你处理的会话数：审批、计划审阅、提问都算；与红色角标分开计数，不会互相顶掉 |
 | 快捷键 J | 与左键点铃铛同一个跳转，默认 macOS `⌘⇧J`、Windows / Linux `Ctrl+Alt+J`，在 设置 → 通用 → 快捷键 改键 |
@@ -257,10 +258,13 @@ host 半边持有账本 `$DSH_HOME/session-radar.json`，原子写（临时文�
 - **活动轴**：未归档的普通会话按 `待处理 > 运行中 > 未读 > 闲置` 的优先级恰好落进一类，四项之和恒等于未归档数，不会把一个「一边跑一边等你审批」的会话数两遍。
 - 两种版式：**胶囊**（默认，每项一个「图标 + 数字」）与**比例条**（运行 / 未读 / 待处理 / 闲置的堆叠条 + 完整数字）；侧边栏收成 56px 时折叠为单图标 + 未归档角标，悬停或键盘聚焦弹出完整读数。
 - 口径只有一份实现：`src/count.ts`；读数与设置行共用，数值不会两边打架。
+- **每个图标都能点**：点一下就把那一类的下一个会话滚到可见并打开，和点铃铛是同一套动作（同样「打开即已读」），走到末尾绕回第一个。**未读**与**待处理**两枚直接复用铃铛自己的走位——和红色 / 黄色角标、`⌘⇧J` / `⌘⇧I` 共用同一个游标；**运行中**、**闲置**、**未归档**按「最近更新在前」各自走一条队列，互不干扰。
+- **已归档只报数、点不动**：官方壳不允许打开归档会话（在侧边栏点归档行只会弹一句提示），插件不绕过这条规则。侧边栏折叠成 56px 时那枚单图标也是纯状态、不可点。
+- 每枚都是真按钮：鼠标悬停有底色、键盘 `Tab` 能聚焦、回车 / 空格即触发；无障碍名称写明「X N 个，点击跳到下一个」。
 
 设置页 设置 → 通用 → **会话状态读数**：逐项开关、版式二选一、未归档告警阈值（默认 10，严格大于才告警），以及「重启后保留未读小标」开关（默认开）。偏好挂在本插件自己的 Config 命名空间（row id `session-radar`）下，改动经 Host settings 落进 profile patch。Host 没有服务该命名空间时，设置行不注册，读数仍按默认偏好显示。
 
-读数只读 shell 已发布的三个标准快照（`useSessions` / `useSessionStatus` / `useWorkspaces`），不写任何会话或归档状态、不落盘、不联网。
+读数本身只读 shell 已发布的三个标准快照（`useSessions` / `useSessionStatus` / `useWorkspaces`），不写任何会话或归档状态、不落盘、不联网；点图标之后的「打开 + 打开即已读」走的是铃铛那条路径（账本 read 回写见「未读从哪来」）。
 
 ## 已知限制
 
@@ -271,6 +275,8 @@ host 半边持有账本 `$DSH_HOME/session-radar.json`，原子写（临时文�
 - 崩溃（进程被强杀）走修复补写的 `interrupted`；会话不暴露 `snapshotEvents()` 也不暴露 `events` 时这一路静默失效。
 - 本插件只在**你按下「重试选中」**时才发消息，没有任何自动发送；但如果你同时装了 `dsh-client-auto-continue` 之类的自动续跑插件，它可能在启动时就把这些会话发掉，于是这个弹窗里就没有东西可勾了——两者建议二选一。
 - 续跑发送走官方 Remote `session/prompt`（客户端半边用 `ctx.connection.rpc.call('/api', …)`）：宿主会自己把没加载的会话 resume 起来，所以**不需要**先把那个会话打开，也不挑工作区。清单里显示不出的标题/目录只影响观感，不影响能不能发。
+- 读数里的**未读数字**是官方 `completionUnread` 口径，而点它是走铃铛那套四路并集：重启之后、或你在官方菜单里「标为未读」时，数字可能显示 0，点下去却仍然会跳到账本里那条未读。「数字」和「点进去能到哪」在其余五项上完全一致，只有这一项存在这个已知差别。
+- 读数里的「已归档」不做跳转：官方壳拒绝打开归档会话（`guardedOpen` 只弹提示），插件不绕过。
 - 浏览器到 host 的桥接失败会发布在账本快照的 `error` 上并保留上一次已知数据（不清空）；目前没有界面渲染它。
 - 手动「标为未读」不在任何公开快照里：插件直接读 Workspace 浏览器持久化的私有键 `dsh.workspace.view.v5`。官方改键名时这一路会静默失效，其它未读来源不受影响。
 - 行首绿点占用官方行位置 `sidebar.session.row.leading`，官方只在这一行的主状态是 idle 且没有手动未读时才渲染它；官方改位置名、或改成非 idle 行也占用，绿点会静默失效，铃铛角标与跳转不受影响。
@@ -322,6 +328,7 @@ MIT。`LICENSE` 保留上游版权行，并追加本项目版权行。
 - `⌘⇧K` / `Ctrl+Shift+K` opens a waiting overview: pending asks in a fixed left column, unread completions in a grid beside them; arrows move, Enter opens the selected session, Esc (or the same shortcut again) closes it.
 - A host-side ledger at `$DSH_HOME/session-radar.json` keeps the unread/attention state across restarts.
 - A sidebar-foot readout shows six Session counts (running / unread / pending / idle / unarchived / archived) in two layouts; Settings → General → Session status readout toggles each metric and sets the unarchived warning threshold.
+- Every icon in that readout is a button: it walks to the next Session of that metric (reveal, open, mark read — the same path the bell uses). Unread and pending reuse the bell's own walks; archived stays a plain count, because the shell refuses to open an archived Session.
 
 It writes exactly two things: its own ledger (`$DSH_HOME/session-radar.json`) and your own preferences in Settings. It never archives, deletes, rewrites or sends anything on your Sessions, and never talks to the network.
 

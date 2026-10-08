@@ -32,6 +32,7 @@ import { ActivityBell } from './ActivityBell.js'
 import { createConfigSource } from './config-source.js'
 import { askJumpCommand, createJumpSeat, overviewCommand, unreadJumpCommand } from './jump-command.js'
 import { createLedgerSource } from './ledger-source.js'
+import { createMetricJumpSeat } from './metric-jump.js'
 import { en, zh } from './locales.js'
 import { droppedIds, readManualUnread, watchManualUnread } from './manual-unread.js'
 import { RowBadge } from './RowBadge.js'
@@ -127,6 +128,9 @@ export function apply(ctx: Context): void {
   const unreadJump = createJumpSeat()
   const askJump = createJumpSeat()
   const overviewJump = createJumpSeat()
+  // The status readout's per-metric walks: the bell publishes them, the
+  // readout presses them.
+  const metricJump = createMetricJumpSeat()
   const t = ctx.locale.bind(NS)
   ctx.effect(() => ctx.shortcuts.register(
     unreadJumpCommand(unreadJump, () => t('bell.show'), t('bell.noUnread')),
@@ -172,6 +176,7 @@ export function apply(ctx: Context): void {
       unreadJump,
       askJump,
       overviewJump,
+      metricJump,
     }),
   }, ActivityBell))
 
@@ -187,7 +192,7 @@ export function apply(ctx: Context): void {
     id: STATUS_ID,
     order: STATUS_ORDER,
     locale: NS,
-    inject: () => ({ config }),
+    inject: () => ({ config, metricJump }),
   }, StatusWatch)), 'session-radar: status readout')
 
   // The preference row follows the Host's own namespace: a deployment that

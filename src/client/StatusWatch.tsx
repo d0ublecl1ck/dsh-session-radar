@@ -1,11 +1,13 @@
 /**
  * The status readout at the sidebar foot.
  *
- * It is a status indicator, not a control: the sidebar slot hands every
- * occupant only the column's own state, so this component asks the framework's
- * standard selector hooks for the snapshots it needs and keeps no state of its
- * own. The same numbers feed the Settings row, so the two surfaces can never
- * disagree.
+ * Every jumpable metric is also a control: a press walks to the next Session of
+ * that kind, exactly the way the bell walks unread. The walk itself belongs to
+ * the mounted bell (see ./metric-jump), so this component only routes the press
+ * and reads the numbers. The sidebar slot hands every occupant only the
+ * column's own state, so all of them come from the framework's standard
+ * selector hooks and this component keeps no state of its own. The same numbers
+ * feed the Settings row, so the two surfaces can never disagree.
  *
  * @module dsh-session-radar/client/StatusWatch
  */
@@ -13,7 +15,8 @@ import { useSyncExternalStore } from 'react'
 import { Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Metric } from '../count.js'
 import { MetricIcon, WatchIcon } from './icons.js'
-import { summaryText, unarchivedWarns, visibleMetrics } from './summary.js'
+import { metricLabel, summaryText, unarchivedWarns, visibleMetrics } from './summary.js'
+import { isJumpMetric, type MetricJumpSeat } from './metric-jump.js'
 import { useSessionCounts } from './use-counts.js'
 import type { ConfigSource, WatchConfig } from './config-source.js'
 import type { SnapshotSelectorHook, Translate } from './watch-types.js'
@@ -30,6 +33,11 @@ export interface StatusWatchProps {
   readonly useWorkspaces: SnapshotSelectorHook
   /** Live preference owned by this plugin's config namespace. */
   readonly config: ConfigSource
+  /**
+   * The mounted bell's per-metric walk. Absent only outside a live page, where
+   * a press has nothing to reach anyway.
+   */
+  readonly metricJump?: MetricJumpSeat | undefined
   /** Bound translate function for the session-radar namespace. */
   readonly t: Translate
 }
@@ -48,6 +56,7 @@ export function StatusWatch({
   useSessionStatus,
   useWorkspaces,
   config,
+  metricJump,
   t,
 }: StatusWatchProps) {
   const watch: WatchConfig = useSyncExternalStore(config.subscribe, config.getSnapshot, config.getSnapshot)
@@ -74,13 +83,17 @@ export function StatusWatch({
     )
   }
 
-  const body = watch.variant === 'meter' ? renderMeter(counts, shown, warn) : renderChips(counts, shown, warn)
+  const body = watch.variant === 'meter'
+    ? renderMeter(counts, shown, warn, label, t, metricJump)
+    : renderChips(counts, shown, warn, label, t, metricJump)
 
   return (
     // The shell's own tooltip is portaled out of the sidebar's clipping column,
     // so the full metric names survive even in the 56px rail. Hover and
     // keyboard focus both raise it; the readout keeps its own accessible name.
-    <Tooltip label={label} side="top" delayMs={200} portal>
+    // The hint names the affordance the icons now carry, which hovering alone
+    // does not otherwise reveal.
+    <Tooltip label={label + ' · ' + t('watch.jumpHint')} side="top" delayMs={200} portal>
       {body}
     </Tooltip>
   )
@@ -91,25 +104,80 @@ function warnOf(metric: Metric, warn: boolean): 'true' | undefined {
   return metric === 'unarchived' && warn ? 'true' : undefined
 }
 
-/** Layout A: colored icon + number pills, one per visible metric. */
-function renderChips(counts: ReturnType<typeof useSessionCounts>, shown: readonly Metric[], warn: boolean) {
+/** One metric's icon and number: a button whenever there is somewhere to jump. */
+function MetricCell({
+  metric, count, warn, className, t, metricJump,
+}: {
+  readonly metric: Metric
+  readonly count: number
+  readonly warn: boolean
+  readonly className: 'sw-chip' | 'sw-legend'
+  readonly t: Translate
+  readonly metricJump: MetricJumpSeat | undefined
+}) {
+  const glyph = (
+    <>
+      <MetricIcon metric={metric} />
+      <span className="sw-chip-count">{count}</span>
+    </>
+  )
+  // The archive is not a jump target (the shell refuses to open an archived
+  // Session), so that one stays a plain readout.
+  if (!isJumpMetric(metric)) {
+    return <span className={className} data-metric={metric} data-warn={warnOf(metric, warn)}>{glyph}</span>
+  }
   return (
-    <span className="sw-watch" data-variant="chips" role="status">
+    <button
+      type="button"
+      className={className}
+      data-metric={metric}
+      data-warn={warnOf(metric, warn)}
+      aria-label={t('watch.jump', { label: metricLabel(t, metric), count })}
+      onClick={() => { metricJump?.run(metric) }}
+    >
+      {glyph}
+    </button>
+  )
+}
+
+/** Layout A: colored icon + number pills, one per visible metric. */
+function renderChips(
+  counts: ReturnType<typeof useSessionCounts>,
+  shown: readonly Metric[],
+  warn: boolean,
+  label: string,
+  t: Translate,
+  metricJump: MetricJumpSeat | undefined,
+) {
+  return (
+    <span className="sw-watch" data-variant="chips" role="status" aria-label={label}>
       {shown.map((metric) => (
-        <span className="sw-chip" data-metric={metric} data-warn={warnOf(metric, warn)} key={metric}>
-          <MetricIcon metric={metric} />
-          <span className="sw-chip-count">{counts[metric]}</span>
-        </span>
+        <MetricCell
+          key={metric}
+          className="sw-chip"
+          metric={metric}
+          count={counts[metric]}
+          warn={warn}
+          t={t}
+          metricJump={metricJump}
+        />
       ))}
     </span>
   )
 }
 
 /** Layout B: a stacked proportion bar over the activity metrics, plus the full legend. */
-function renderMeter(counts: ReturnType<typeof useSessionCounts>, shown: readonly Metric[], warn: boolean) {
+function renderMeter(
+  counts: ReturnType<typeof useSessionCounts>,
+  shown: readonly Metric[],
+  warn: boolean,
+  label: string,
+  t: Translate,
+  metricJump: MetricJumpSeat | undefined,
+) {
   const activity = ACTIVITY.filter((metric) => shown.includes(metric))
   return (
-    <span className="sw-meter" data-variant="meter" role="status">
+    <span className="sw-meter" data-variant="meter" role="status" aria-label={label}>
       <span className="sw-meter-bar" aria-hidden="true">
         {activity.length === 0 ? (
           <span className="sw-meter-seg" data-metric="idle" data-empty="true" />
@@ -126,10 +194,15 @@ function renderMeter(counts: ReturnType<typeof useSessionCounts>, shown: readonl
       </span>
       <span className="sw-meter-legend">
         {shown.map((metric) => (
-          <span className="sw-legend" data-metric={metric} data-warn={warnOf(metric, warn)} key={metric}>
-            <MetricIcon metric={metric} />
-            <span className="sw-chip-count">{counts[metric]}</span>
-          </span>
+          <MetricCell
+            key={metric}
+            className="sw-legend"
+            metric={metric}
+            count={counts[metric]}
+            warn={warn}
+            t={t}
+            metricJump={metricJump}
+          />
         ))}
       </span>
     </span>

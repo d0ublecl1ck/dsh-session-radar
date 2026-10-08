@@ -1,3 +1,4 @@
+import { type MetricJumpSeat } from './metric-jump.js';
 import type { ConfigSource } from './config-source.js';
 import type { SnapshotSelectorHook, Translate } from './watch-types.js';
 /** Composed props of a sidebar.footer.action occupant. */
@@ -12,6 +13,11 @@ export interface StatusWatchProps {
     readonly useWorkspaces: SnapshotSelectorHook;
     /** Live preference owned by this plugin's config namespace. */
     readonly config: ConfigSource;
+    /**
+     * The mounted bell's per-metric walk. Absent only outside a live page, where
+     * a press has nothing to reach anyway.
+     */
+    readonly metricJump?: MetricJumpSeat | undefined;
     /** Bound translate function for the session-radar namespace. */
     readonly t: Translate;
 }
@@ -20,4 +26,4 @@ export interface StatusWatchProps {
  * @param props - composed sidebar slot props plus this plugin's inject face.
  * @returns the readout element, or null when every metric is hidden.
  */
-export declare function StatusWatch({ wide, useSessions, useSessionStatus, useWorkspaces, config, t, }: StatusWatchProps): import("react").JSX.Element | null;
+export declare function StatusWatch({ wide, useSessions, useSessionStatus, useWorkspaces, config, metricJump, t, }: StatusWatchProps): import("react").JSX.Element | null;

@@ -152,6 +152,65 @@ test('the meter layout renders the bar and the same legend numbers', () => {
   assert.match(markup, /data-metric="unarchived"[^>]*>[\s\S]*?sw-chip-count">4</)
 })
 
+/** A jump-seat double that records the metric each press asked for. */
+function jumpSeat(calls) {
+  return {
+    publish: () => () => {},
+    current: () => null,
+    run: (metric) => { calls.push(metric) },
+  }
+}
+
+test('every metric but the archive is a jump button carrying its own name', () => {
+  const mounted = mount()
+  const { list, statuses, archived } = fixture()
+  const markup = renderRegistered(mounted, FOOTER_SLOT, STATUS_ID, {
+    ...standardHooks(list, archived, [], statuses),
+    metricJump: jumpSeat([]),
+  })
+  for (const metric of ['running', 'unread', 'pending', 'idle', 'unarchived']) {
+    assert.match(
+      markup,
+      new RegExp('<button[^>]*class="sw-chip"[^>]*data-metric="' + metric + '"'),
+      'the ' + metric + ' chip is a button',
+    )
+  }
+  assert.doesNotMatch(markup, /<button[^>]*data-metric="archived"/, 'the archive stays a count, not a target')
+  assert.match(markup, /<span[^>]*class="sw-chip"[^>]*data-metric="archived"/)
+  assert.match(markup, /aria-label="未读 1 个，点击跳到下一个"/, 'a chip says what pressing it does')
+  assert.match(markup, /aria-label="会话状态：[^"]*已归档 2 个/, 'the group keeps naming the readout')
+})
+
+test('the jumpable metrics stay buttons in the meter legend, and the archive stays a count', () => {
+  const mounted = mount({ variant: 'meter' })
+  const { list, statuses, archived } = fixture()
+  const markup = renderRegistered(mounted, FOOTER_SLOT, STATUS_ID, {
+    ...standardHooks(list, archived, [], statuses),
+    metricJump: jumpSeat([]),
+  })
+  for (const metric of ['running', 'unread', 'pending', 'idle', 'unarchived']) {
+    assert.match(
+      markup,
+      new RegExp('<button[^>]*class="sw-legend"[^>]*data-metric="' + metric + '"'),
+      'the ' + metric + ' legend entry is a button',
+    )
+  }
+  assert.doesNotMatch(markup, /<button[^>]*data-metric="archived"/)
+  assert.match(markup, /<span[^>]*class="sw-legend"[^>]*data-metric="archived"/)
+})
+
+test('the collapsed rail stays a readout rather than a control', () => {
+  const mounted = mount()
+  const { list, statuses, archived } = fixture()
+  const markup = renderRegistered(mounted, FOOTER_SLOT, STATUS_ID, {
+    wide: false,
+    ...standardHooks(list, archived, [], statuses),
+    metricJump: jumpSeat([]),
+  })
+  assert.match(markup, /<span[^>]*class="sw-rail"/)
+  assert.doesNotMatch(markup, /<button/)
+})
+
 test('the settings row offers every toggle, every layout, and the threshold input', () => {
   const mounted = mount({ threshold: 7, variant: 'grid' })
   const { list, statuses, archived } = fixture()

@@ -6,6 +6,7 @@ import type { SessionStatusSnapshot } from '@deepseek-ai/dsh-client-ui-session/c
 import type { SessionId } from '@deepseek-ai/dsh-session/types';
 import type { LedgerSource } from './ledger-source.js';
 import type { JumpSeat } from './jump-command.js';
+import type { MetricJumpSeat } from './metric-jump.js';
 import { type RetrySendResult } from './retry-model.js';
 /** Structural view of the observable snapshots this plugin subscribes to. */
 export interface SnapshotSource<T> {
@@ -40,6 +41,8 @@ export interface ActivityBellInjected {
     readonly askJump: JumpSeat;
     /** Seat the plugin-scope waiting-window command reads to toggle the window. */
     readonly overviewJump: JumpSeat;
+    /** Seat the status readout presses to walk one of its metrics. */
+    readonly metricJump: MetricJumpSeat;
 }
 /** Composed props: shell share + locale seat + injected business face. */
 export type ActivityBellProps = PropsRuntime<'sidebar.footer.action'> & PropsLocale<'session-radar'> & ActivityBellInjected;
@@ -49,4 +52,4 @@ export type ActivityBellProps = PropsRuntime<'sidebar.footer.action'> & PropsLoc
  * @param props - shell share, locale seat, and injected business face.
  * @returns the two portals, or null before the sidebar region exists.
  */
-export declare function ActivityBell({ wide, t, openSession, pinSession, unpinSession, archiveSession, retrySession, sessions, statuses, workspaces, ledger, unreadJump, askJump, overviewJump, }: ActivityBellProps): ReactElement | null;
+export declare function ActivityBell({ wide, t, openSession, pinSession, unpinSession, archiveSession, retrySession, sessions, statuses, workspaces, ledger, unreadJump, askJump, overviewJump, metricJump, }: ActivityBellProps): ReactElement | null;

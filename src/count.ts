@@ -38,11 +38,13 @@ export interface SessionRowLike {
   readonly blank?: unknown
   /** Host running state, used when the status stream has no value yet. */
   readonly running?: unknown
+  /** Latest durable update instant; a walk leads with the newest Session. */
+  readonly updatedAt?: unknown
 }
 
 /** The list fields this module reads (a structural subset of SessionListState). */
 export interface SessionListLike {
-  readonly ids: readonly unknown[]
+  readonly ids: readonly string[]
   readonly byId: Readonly<Record<string, SessionRowLike | undefined>>
 }
 
@@ -103,9 +105,76 @@ function activityBucket(
   return 'idle'
 }
 
-/** An all-zero result; also the safe answer for malformed snapshots. */
-function zeroCounts(): SessionCounts {
-  return { running: 0, unread: 0, pending: 0, idle: 0, unarchived: 0, archived: 0 }
+/** The empty bucket set; also the safe answer for malformed snapshots. */
+function emptyBuckets<Id extends string>(): Record<Metric, Id[]> {
+  return { running: [], unread: [], pending: [], idle: [], unarchived: [], archived: [] }
+}
+
+/** One Session's id, grouped under the metric that owns it. */
+export type MetricBuckets<Id extends string = string> = Readonly<Record<Metric, readonly Id[]>>
+
+/** A Session's durable update instant, or 0 when the row carries none. */
+function updatedAtOf(row: SessionRowLike): number {
+  return typeof row.updatedAt === 'number' && Number.isFinite(row.updatedAt) ? row.updatedAt : 0
+}
+
+/** One ordinary Session, with the facts that order the walks. */
+interface Bucketed<Id extends string> {
+  readonly id: Id
+  readonly bucket: Metric
+  readonly at: number
+  readonly index: number
+}
+
+/**
+ * Group every ordinary Session under the metric that owns it, newest first.
+ *
+ * The buckets are the same fold the counts are read from, so a walk over one of
+ * them can never visit a Session the number beside it does not count. Order is
+ * the one the bell walks in: latest update first, and a row the list carries no
+ * timestamp for keeps its own position at the end. Archived rows form their own
+ * bucket and never appear in the unarchived one.
+ *
+ * @param list - the Session list snapshot, or anything shaped like it.
+ * @param archivedIds - the registry-global archive set.
+ * @param statuses - the UI status snapshot; absence falls back to row facts.
+ * @returns one id list per metric, in walk order.
+ */
+export function classifySessions<Id extends string = string>(
+  list: { readonly ids: readonly Id[]; readonly byId: Readonly<Record<string, SessionRowLike | undefined>> }
+    | undefined | null,
+  archivedIds: readonly unknown[] | undefined | null,
+  statuses?: StatusMapLike | undefined | null,
+): MetricBuckets<Id> {
+  const buckets = emptyBuckets<Id>()
+  if (list === undefined || list === null || !Array.isArray(list.ids)) return buckets
+  const archived = new Set<string>()
+  for (const id of archivedIds ?? []) archived.add(String(id))
+  const byId = list.byId ?? {}
+  const rows: Bucketed<Id>[] = []
+  list.ids.forEach((id, index) => {
+    const row = byId[String(id)]
+    if (row === undefined || row === null) return
+    if (!isOrdinary(row)) return
+    if (archived.has(String(id))) {
+      rows.push({ id, bucket: 'archived', at: updatedAtOf(row), index })
+      return
+    }
+    const status = typeof statuses?.get === 'function' ? statuses.get(String(id)) : undefined
+    rows.push({ id, bucket: activityBucket(status, row), at: updatedAtOf(row), index })
+  })
+  // Two stable keys: the newest update leads, and equal timestamps (including
+  // the undated rows) keep the list's own order.
+  rows.sort((left, right) => right.at - left.at || left.index - right.index)
+  for (const row of rows) {
+    if (row.bucket === 'archived') {
+      buckets.archived.push(row.id)
+      continue
+    }
+    buckets.unarchived.push(row.id)
+    buckets[row.bucket].push(row.id)
+  }
+  return buckets
 }
 
 /**
@@ -121,32 +190,17 @@ export function countSessions(
   archivedIds: readonly unknown[] | undefined | null,
   statuses?: StatusMapLike | undefined | null,
 ): SessionCounts {
-  if (list === undefined || list === null || !Array.isArray(list.ids)) return zeroCounts()
-  const archived = new Set<string>()
-  for (const id of archivedIds ?? []) archived.add(String(id))
-  const byId = list.byId ?? {}
-  const counts = zeroCounts() as {
-    running: number
-    unread: number
-    pending: number
-    idle: number
-    unarchived: number
-    archived: number
+  // The counts are the sizes of the walk buckets, so the number beside a metric
+  // and the Sessions a press visits are always the same selection.
+  const buckets = classifySessions(list, archivedIds, statuses)
+  return {
+    running: buckets.running.length,
+    unread: buckets.unread.length,
+    pending: buckets.pending.length,
+    idle: buckets.idle.length,
+    unarchived: buckets.unarchived.length,
+    archived: buckets.archived.length,
   }
-  for (const raw of list.ids) {
-    const id = String(raw)
-    const row = byId[id]
-    if (row === undefined || row === null) continue
-    if (!isOrdinary(row)) continue
-    if (archived.has(id)) {
-      counts.archived += 1
-      continue
-    }
-    counts.unarchived += 1
-    const status = typeof statuses?.get === 'function' ? statuses.get(id) : undefined
-    counts[activityBucket(status, row)] += 1
-  }
-  return counts
 }
 
 /**

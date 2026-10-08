@@ -754,6 +754,43 @@ const CSS = `
 .sw-meter-legend { display: flex; align-items: center; gap: 8px; }
 .sw-legend { display: inline-flex; align-items: center; gap: 3px; color: var(--sw-ink); }
 
+/* A jumpable metric is a button now; the chip/legend box is unchanged, so only
+   the affordances move. The archived metric never becomes one, because the
+   shell refuses to open an archived Session. */
+button.sw-chip, button.sw-legend {
+  appearance: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 120ms var(--ds-ease-in-out, ease-out);
+}
+
+button.sw-chip { margin: 0; }
+button.sw-chip:hover { background: var(--dsw-alias-bg-layer-3, rgba(127, 127, 127, 0.2)); }
+button.sw-chip[data-warn="true"]:hover { background: var(--dsw-alias-state-warn-tertiary, rgba(245, 166, 35, 0.16)); }
+
+/* The legend is inline text: the pill is drawn with padding the negative margin
+   takes back, so hovering highlights it without moving the row. */
+button.sw-legend {
+  margin: -2px -3px;
+  padding: 2px 3px;
+  border-radius: 6px;
+  background: transparent;
+}
+
+button.sw-legend:hover { background: var(--dsw-alias-bg-layer-2, rgba(127, 127, 127, 0.12)); }
+
+button.sw-chip:focus-visible, button.sw-legend:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary, #4d6bfe);
+  outline-offset: 1px;
+}
+
+button.sw-chip:active, button.sw-legend:active { transform: translateY(0.5px); }
+
+@media (prefers-reduced-motion: reduce) {
+  button.sw-chip, button.sw-legend { transition: none; }
+}
+
 /* The collapsed rail: one mark plus the unarchived count. */
 .sw-rail {
   position: relative;

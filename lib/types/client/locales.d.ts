@@ -79,6 +79,8 @@ export declare const zh: {
     'watch.summaryJoin': string;
     'watch.railHint': string;
     'watch.warn': string;
+    'watch.jump': string;
+    'watch.jumpHint': string;
     'watch.empty': string;
     'row.title': string;
     'row.description': string;

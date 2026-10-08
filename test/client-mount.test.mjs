@@ -280,9 +280,13 @@ test('the client half registers the bell, the readout, the gated settings row, a
   assert.notEqual(settings, undefined, 'the settings row is registered under the row id')
   const injected = captured().options.inject()
   assert.deepEqual(Object.keys(injected).sort(), [
-    'archiveSession', 'askJump', 'ledger', 'openSession', 'overviewJump', 'pinSession', 'retrySession',
-    'sessions', 'statuses', 'unpinSession', 'unreadJump', 'workspaces',
+    'archiveSession', 'askJump', 'ledger', 'metricJump', 'openSession', 'overviewJump', 'pinSession',
+    'retrySession', 'sessions', 'statuses', 'unpinSession', 'unreadJump', 'workspaces',
   ])
+  // The readout renders the presses; the bell owns the walks behind them.
+  const readoutFace = readout.options.inject()
+  assert.deepEqual(Object.keys(readoutFace).sort(), ['config', 'metricJump'])
+  assert.equal(typeof readoutFace.metricJump.run, 'function')
   assert.equal(document.querySelector('style[data-plugin="dsh-session-radar"]') !== null, true)
   for (const dispose of [...disposers].reverse()) dispose()
   assert.equal(document.querySelector('style[data-plugin="dsh-session-radar"]'), null)
@@ -1404,4 +1408,92 @@ test('leaving a Session unchecked keeps it unread, and the ask happens once per 
     restarted.restore()
     restarted.clearBootMarker()
   }
+})
+
+test('a readout chip runs the bell walk for its own metric', async () => {
+  document.body.innerHTML = ''
+  const shell = buildSidebar(document)
+  const rows = [
+    { id: 'run-1', displayTitle: '正在跑', blank: false, running: true, updatedAt: localAt(0, 12) },
+    { id: 'idle-new', displayTitle: '闲置新', blank: false, running: false, updatedAt: localAt(0, 11) },
+    { id: 'idle-old', displayTitle: '闲置旧', blank: false, running: false, updatedAt: localAt(1, 11) },
+    { id: 'unread-a', displayTitle: '未读甲', blank: false, running: false, updatedAt: localAt(0, 10) },
+    { id: 'unread-b', displayTitle: '未读乙', blank: false, running: false, updatedAt: localAt(0, 9) },
+  ]
+  const list = {
+    ids: rows.map(row => row.id),
+    byId: Object.fromEntries(rows.map(row => [row.id, row])),
+    phase: 'ready',
+  }
+  const statuses = new Map([
+    ['run-1', { running: true, completionUnread: false }],
+    ['idle-new', { running: false, completionUnread: false }],
+    ['idle-old', { running: false, completionUnread: false }],
+    ['unread-a', { running: false, completionUnread: true }],
+    ['unread-b', { running: false, completionUnread: true }],
+  ])
+  const workspaces = { items: [], archivedSessionIds: [] }
+  const handle = fakeContext({
+    sessions: source(list),
+    statuses: source(statuses),
+    workspaces: source(workspaces),
+  })
+  const { ctx, opened, disposers } = handle
+  apply(ctx)
+
+  // The bell owns the walks; the readout only presses them, so both mount.
+  const bell = await mount(React.createElement(handle.captured.component, {
+    wide: true, t: translate, ...handle.captured.options.inject(),
+  }))
+  const readout = handle.byId('sidebar.footer.action', 'session-radar.status')
+  const view = await mount(React.createElement(readout.component, {
+    wide: true,
+    t: translate,
+    ...readout.options.inject(),
+    useSessions: (selector) => selector(list),
+    useSessionStatus: (selector) => selector(statuses),
+    useWorkspaces: (selector) => selector(workspaces),
+  }))
+
+  // The sidebar renders a row for every Session a walk can land on.
+  const revealed = []
+  for (const row of rows) {
+    const node = document.createElement('div')
+    node.setAttribute('data-row-key', 'session:' + row.id)
+    node.scrollIntoView = () => { revealed.push(row.id) }
+    shell.list.appendChild(node)
+  }
+
+  // Archived rows are not openable, so that metric never becomes a target.
+  assert.equal(
+    document.querySelector('.sw-chip[data-metric="archived"]').tagName,
+    'SPAN',
+    'the archive chip stays a count',
+  )
+
+  await view.click(document.querySelector('.sw-chip[data-metric="running"]'))
+  assert.deepEqual(opened, [['open', 'run-1']], 'the running chip lands on the running Session')
+  assert.deepEqual(revealed, ['run-1'], 'and reveals its sidebar row')
+
+  await view.click(document.querySelector('.sw-chip[data-metric="idle"]'))
+  await view.click(document.querySelector('.sw-chip[data-metric="idle"]'))
+  assert.deepEqual(
+    opened,
+    [['open', 'run-1'], ['open', 'idle-new'], ['open', 'idle-old']],
+    'each idle press advances through its own walk, newest first',
+  )
+  await view.click(document.querySelector('.sw-chip[data-metric="idle"]'))
+  assert.deepEqual(opened.at(-1), ['open', 'idle-new'], 'the idle walk wraps back to its first Session')
+
+  await view.click(document.querySelector('.sw-chip[data-metric="unread"]'))
+  await view.click(document.querySelector('.sw-chip[data-metric="unread"]'))
+  assert.deepEqual(
+    opened.slice(-2),
+    [['open', 'unread-a'], ['open', 'unread-b']],
+    'the unread chip walks the unread Sessions in the bell order',
+  )
+
+  await view.unmount()
+  await bell.unmount()
+  for (const dispose of [...disposers].reverse()) dispose()
 })

@@ -5,6 +5,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   DEFAULT_THRESHOLD,
+  METRICS,
+  classifySessions,
   countSessions,
   countUnarchived,
   normalizeThreshold,
@@ -119,6 +121,68 @@ test('non-string archive ids and list ids compare as strings', () => {
   const counts = countSessions(sessions, [42])
   assert.equal(counts.archived, 1)
   assert.equal(counts.unarchived, 1)
+})
+
+test('classifySessions lists each ordinary Session under the metric that owns it', () => {
+  const sessions = list(
+    ['run', { updatedAt: 5 }],
+    ['ask', { updatedAt: 4 }],
+    ['unread', { updatedAt: 3 }],
+    ['idle', { updatedAt: 2 }],
+    ['arch', { updatedAt: 1 }],
+    ['child', { updatedAt: 9, parentId: 'run' }],
+    ['origin', { updatedAt: 9, origin: 'subagent' }],
+    ['blank', { updatedAt: 9, blank: true }],
+    ['ghost', undefined],
+  )
+  const buckets = classifySessions(
+    sessions,
+    ['arch'],
+    statuses(
+      ['run', { running: true }],
+      ['ask', { pendingInteraction: { kind: 'question' } }],
+      ['unread', { running: false, completionUnread: true }],
+      ['idle', { running: false, completionUnread: false }],
+    ),
+  )
+  assert.deepEqual(buckets.running, ['run'])
+  assert.deepEqual(buckets.pending, ['ask'])
+  assert.deepEqual(buckets.unread, ['unread'])
+  assert.deepEqual(buckets.idle, ['idle'])
+  assert.deepEqual(buckets.unarchived, ['run', 'ask', 'unread', 'idle'])
+  assert.deepEqual(buckets.archived, ['arch'])
+})
+
+test('classifySessions leads with the newest update and keeps undated rows last', () => {
+  const sessions = list(
+    ['older', { updatedAt: 10 }],
+    ['undated', {}],
+    ['newer', { updatedAt: 30 }],
+    ['ghost', undefined],
+  )
+  assert.deepEqual(classifySessions(sessions, [], new Map()).idle, ['newer', 'older', 'undated'])
+})
+
+test('the buckets and the counts come from the same fold', () => {
+  const sessions = list(
+    ['run', { updatedAt: 4 }],
+    ['unread', { updatedAt: 3 }],
+    ['idle', { updatedAt: 2 }],
+    ['arch', { updatedAt: 1 }],
+    ['blank', { blank: true }],
+  )
+  const statuses_ = statuses(['run', { running: true }], ['unread', { completionUnread: true }])
+  const counts = countSessions(sessions, ['arch'], statuses_)
+  const buckets = classifySessions(sessions, ['arch'], statuses_)
+  for (const metric of METRICS) {
+    assert.equal(counts[metric], buckets[metric].length, 'the ' + metric + ' count is its bucket size')
+  }
+})
+
+test('classifySessions answers six empty buckets for a malformed snapshot', () => {
+  const empty = { running: [], unread: [], pending: [], idle: [], unarchived: [], archived: [] }
+  assert.deepEqual(classifySessions(undefined, undefined, undefined), empty)
+  assert.deepEqual(classifySessions({ ids: undefined, byId: {} }, []), empty)
 })
 
 test('normalizeThreshold keeps positive integers and rejects the rest', () => {

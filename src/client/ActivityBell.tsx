@@ -35,6 +35,7 @@ import {
   buildActivityGroups, countPending, countUnread, type ActivityAttention, type ActivityDayBucket,
   type ActivityRow,
 } from '../activity-model.js'
+import { classifySessions } from '../count.js'
 import { buildOverview, type Overview, type OverviewCard } from '../overview.js'
 import {
   applyRowInset, ensurePositioned, measureRowInset, mountContainer, type SidebarAnchors,
@@ -46,6 +47,7 @@ import {
   currentSessionId, expandOwningGroup, findSessionRow, nextUnreadId, owningWorkspaceKey, revealRow,
 } from './jump.js'
 import type { JumpSeat } from './jump-command.js'
+import type { JumpMetric, MetricJumpSeat } from './metric-jump.js'
 import { readManualUnread, watchManualUnread } from './manual-unread.js'
 import { BellIcon } from './icons.js'
 import { useTitleMarquee } from './marquee.js'
@@ -96,6 +98,8 @@ export interface ActivityBellInjected {
   readonly askJump: JumpSeat
   /** Seat the plugin-scope waiting-window command reads to toggle the window. */
   readonly overviewJump: JumpSeat
+  /** Seat the status readout presses to walk one of its metrics. */
+  readonly metricJump: MetricJumpSeat
 }
 
 /** Composed props: shell share + locale seat + injected business face. */
@@ -514,7 +518,7 @@ function useHosts(anchors: SidebarAnchors | undefined, wide: boolean, active: bo
  */
 export function ActivityBell({
   wide, t, openSession, pinSession, unpinSession, archiveSession, retrySession, sessions, statuses,
-  workspaces, ledger, unreadJump, askJump, overviewJump,
+  workspaces, ledger, unreadJump, askJump, overviewJump, metricJump,
 }: ActivityBellProps): ReactElement | null {
   const anchors = useSidebarAnchors()
   const list = useSnapshot(sessions)
@@ -692,6 +696,15 @@ export function ActivityBell({
   // The stops the ask walk left behind, oldest first; the last one is where a
   // press returns once no ask is left.
   const askTrail = useRef<readonly SessionId[]>([])
+  // The readout's own walks. They read the classifier the readout's numbers
+  // come from, so a press always moves through the Sessions the number beside
+  // it counts; each metric keeps its own cursor, so one walk never moves
+  // another's target.
+  const jumpBuckets = useMemo(
+    () => classifySessions(list, workspaceSnapshot.archivedSessionIds, statusMap),
+    [list, workspaceSnapshot, statusMap],
+  )
+  const metricCursor = useRef<Partial<Record<JumpMetric, SessionId>>>({})
 
   // Bring one Session's sidebar row into view, expanding its Workspace group
   // first when the group is collapsed and renders no member rows.
@@ -742,6 +755,26 @@ export function ActivityBell({
     revealSession(step.target)
     openByUser(step.target)
   }, [askOrder, list, openByUser, revealSession])
+
+  // One press on a readout chip. Unread and pending hand over to the bell's own
+  // walks, so the badge, the shortcuts, and the chips stay one cursor over the
+  // same set; the rest walk the bucket the readout's number was counted from.
+  const jumpMetric = useCallback((metric: JumpMetric): void => {
+    if (metric === 'unread') {
+      jumpNextUnread()
+      return
+    }
+    if (metric === 'pending') {
+      jumpNextAsk()
+      return
+    }
+    const target = nextUnreadId(jumpBuckets[metric], metricCursor.current[metric] ?? null)
+    if (target === null) return
+    metricCursor.current[metric] = target
+    revealSession(target)
+    acknowledge(target)
+    openByUser(target)
+  }, [acknowledge, jumpBuckets, jumpNextAsk, jumpNextUnread, openByUser, revealSession])
 
   // The waiting window's cursor. Null means "not chosen yet", so the seed is
   // recomputed against the current projection on every render instead of being
@@ -824,6 +857,10 @@ export function ActivityBell({
     available: () => true,
     run: toggleWaiting,
   }), [overviewJump, toggleWaiting])
+
+  // The readout's chips reach these walks through one seat; it stays empty
+  // whenever the bell is unmounted, and a press then does nothing.
+  useEffect(() => metricJump.publish({ run: jumpMetric }), [metricJump, jumpMetric])
 
   // Collapsing the sidebar unmounts the region the panel covers: leave the
   // activity view rather than keeping a flag nobody can see or clear.

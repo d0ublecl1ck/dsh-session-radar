@@ -34,10 +34,12 @@ export interface SessionRowLike {
     readonly blank?: unknown;
     /** Host running state, used when the status stream has no value yet. */
     readonly running?: unknown;
+    /** Latest durable update instant; a walk leads with the newest Session. */
+    readonly updatedAt?: unknown;
 }
 /** The list fields this module reads (a structural subset of SessionListState). */
 export interface SessionListLike {
-    readonly ids: readonly unknown[];
+    readonly ids: readonly string[];
     readonly byId: Readonly<Record<string, SessionRowLike | undefined>>;
 }
 /** Independent UI status facts for one Session (structural subset of SessionStatus). */
@@ -63,6 +65,26 @@ export interface SessionCounts {
     readonly unarchived: number;
     readonly archived: number;
 }
+/** One Session's id, grouped under the metric that owns it. */
+export type MetricBuckets<Id extends string = string> = Readonly<Record<Metric, readonly Id[]>>;
+/**
+ * Group every ordinary Session under the metric that owns it, newest first.
+ *
+ * The buckets are the same fold the counts are read from, so a walk over one of
+ * them can never visit a Session the number beside it does not count. Order is
+ * the one the bell walks in: latest update first, and a row the list carries no
+ * timestamp for keeps its own position at the end. Archived rows form their own
+ * bucket and never appear in the unarchived one.
+ *
+ * @param list - the Session list snapshot, or anything shaped like it.
+ * @param archivedIds - the registry-global archive set.
+ * @param statuses - the UI status snapshot; absence falls back to row facts.
+ * @returns one id list per metric, in walk order.
+ */
+export declare function classifySessions<Id extends string = string>(list: {
+    readonly ids: readonly Id[];
+    readonly byId: Readonly<Record<string, SessionRowLike | undefined>>;
+} | undefined | null, archivedIds: readonly unknown[] | undefined | null, statuses?: StatusMapLike | undefined | null): MetricBuckets<Id>;
 /**
  * Count the six status metrics over one set of snapshots.
  *
