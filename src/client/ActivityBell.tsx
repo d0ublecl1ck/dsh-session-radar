@@ -61,7 +61,7 @@ import { tailLedgerRead } from './conversation-tail.js'
 import { useUserOpenedSession } from './use-user-open.js'
 import { RetryDialog } from './RetryDialog.js'
 import {
-  buildRetryCandidates, retrySelected, type RetrySendResult,
+  buildRetryCandidates, candidateSources, retrySelected, type RetrySendResult,
 } from './retry-model.js'
 
 /** Structural view of the observable snapshots this plugin subscribes to. */
@@ -613,8 +613,12 @@ export function ActivityBell({
   const runRetry = useCallback((ids: readonly SessionId[]) => retrySelected({
     ids,
     send: retrySession,
-    acknowledge: (id) => { ledger.read(id, { acknowledgeInterrupt: true }) },
-  }), [retrySession, ledger])
+    // The row may stand in for subagents that nothing else can reach, so an
+    // accepted prompt spends their reminders in the same read.
+    acknowledge: (id) => {
+      ledger.read(id, { acknowledgeInterrupt: true, also: candidateSources(retryCandidates, id) })
+    },
+  }), [retrySession, ledger, retryCandidates])
 
   // The conversation at its tail is read: drop the surface's own reminder for it
   // and tell the host, so scrolling away can re-arm neither source. The host

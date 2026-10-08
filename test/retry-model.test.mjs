@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   buildRetryCandidates,
+  candidateSources,
   defaultSelection,
   retrySelected,
   selectedIds,
@@ -110,18 +111,23 @@ test('several unfinished subagents of one parent collapse into a single row, dat
   assert.equal(rows[0].at, T(7), 'one row per parent, dated by its newest unfinished child')
 })
 
-test('a parent that is gone is not invented: the subagent must still be a listed Session', () => {
+test('a subagent whose parent is gone is not offered at all', () => {
+  // The host answers a subagent prompt with `session/not-found`, so offering the
+  // subagent itself would be a row whose button can never work.
   const rows = buildRetryCandidates(inputs({
     reminders: [{ sessionId: 'deep', at: T(2), interrupted: true }],
     sessions: {
       ids: ['a', 'deep'],
       byId: {
         a: { id: 'a', displayTitle: '外部任务', cwd: '/host/a', running: false, updatedAt: T(3) },
-        deep: { id: 'deep', displayTitle: '更深一层', cwd: '/host/a', running: false, updatedAt: T(2), parentId: 'missing' },
+        deep: {
+          id: 'deep', displayTitle: '更深一层', cwd: '/host/a', running: false, updatedAt: T(2),
+          origin: 'subagent', parentId: 'missing',
+        },
       },
     },
   }))
-  assert.deepEqual(rows.map((row) => row.id), ['deep'], 'the nearest listed ancestor is the addressable one')
+  assert.deepEqual(rows, [], 'nothing addressable means nothing to offer')
 })
 
 test('a reminder whose Session left the list is not offered', () => {
@@ -172,4 +178,52 @@ test('the retry sends one prompt at a time and acknowledges only the accepted on
   assert.deepEqual(acknowledged, ['a'], 'a refused prompt keeps its reminder')
   assert.deepEqual(outcome.sent, ['a'])
   assert.deepEqual(outcome.failed, [{ id: 'b', message: '没人在跑了' }])
+})
+
+test('a folded row carries the subagents it stands in for', () => {
+  const rows = buildRetryCandidates(inputs({
+    reminders: [
+      { sessionId: 'kid2', at: T(7), interrupted: true },
+      { sessionId: 'kid1', at: T(4), interrupted: true },
+      { sessionId: 'a', at: T(3), interrupted: true },
+    ],
+    sessions: {
+      ids: ['a', 'kid1', 'kid2'],
+      byId: {
+        a: { id: 'a', displayTitle: '外部任务', cwd: '/host/a', running: false, updatedAt: T(3) },
+        kid1: { id: 'kid1', displayTitle: '子代理一', cwd: '/host/a', running: false, updatedAt: T(4), origin: 'subagent', parentId: 'a' },
+        kid2: { id: 'kid2', displayTitle: '子代理二', cwd: '/host/a', running: false, updatedAt: T(7), origin: 'subagent', parentId: 'a' },
+      },
+    },
+  }))
+  assert.deepEqual(rows.map((row) => row.id), ['a'])
+  assert.deepEqual(rows[0].sources, ['kid2', 'kid1'], 'the parent stands in for both subagents, newest first')
+  assert.equal(rows[0].at, T(7), 'and the row is dated by the newest of them')
+  assert.deepEqual(candidateSources(rows, 'a'), ['kid2', 'kid1'], 'the send plan can ask what a row stands for')
+})
+
+test('a row carrying its own reminder stands in for nothing', () => {
+  const rows = buildRetryCandidates(inputs())
+  assert.deepEqual(rows.map((row) => row.sources), [[], []], 'its own reminder is not a source')
+  assert.deepEqual(candidateSources(rows, 'a'), [])
+  assert.deepEqual(candidateSources(rows, 'ghost'), [], 'an id no row carries has nothing to spend')
+})
+
+test('a row armed by its own reminder and by a subagent spends both', () => {
+  const rows = buildRetryCandidates(inputs({
+    reminders: [
+      { sessionId: 'a', at: T(3), interrupted: true },
+      { sessionId: 'kid', at: T(5), interrupted: true },
+    ],
+    sessions: {
+      ids: ['a', 'kid'],
+      byId: {
+        a: { id: 'a', displayTitle: '外部任务', cwd: '/host/a', running: false, updatedAt: T(3) },
+        kid: { id: 'kid', displayTitle: '子代理', cwd: '/host/a', running: false, updatedAt: T(5), origin: 'subagent', parentId: 'a' },
+      },
+    },
+  }))
+  assert.deepEqual(rows.map((row) => row.id), ['a'])
+  assert.equal(rows[0].at, T(5), 'the newest reason dates the row')
+  assert.deepEqual(rows[0].sources, ['kid'], 'the row itself is never one of its own sources')
 })

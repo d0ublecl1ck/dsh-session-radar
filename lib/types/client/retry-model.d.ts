@@ -12,7 +12,8 @@
  * Subagent conversations are not prompt targets, so a reminder for one is offered
  * as its top-level ancestor instead: a subagent still midway through a turn means
  * the outer task stopped with it, and that outer Session is the only thing the
- * dialog may wake.
+ * dialog may wake. Such a row remembers which subagents armed it, because an
+ * accepted retry is the only thing that can ever spend their reminders.
 
  * @module dsh-session-radar/client/retry-model
  */
@@ -64,6 +65,13 @@ export interface RetryCandidate {
     readonly at: number;
     /** Already running, so this row cannot be picked. */
     readonly running: boolean;
+    /**
+     * The unfinished subagent Sessions this row stands in for, newest first. They
+     * are spent together with the row: a subagent is not addressable, so an
+     * accepted retry is the only way its reminder can ever be spent. Empty for a
+     * Session that carries its own reminder.
+     */
+    readonly sources: readonly SessionId[];
 }
 /** What one prompt attempt reported back. */
 export type RetrySendResult = {
@@ -103,6 +111,18 @@ export interface RetryOutcome {
  * @returns the rows the dialog offers.
  */
 export declare function buildRetryCandidates(inputs: RetryInputs): RetryCandidate[];
+/**
+ * The extra Sessions one accepted retry has to spend alongside its row.
+ *
+ * A folded row speaks for the subagents that armed it, and those reminders can
+ * be spent no other way: a subagent is not addressable, so nothing can prompt it
+ * or read its tail. Empty for a Session that carries its own reminder.
+ *
+ * @param candidates - the offered rows.
+ * @param id - the row whose prompt the host accepted.
+ * @returns the ids to spend with the row, newest first.
+ */
+export declare function candidateSources(candidates: readonly RetryCandidate[], id: SessionId): readonly SessionId[];
 /** The selection a freshly opened dialog starts with: everything retryable. */
 export declare function defaultSelection(candidates: readonly RetryCandidate[]): ReadonlySet<SessionId>;
 /**

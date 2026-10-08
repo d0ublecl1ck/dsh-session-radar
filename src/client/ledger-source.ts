@@ -47,6 +47,12 @@ export interface LedgerReadOptions {
    * of a restart-interrupted turn; a plain open leaves the marker armed.
    */
   readonly acknowledgeInterrupt?: boolean
+  /**
+   * Further Sessions this one read spends. A folded row stands in for
+   * subagents that can never be addressed on their own, so their reminders are
+   * spent here or never.
+   */
+  readonly also?: readonly SessionId[]
 }
 
 /** Observable ledger face handed to the component. */
@@ -143,9 +149,11 @@ export function createLedgerSource(
       }
     },
     read: (sessionId, options) => {
-      const body = options?.acknowledgeInterrupt === true
-        ? { sessionId, acknowledgeInterrupt: true }
-        : { sessionId }
+      const body: { sessionId: SessionId; acknowledgeInterrupt?: true; also?: SessionId[] } =
+        options?.acknowledgeInterrupt === true
+          ? { sessionId, acknowledgeInterrupt: true }
+          : { sessionId }
+      if (options?.also !== undefined && options.also.length > 0) body.also = [...options.also]
       void post('read', body)
         .then((next) => { if (!disposed) publish(next) })
         .catch((error: unknown) => {

@@ -1348,6 +1348,12 @@ test('a running subagent puts its top-level Session on the checklist', async () 
     assert.equal(h.sends.length, 1, 'only the parent is prompted')
     assert.equal(h.sends[0].payload.args.request.sessionId, 's1')
     assert.ok(
+      h.calls.some(call => call.target.endsWith('/session-radar/read')
+        && call.body?.sessionId === 's1'
+        && Array.isArray(call.body?.also) && call.body.also.includes('s2')),
+      'the accepted retry also spends the subagent that armed the row',
+    )
+    assert.ok(
       h.calls.some(call => call.target.endsWith('/session-radar/read') && call.body?.sessionId === 's1'),
       'an accepted retry spends the parent\u2019s reminder',
     )
@@ -1496,4 +1502,19 @@ test('a readout chip runs the bell walk for its own metric', async () => {
   await view.unmount()
   await bell.unmount()
   for (const dispose of [...disposers].reverse()) dispose()
+})
+
+test('a subagent whose parent is gone is never offered', async () => {
+  const h = await mountRetry(['s2'], { parents: { s2: 'missing' }, ledgerIds: ['s2'] })
+  try {
+    assert.equal(
+      document.querySelector('.rt-panel'),
+      null,
+      'nothing addressable means no question to ask',
+    )
+  } finally {
+    await h.view.unmount()
+    for (const dispose of [...h.disposers].reverse()) dispose()
+    h.restore()
+  }
 })

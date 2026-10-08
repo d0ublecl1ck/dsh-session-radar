@@ -19,6 +19,7 @@ import { dirname, join } from 'node:path'
 import {
   acknowledgeInterrupt,
   adoptAbandonedTurns,
+  clearSupersededChildren,
   emptyLedger,
   listUnread,
   markRead,
@@ -188,6 +189,19 @@ export function mount(rawCtx: any): void {
     return typeof id === 'string' && id !== '' ? id : null
   }
 
+  /**
+   * The conversation a subagent Session was delegated from, per its header.
+   *
+   * This is the same field the official controller reads when it authorizes a
+   * subagent call (`session.header.parentSession`), and it is the only place a
+   * plugin can learn the link: a subagent is never addressable, so nothing can
+   * ever spend its reminder directly.
+   */
+  function parentIdOf(session: unknown): string | null {
+    const parent = (session as { header?: { parentSession?: unknown } } | null)?.header?.parentSession
+    return typeof parent === 'string' && parent !== '' ? parent : null
+  }
+
   /** One live Session's stored history, or null when it exposes none. */
   function storedEventsOf(session: unknown): readonly TailEventLike[] | null {
     const candidate = session as { snapshotEvents?: unknown; events?: unknown } | null
@@ -218,7 +232,13 @@ export function mount(rawCtx: any): void {
     if (events === null) return
     const tail = restartInterruptedTail(events)
     if (tail === null) return
-    recordTurnEnd(ledger, { sessionId, at: tail.at, kind: tail.kind, cause: tail.cause })
+    recordTurnEnd(ledger, {
+      sessionId,
+      at: tail.at,
+      kind: tail.kind,
+      cause: tail.cause,
+      parentId: parentIdOf(session),
+    })
     schedulePersist()
   }
 
@@ -252,10 +272,14 @@ export function mount(rawCtx: any): void {
     const sessionId = sessionIdOf(session)
     if (sessionId === null || event === null || typeof event !== 'object') return
     const at = typeof event.time === 'number' ? event.time : Date.now()
+    const parentId = parentIdOf(session)
 
     whenLoaded(() => {
       if (event.type === 'turn/start') {
-        recordTurnStart(ledger, { sessionId, at })
+        recordTurnStart(ledger, { sessionId, at, parentId })
+        // A conversation that runs again has taken over the subagents it left
+        // behind: their cut-off turns are no longer the operator's next action.
+        clearSupersededChildren(ledger, { parentId: sessionId, at })
         schedulePersist()
         return
       }
@@ -264,13 +288,13 @@ export function mount(rawCtx: any): void {
         const reason = event.data?.reason ?? {}
         const kind = typeof reason.kind === 'string' ? reason.kind : 'unknown'
         const cause = typeof reason.reason?.kind === 'string' ? reason.reason.kind : null
-        recordTurnEnd(ledger, { sessionId, at, kind, cause })
+        recordTurnEnd(ledger, { sessionId, at, kind, cause, parentId })
         schedulePersist()
         return
       }
 
       if (event.type === 'approval/asked') {
-        recordAttention(ledger, { sessionId, at, kind: 'approval' })
+        recordAttention(ledger, { sessionId, at, kind: 'approval', parentId })
         schedulePersist()
         return
       }
@@ -293,7 +317,7 @@ export function mount(rawCtx: any): void {
         if (sessionId !== null) {
           const at = Date.now()
           whenLoaded(() => {
-            recordAttention(ledger, { sessionId, at, kind: 'question' })
+            recordAttention(ledger, { sessionId, at, kind: 'question', parentId: parentIdOf(exec.agent?.session) })
             schedulePersist()
           })
         }
@@ -354,9 +378,18 @@ export function mount(rawCtx: any): void {
       if (typeof body?.sessionId !== 'string') {
         return { status: 400, value: { ok: false, error: { code: 'bad-request', message: 'sessionId must be a string' } } }
       }
-      markRead(ledger, body.sessionId, Date.now())
-      // A tail read acknowledges a restart-interrupted turn; a plain open does not.
-      if (body?.acknowledgeInterrupt === true) acknowledgeInterrupt(ledger, body.sessionId)
+      // A tail read acknowledges a restart-interrupted turn; a plain open does
+      // not. The row that was accepted may stand in for Sessions that are not
+      // addressable at all (subagents), so one read can spend several ids: none
+      // of them can ever be acknowledged on their own.
+      const acknowledge = body?.acknowledgeInterrupt === true
+      const now = Date.now()
+      const spends = [body.sessionId, ...(Array.isArray(body?.also) ? body.also : [])]
+      for (const id of spends) {
+        if (typeof id !== 'string' || id === '') continue
+        markRead(ledger, id, now)
+        if (acknowledge) acknowledgeInterrupt(ledger, id)
+      }
       schedulePersist()
       return { status: 200, value: { ok: true, value: snapshot() } }
     }

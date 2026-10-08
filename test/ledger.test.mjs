@@ -3,8 +3,10 @@ import test from 'node:test'
 import {
   acknowledgeInterrupt,
   adoptAbandonedTurns,
+  clearSupersededChildren,
   emptyLedger,
   isRestartInterrupt,
+  LEDGER_VERSION,
   listUnread,
   markRead,
   normalizeLedger,
@@ -211,4 +213,64 @@ test('the open-turn marker survives a round trip, and older ledgers read as none
 
 test('the chip-only interrupted reader is gone from the ledger surface', () => {
   assert.equal('listInterrupted' in ledgerModule, false, 'the chip was removed; nothing reads an interrupted list')
+})
+
+test('a parent starting a new turn spends the cut-off turns of its children', () => {
+  const ledger = emptyLedger()
+  // Three turns the previous process left open: two of one parent, one of another.
+  recordTurnStart(ledger, { sessionId: 'kid1', at: T(1), parentId: 'p' })
+  recordTurnStart(ledger, { sessionId: 'kid2', at: T(4), parentId: 'p' })
+  recordTurnStart(ledger, { sessionId: 'other', at: T(1), parentId: 'q' })
+  assert.equal(adoptAbandonedTurns(ledger, T(9)), 3, 'the restart adopts them all')
+  assert.equal(ledger.sessions.kid2.interruptedAt, T(4))
+
+  assert.equal(
+    clearSupersededChildren(ledger, { parentId: 'p', at: T(3) }),
+    1,
+    'only the child that was cut before the new turn is superseded',
+  )
+  assert.equal(ledger.sessions.kid1.interruptedAt, null, 'the parent has moved past that cut')
+  assert.equal(ledger.sessions.kid2.interruptedAt, T(4), 'a turn cut during the new turn still needs the operator')
+  assert.equal(ledger.sessions.other.interruptedAt, T(1), 'another parent\u2019s children are untouched')
+  assert.equal(ledger.sessions.kid1.parentId, 'p', 'spending the marker leaves the link alone')
+})
+
+test('clearing is a no-op without a match, and never guesses an instant', () => {
+  const ledger = emptyLedger()
+  assert.equal(clearSupersededChildren(ledger, { parentId: 'p', at: T(5) }), 0, 'nothing recorded, nothing spent')
+  recordTurnStart(ledger, { sessionId: 'kid', at: T(1), parentId: 'p' })
+  adoptAbandonedTurns(ledger, T(9))
+  assert.equal(
+    clearSupersededChildren(ledger, { parentId: 'p', at: Number.NaN }),
+    0,
+    'an unusable instant must not spend every marker',
+  )
+  assert.equal(ledger.sessions.kid.interruptedAt, T(1))
+  assert.equal(
+    clearSupersededChildren(ledger, { parentId: 'p', at: T(1) }),
+    0,
+    'the cut and the new turn at the same instant is not a supersession',
+  )
+  assert.equal(ledger.sessions.kid.interruptedAt, T(1))
+})
+
+test('a remembered parent survives a round trip, and older ledgers read as top-level', () => {
+  const ledger = emptyLedger()
+  recordTurnStart(ledger, { sessionId: 'kid', at: T(1), parentId: 'p' })
+  const round = normalizeLedger(JSON.parse(JSON.stringify(ledger)))
+  assert.equal(round.sessions.kid.parentId, 'p', 'the link is durable')
+  const older = normalizeLedger({
+    version: 2,
+    sessions: { kid: { lastTurnEndAt: T(1), lastTurnEndKind: 'completed', interruptedAt: T(1), lastReadAt: null } },
+  })
+  assert.equal(older.sessions.kid.parentId, null, 'a ledger written before the field existed has no parent')
+  assert.equal(LEDGER_VERSION, 3, 'the persisted shape carries the parent link')
+})
+
+test('a later turn without a readable parent keeps the link already known', () => {
+  const ledger = emptyLedger()
+  recordTurnStart(ledger, { sessionId: 'kid', at: T(1), parentId: 'p' })
+  recordTurnEnd(ledger, { sessionId: 'kid', at: T(2), kind: 'completed', cause: null })
+  recordTurnStart(ledger, { sessionId: 'kid', at: T(3) })
+  assert.equal(ledger.sessions.kid.parentId, 'p', 'a link is write-once; a missing header must not erase it')
 })

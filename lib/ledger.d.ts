@@ -16,8 +16,13 @@
  *
  * @module dsh-session-radar/ledger
  */
-/** Persisted document version; bump when the fold semantics change. */
-export declare const LEDGER_VERSION = 2;
+/**
+ * Persisted document version; bump when the fold semantics change.
+ *
+ * 3: an entry may carry `parentId`, the top-level conversation a subagent was
+ *    delegated from — the link `clearSupersededChildren` spends reminders by.
+ */
+export declare const LEDGER_VERSION = 3;
 /** The graceful-dispose cancel cause that means a restart cut the turn off. */
 export declare const INTERRUPT_CAUSE = "disposed";
 /**
@@ -60,6 +65,12 @@ export interface LedgerEntry {
      * A process that finds a leftover value here died with that turn running.
      */
     runningSince: number | null;
+    /**
+     * The top-level Session this one was delegated from, or null for a
+     * conversation the operator started. A subagent is not addressable, so this
+     * link is the only way its reminder can ever be spent.
+     */
+    parentId: string | null;
 }
 /** The whole persisted document. */
 export interface LedgerState {
@@ -118,6 +129,7 @@ export declare function restartInterruptedTail(events: readonly TailEventLike[])
 export declare function recordTurnStart(ledger: LedgerState, input: {
     sessionId: string;
     at: number;
+    parentId?: string | null;
 }): void;
 /** Record one durable turn boundary. */
 export declare function recordTurnEnd(ledger: LedgerState, input: {
@@ -125,7 +137,26 @@ export declare function recordTurnEnd(ledger: LedgerState, input: {
     at: number;
     kind: string;
     cause: string | null;
+    parentId?: string | null;
 }): void;
+/**
+ * Spend the reminders of the subagents a conversation has already moved past.
+ *
+ * A cut-off subagent is only worth a row while the conversation that started it
+ * has not run again: once the parent *begins* a new turn it has taken the work
+ * over. Only a turn that started strictly after the child was cut counts — the
+ * turn a parent was already running when the subagent was cut off is exactly
+ * the case the row exists for (the parent finished its own turn and never
+ * looked back).
+ *
+ * @param ledger - ledger to edit.
+ * @param input - the parent that started a turn, and that turn's instant.
+ * @returns how many child markers were spent (0 means nothing to write back).
+ */
+export declare function clearSupersededChildren(ledger: LedgerState, input: {
+    parentId: string;
+    at: number;
+}): number;
 /**
  * Turn every turn still marked open into an interruption, once per process.
  *
@@ -148,6 +179,7 @@ export declare function recordAttention(ledger: LedgerState, input: {
     sessionId: string;
     at: number;
     kind: string;
+    parentId?: string | null;
 }): void;
 /** Advance a read marker to at least `at`; it never moves backwards. */
 export declare function markRead(ledger: LedgerState, sessionId: string, at: number): void;

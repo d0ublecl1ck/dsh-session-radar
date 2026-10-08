@@ -174,7 +174,7 @@ test('a ledger written before the rename is carried over exactly once', async ()
     'the carry-over is announced instead of happening silently',
   )
   const written = JSON.parse(await readFile(join(h.dir, 'session-radar.json'), 'utf8'))
-  assert.equal(written.version, 2, 'the carried ledger is written back in the current shape')
+  assert.equal(written.version, 3, 'the carried ledger is written back in the current shape')
   assert.equal(written.sessions.s1.lastTurnEndAt, T(7), 'the carried fact is preserved')
   assert.equal(written.sessions.s1.lastTurnEndKind, 'completed')
   assert.equal(written.sessions.s1.runningSince, null, 'a ledger without the field carries no open turn')
@@ -248,4 +248,62 @@ test('a turn still running at mount is not a restart orphan', async () => {
   })
   const body = await h.post('list')
   assert.deepEqual(body.value.unread, [], 'a marker from this process means the mount only re-read the file')
+})
+
+test('a parent starting a new turn spends the reminders of the subagents it left behind', async () => {
+  const h = await harness({
+    state: {
+      version: 3,
+      sessions: {
+        kid: entry({ interruptedAt: T(3), parentId: 'p' }),
+        other: entry({ interruptedAt: T(3), parentId: 'q' }),
+      },
+    },
+  })
+  assert.deepEqual(
+    (await h.post('list')).value.unread.map((row) => row.sessionId),
+    ['kid', 'other'],
+    'both cut-off subagents are reminders to start with',
+  )
+  h.emit('session/event', { id: 'p', header: { origin: 'user' } }, { type: 'turn/start', time: T(9), data: { turn: 2 } })
+  assert.deepEqual(
+    (await h.post('list')).value.unread.map((row) => row.sessionId),
+    ['other'],
+    'the parent that ran again has taken its own subagents over',
+  )
+  await new Promise((resolve) => setTimeout(resolve, 400))
+  const written = JSON.parse(await readFile(join(h.dir, 'session-radar.json'), 'utf8'))
+  assert.equal(written.sessions.kid.interruptedAt, null, 'the spent marker is written back')
+  assert.equal(written.sessions.other.interruptedAt, T(3), 'and another parent\u2019s child is left armed')
+})
+
+test('a live turn records the parent the host read off the session header', async () => {
+  const h = await harness()
+  h.emit(
+    'session/event',
+    { id: 'kid', header: { origin: 'subagent', parentSession: 'p' } },
+    { type: 'turn/start', time: T(1), data: { turn: 1 } },
+  )
+  await new Promise((resolve) => setTimeout(resolve, 400))
+  const written = JSON.parse(await readFile(join(h.dir, 'session-radar.json'), 'utf8'))
+  assert.equal(written.sessions.kid.parentId, 'p', 'the header is the only place the link exists')
+})
+
+test('one read spends every Session a folded row stands in for', async () => {
+  const h = await harness({
+    state: {
+      version: 3,
+      sessions: {
+        kid: entry({ interruptedAt: T(3), parentId: 'p' }),
+        kid2: entry({ interruptedAt: T(4), parentId: 'p' }),
+      },
+    },
+  })
+  assert.equal((await h.post('list')).value.unread.length, 2)
+  const spent = await h.post('read', { sessionId: 'p', acknowledgeInterrupt: true, also: ['kid', 'kid2'] })
+  assert.deepEqual(spent.value.unread, [], 'the row\u2019s acknowledgement reaches the subagents that armed it')
+  await new Promise((resolve) => setTimeout(resolve, 400))
+  const written = JSON.parse(await readFile(join(h.dir, 'session-radar.json'), 'utf8'))
+  assert.equal(written.sessions.kid.interruptedAt, null)
+  assert.equal(written.sessions.kid2.interruptedAt, null)
 })

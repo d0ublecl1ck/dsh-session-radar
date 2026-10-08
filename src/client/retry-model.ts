@@ -12,7 +12,8 @@
  * Subagent conversations are not prompt targets, so a reminder for one is offered
  * as its top-level ancestor instead: a subagent still midway through a turn means
  * the outer task stopped with it, and that outer Session is the only thing the
- * dialog may wake.
+ * dialog may wake. Such a row remembers which subagents armed it, because an
+ * accepted retry is the only thing that can ever spend their reminders.
 
  * @module dsh-session-radar/client/retry-model
  */
@@ -68,6 +69,13 @@ export interface RetryCandidate {
   readonly at: number
   /** Already running, so this row cannot be picked. */
   readonly running: boolean
+  /**
+   * The unfinished subagent Sessions this row stands in for, newest first. They
+   * are spent together with the row: a subagent is not addressable, so an
+   * accepted retry is the only way its reminder can ever be spent. Empty for a
+   * Session that carries its own reminder.
+   */
+  readonly sources: readonly SessionId[]
 }
 
 /** What one prompt attempt reported back. */
@@ -97,46 +105,60 @@ function isSubagent(session: RetrySession): boolean {
 /**
  * The top-level Session a subagent conversation ultimately belongs to.
  *
- * The walk stops at an ancestor the list no longer carries, so the deepest
- * addressable Session is the one offered. The step cap swallows a corrupt parent
- * cycle instead of hanging a render.
+ * The walk stops at the deepest Session the list still carries that can take a
+ * prompt. A subagent is not such a target — the host answers `session/not-found`
+ * for one — so a broken or missing parent link offers nothing rather than
+ * offering the subagent itself. The step cap swallows a corrupt parent cycle
+ * instead of hanging a render.
  *
  * @param id - the subagent Session to resolve.
  * @param sessions - the Session list, keyed by id.
- * @returns the id of the top-level Session to offer, or `id` itself.
+ * @returns the id of the top-level Session to offer, or null when there is none.
  */
-function resolveRoot(id: SessionId, sessions: RetryInputs['sessions']): SessionId {
+function resolveRoot(id: SessionId, sessions: RetryInputs['sessions']): SessionId | null {
   let current = id
   for (let step = 0, cap = sessions.ids.length + 1; step < cap; step += 1) {
-    const parent = sessions.byId[current]?.parentId
-    if (parent === undefined || sessions.byId[parent] === undefined) return current
+    const session = sessions.byId[current]
+    if (session === undefined) return null
+    if (!isSubagent(session)) return current
+    const parent = session.parentId
+    if (parent === undefined) return null
     current = parent
   }
-  return current
+  return null
 }
 
 /**
- * The top-level Sessions that unfinished subagents put back on the checklist.
+ * The top-level Sessions that unfinished subagents put back on the checklist,
+ * each carrying the subagents it stands in for.
  *
  * A subagent that is running, or whose reminder is an interrupted turn, has work
  * its parent started and never saw finish. The parent is the addressable target,
  * so every such subagent maps to its top-level ancestor and is never a row
- * itself.
+ * itself — but the row has to remember which subagents armed it, because those
+ * are the reminders an accepted retry has to spend.
  *
  * @param inputs - ledger reminders plus the Session snapshot.
- * @returns the roots to offer, each dated by its newest unfinished subagent.
+ * @returns one entry per root: the newest unfinished subagent's instant, and
+ *   every subagent folded into it, keyed by id.
  */
-function unfinishedSubagentRoots(inputs: RetryInputs): ReadonlyMap<string, number> {
+function unfinishedSubagentRoots(
+  inputs: RetryInputs,
+): ReadonlyMap<string, { readonly at: number; readonly sources: ReadonlyMap<SessionId, number> }> {
   const reminders = new Map(inputs.reminders.map((reminder) => [reminder.sessionId, reminder]))
-  const roots = new Map<string, number>()
+  const roots = new Map<string, { at: number; sources: Map<SessionId, number> }>()
   for (const id of inputs.sessions.ids) {
     const session = inputs.sessions.byId[id]
     if (session === undefined || !isSubagent(session)) continue
     const reminder = reminders.get(id)
     if (!session.running && reminder?.interrupted !== true) continue
     const root = resolveRoot(id, inputs.sessions)
+    if (root === null) continue
     const dated = reminder?.at ?? 0
-    if (dated > (roots.get(root) ?? -1)) roots.set(root, dated)
+    const entry = roots.get(root) ?? { at: 0, sources: new Map<SessionId, number>() }
+    entry.sources.set(id as SessionId, dated)
+    if (dated > entry.at) entry.at = dated
+    roots.set(root, entry)
   }
   return roots
 }
@@ -165,10 +187,17 @@ function unfinishedSubagentRoots(inputs: RetryInputs): ReadonlyMap<string, numbe
  */
 export function buildRetryCandidates(inputs: RetryInputs): RetryCandidate[] {
   const folders = folderIndex(inputs.workspaces.items)
-  /** Newest reason each offered id has, so two reasons for one id never double-list it. */
-  const reasons = new Map<string, number>()
-  const remember = (id: string, at: number): void => {
-    if (at > (reasons.get(id) ?? -1)) reasons.set(id, at)
+  /** Newest reason each offered id has, plus the subagents that reason stands for. */
+  const reasons = new Map<string, { at: number; sources: Map<SessionId, number> }>()
+  const remember = (id: string, at: number, sources?: ReadonlyMap<SessionId, number>): void => {
+    const reason = reasons.get(id) ?? { at: -1, sources: new Map<SessionId, number>() }
+    if (at > reason.at) reason.at = at
+    if (sources !== undefined) {
+      for (const [sourceId, sourceAt] of sources) {
+        if (sourceId !== id) reason.sources.set(sourceId, sourceAt)
+      }
+    }
+    reasons.set(id, reason)
   }
   for (const reminder of inputs.reminders) {
     if (reminder.interrupted) remember(reminder.sessionId, reminder.at)
@@ -176,23 +205,41 @@ export function buildRetryCandidates(inputs: RetryInputs): RetryCandidate[] {
   // An interrupted subagent is not its own row, but it means the Session that
   // started it stopped too, so its top-level ancestor is the one to offer.
   const subagentRoots = unfinishedSubagentRoots(inputs)
-  for (const [root, at] of subagentRoots) remember(root, at)
+  for (const [root, entry] of subagentRoots) remember(root, entry.at, entry.sources)
   const rows: RetryCandidate[] = []
-  for (const [id, at] of reasons) {
+  for (const [id, reason] of reasons) {
     const session = inputs.sessions.byId[id]
     if (session === undefined) continue
-    // A subagent only reaches the dialog as the deepest ancestor the list still
-    // carries; every other one was folded into its top-level Session above.
-    if (isSubagent(session) && !subagentRoots.has(id)) continue
+    // A subagent never reaches the dialog as a row: the fold above already
+    // resolved it to the ancestor that can take the prompt.
+    if (isSubagent(session)) continue
     rows.push({
       id: session.id,
       title: session.displayTitle === '' ? id : session.displayTitle,
       folder: folders.get(id) ?? pathBasename(session.cwd) ?? '',
-      at,
+      at: reason.at,
       running: session.running,
+      sources: [...reason.sources.entries()]
+        .sort((left, right) => right[1] - left[1] || (left[0] < right[0] ? -1 : 1))
+        .map(([sourceId]) => sourceId),
     })
   }
   return rows.sort((left, right) => right.at - left.at || (left.id < right.id ? -1 : 1))
+}
+
+/**
+ * The extra Sessions one accepted retry has to spend alongside its row.
+ *
+ * A folded row speaks for the subagents that armed it, and those reminders can
+ * be spent no other way: a subagent is not addressable, so nothing can prompt it
+ * or read its tail. Empty for a Session that carries its own reminder.
+ *
+ * @param candidates - the offered rows.
+ * @param id - the row whose prompt the host accepted.
+ * @returns the ids to spend with the row, newest first.
+ */
+export function candidateSources(candidates: readonly RetryCandidate[], id: SessionId): readonly SessionId[] {
+  return candidates.find((row) => row.id === id)?.sources ?? []
 }
 
 /** Whether one row may be picked. */

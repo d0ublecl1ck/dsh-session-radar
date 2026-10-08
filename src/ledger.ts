@@ -17,8 +17,13 @@
  * @module dsh-session-radar/ledger
  */
 
-/** Persisted document version; bump when the fold semantics change. */
-export const LEDGER_VERSION = 2
+/**
+ * Persisted document version; bump when the fold semantics change.
+ *
+ * 3: an entry may carry `parentId`, the top-level conversation a subagent was
+ *    delegated from — the link `clearSupersededChildren` spends reminders by.
+ */
+export const LEDGER_VERSION = 3
 
 /** The graceful-dispose cancel cause that means a restart cut the turn off. */
 export const INTERRUPT_CAUSE = 'disposed'
@@ -66,6 +71,12 @@ export interface LedgerEntry {
    * A process that finds a leftover value here died with that turn running.
    */
   runningSince: number | null
+  /**
+   * The top-level Session this one was delegated from, or null for a
+   * conversation the operator started. A subagent is not addressable, so this
+   * link is the only way its reminder can ever be spent.
+   */
+  parentId: string | null
 }
 
 /** The whole persisted document. */
@@ -113,6 +124,7 @@ function normalizeEntry(raw: unknown): LedgerEntry | null {
     lastAttentionKind: textOrNull(raw.lastAttentionKind),
     lastReadAt: finiteOrNull(raw.lastReadAt),
     runningSince: finiteOrNull(raw.runningSince),
+    parentId: textOrNull(raw.parentId),
   }
 }
 
@@ -152,6 +164,7 @@ function ensureEntry(ledger: LedgerState, sessionId: string): LedgerEntry {
     lastAttentionKind: null,
     lastReadAt: null,
     runningSince: null,
+    parentId: null,
   }
   ledger.sessions[sessionId] = created
   return created
@@ -212,22 +225,72 @@ export function restartInterruptedTail(events: readonly TailEventLike[]): Interr
   return { at, kind, cause }
 }
 
+/**
+ * Remember the conversation a Session was delegated from.
+ *
+ * The link is write-once: a later event whose header cannot be read must not
+ * erase a parent the ledger already knows, or the child's reminder could never
+ * be spent again.
+ *
+ * @param entry - the entry being written.
+ * @param parentId - the header's parent, when it carries one.
+ */
+function rememberParent(entry: LedgerEntry, parentId: string | null | undefined): void {
+  const parent = textOrNull(parentId)
+  if (parent !== null) entry.parentId = parent
+}
+
 /** Record that a turn is running: until its boundary lands, nothing is missing. */
-export function recordTurnStart(ledger: LedgerState, input: { sessionId: string; at: number }): void {
+export function recordTurnStart(
+  ledger: LedgerState,
+  input: { sessionId: string; at: number; parentId?: string | null },
+): void {
   const entry = ensureEntry(ledger, input.sessionId)
+  rememberParent(entry, input.parentId)
   entry.runningSince = finiteOrNull(input.at)
 }
 
 /** Record one durable turn boundary. */
 export function recordTurnEnd(
   ledger: LedgerState,
-  input: { sessionId: string; at: number; kind: string; cause: string | null },
+  input: { sessionId: string; at: number; kind: string; cause: string | null; parentId?: string | null },
 ): void {
   const entry = ensureEntry(ledger, input.sessionId)
+  rememberParent(entry, input.parentId)
   entry.lastTurnEndAt = finiteOrNull(input.at)
   entry.lastTurnEndKind = textOrNull(input.kind)
   entry.interruptedAt = isRestartInterrupt(input.kind, input.cause) ? finiteOrNull(input.at) : null
   entry.runningSince = null
+}
+
+/**
+ * Spend the reminders of the subagents a conversation has already moved past.
+ *
+ * A cut-off subagent is only worth a row while the conversation that started it
+ * has not run again: once the parent *begins* a new turn it has taken the work
+ * over. Only a turn that started strictly after the child was cut counts — the
+ * turn a parent was already running when the subagent was cut off is exactly
+ * the case the row exists for (the parent finished its own turn and never
+ * looked back).
+ *
+ * @param ledger - ledger to edit.
+ * @param input - the parent that started a turn, and that turn's instant.
+ * @returns how many child markers were spent (0 means nothing to write back).
+ */
+export function clearSupersededChildren(ledger: LedgerState, input: { parentId: string; at: number }): number {
+  if (!Number.isFinite(input.at)) return 0
+  let spent = 0
+  for (const entry of Object.values(ledger.sessions)) {
+    if (entry.parentId !== input.parentId) continue
+    const interruptedAt = entry.interruptedAt
+    // Only a turn that started strictly after the child was cut is a
+    // supersession: the turn the parent was already running when the subagent
+    // was cut off is exactly the case the reminder exists for.
+    if (interruptedAt === null || interruptedAt >= input.at) continue
+    entry.interruptedAt = null
+    spent += 1
+  }
+  return spent
 }
 
 /**
@@ -263,9 +326,10 @@ export function adoptAbandonedTurns(ledger: LedgerState, processStartedAt: numbe
 /** Record a pending interaction: the agent is waiting for the operator. */
 export function recordAttention(
   ledger: LedgerState,
-  input: { sessionId: string; at: number; kind: string },
+  input: { sessionId: string; at: number; kind: string; parentId?: string | null },
 ): void {
   const entry = ensureEntry(ledger, input.sessionId)
+  rememberParent(entry, input.parentId)
   entry.lastAttentionAt = finiteOrNull(input.at)
   entry.lastAttentionKind = textOrNull(input.kind)
 }

@@ -43,6 +43,12 @@ export interface LedgerReadOptions {
      * of a restart-interrupted turn; a plain open leaves the marker armed.
      */
     readonly acknowledgeInterrupt?: boolean;
+    /**
+     * Further Sessions this one read spends. A folded row stands in for
+     * subagents that can never be addressed on their own, so their reminders are
+     * spent here or never.
+     */
+    readonly also?: readonly SessionId[];
 }
 /** Observable ledger face handed to the component. */
 export interface LedgerSource {
