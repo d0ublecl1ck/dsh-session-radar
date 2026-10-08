@@ -23,7 +23,7 @@ DSH Web 插件，合并了三半能力：侧边栏**未读铃铛**（左键顺�
 
 ## 测试与验证
 
-- 一把跑完：`npm ci && npm run verify`（typecheck + build + node 测试，当前 194 个）。
+- 一把跑完：`npm ci && npm run verify`（typecheck + build + node 测试，当前 195 个）。
 - 测试清单：`test/ledger.test.mjs` 覆盖账本状态机（未读、已读不回退、三种重启信号、开合回合的标记、启动时采纳遗留回合、存储器尾部扫描）；`test/host.test.mjs` 用假 ctx 挂载 host 半边，断言恢复扫描、live 清除与畸形输入；`test/retry-model.test.mjs` 覆盖续跑清单的纯逻辑（筛出被打断的会话、默认全选、正在跑的不给勾、串行发送与「只确认被接受的那条」）；`test/jump.test.mjs` 覆盖未读选择与分组展开；`test/jump-command.test.mjs` 覆盖三条快捷键命令的座位、默认键位、合法性、官方 KeyK / KeyO 不重叠与 blocked/handled 解析；`test/manual-unread.test.mjs` 覆盖官方手动未读标记的解析与监听；`test/conversation-tail.test.mjs` 覆盖「对话在底部」的锚点与它向账本报的那一次读取（自动恢复的会话不确认中断，自己打开的才确认）；`test/ask-jump.test.mjs` 覆盖等待处理跳转的「队列 + 回栈」状态机；`test/activity-model.test.mjs` 覆盖活动投影与 pending 计数；`test/overview.test.mjs` 覆盖总览两区的分割与去重；`test/overview-cursor.test.mjs` 覆盖方向键游标的环绕、切区与越界收敛；`test/count.test.mjs` 覆盖六项口径、分区不变量与阈值边界；`test/client-mount.test.mjs` 用真实客户端半边挂载，断言铃铛与读数入口、黄色角标只数等待处理、I 的整条往返路径、K 总览的渲染 / 键盘 / 空态 / 关闭、自动恢复的会话停在底部也不确认中断、续跑弹窗的默认全选 / 只发勾选的 / 未勾保持未读 / 同一次启动只问一次；`test/client-render.test.mjs` 用 SSR 真渲染读数与设置行；`test/client-contract.test.mjs` 覆盖模块 id、inject 清单与三处注册。
 - `test/official-contract.test.mjs` 把官方契约钉成快照（已装官方包版本必须落在 `peerDependencies` 内、读数与设置行依赖的字段与槽位、DOM 锚点与 `dsh.workspace.view.v5`），重采用 `node scripts/capture-official-contract.mjs`。
 - 构建与分发：`cordis.patch.yml` 是 bundle 层（往 profile 插入 `session-radar` 一行）；`lib/` 是被跟踪的构建产物（Git 安装免 build），改 `src/` 后必须 `npm run build` 并一起提交，CI 会断言提交进库的 `lib/` 与构建产物一致。

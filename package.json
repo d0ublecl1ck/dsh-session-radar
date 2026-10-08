@@ -61,6 +61,7 @@
     "session-status",
     "counts",
     "ledger",
+    "retry",
     "restart",
     "recovery",
     "session-radar"
