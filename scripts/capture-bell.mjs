@@ -17,7 +17,16 @@
  * Usage:
  *   node scripts/capture-bell.mjs --url 'http://127.0.0.1:43129/?token=...' \
  *     --out assets/bell.png [--selector '[class*="sectionHeader"]'] [--pad 8] \
- *     [--wait-for '.ab-badge-ask'] [--settle-ms 800]
+ *     [--wait-for '.ab-badge-ask'] [--settle-ms 800] [--cookie 'dsh-auth-…=v1.…']
+ *
+ * The ?token= in the URL is a one-shot login: a second run against the same
+ * instance lands on "authentication required". Pass --cookie instead for any
+ * repeatable capture — the value is the signed `dsh-auth-<authority>` cookie the
+ * instance mints from `<DSH_HOME>/.credentials.yaml`. The restart-retry dialog
+ * is captured the same way with --selector '.rt-panel' and --wait-for '.rt-panel',
+ * but only from an instance whose sessions are all examples: point it at a
+ * throwaway home (a second harness on its own port), never at the operator's
+ * live session list.
  */
 import { spawn } from 'node:child_process'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
@@ -34,6 +43,7 @@ const selector = arg('selector', '[class*="sectionHeader"]')
 const pad = Number(arg('pad', '8'))
 const waitFor = arg('wait-for', null)
 const settleMs = Number(arg('settle-ms', '800'))
+const cookie = arg('cookie', null)
 if (url === undefined || out === undefined) {
   console.error('usage: node scripts/capture-bell.mjs --url <dsh url> --out <png> [--selector s] [--pad n] [--wait-for s] [--settle-ms ms]')
   process.exit(2)
@@ -79,6 +89,15 @@ try {
 
   await call('Runtime.enable')
   await call('Page.enable')
+  if (cookie !== null) {
+    const eq = cookie.indexOf('=')
+    if (eq <= 0) throw new Error('--cookie must be a name=value pair')
+    const host = new URL(url).hostname
+    const applied = await call('Network.setCookie', {
+      name: cookie.slice(0, eq), value: cookie.slice(eq + 1), domain: host, path: '/',
+    })
+    if (applied.result?.success === false) throw new Error('chrome refused the capture cookie')
+  }
   await call('Emulation.setDeviceMetricsOverride', { width: 1600, height: 1000, deviceScaleFactor: 2, mobile: false })
   await call('Page.navigate', { url })
 
