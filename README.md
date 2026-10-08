@@ -261,7 +261,7 @@ host 半边持有账本 `$DSH_HOME/session-radar.json`，原子写（临时文�
 - 侧边栏折叠成 56px 轨道时不显示铃铛（该位置被官方占用）。
 - 崩溃（进程被强杀）走修复补写的 `interrupted`；会话不暴露 `snapshotEvents()` 也不暴露 `events` 时这一路静默失效。
 - 本插件只在**你按下「重试选中」**时才发消息，没有任何自动发送；但如果你同时装了 `dsh-client-auto-continue` 之类的自动续跑插件，它可能在启动时就把这些会话发掉，于是这个弹窗里就没有东西可勾了——两者建议二选一。
-- 续跑弹窗依赖官方会话动词 `ISession.prompt`：只有**还列在侧边栏列表里**的会话能被发送（官方 `binding()` 的资格判定就是列表成员），归档或已从列表消失的会话只会继续留在未读里。
+- 续跑发送走官方 Remote `session/prompt`（客户端半边用 `ctx.connection.rpc.call('/api', …)`）：宿主会自己把没加载的会话 resume 起来，所以**不需要**先把那个会话打开，也不挑工作区。清单里显示不出的标题/目录只影响观感，不影响能不能发。
 - 浏览器到 host 的桥接失败会发布在账本快照的 `error` 上并保留上一次已知数据（不清空）；目前没有界面渲染它。
 - 手动「标为未读」不在任何公开快照里：插件直接读 Workspace 浏览器持久化的私有键 `dsh.workspace.view.v5`。官方改键名时这一路会静默失效，其它未读来源不受影响。
 - 快捷键默认值同时受官方服务、macOS 死键与 Desktop 菜单限制：macOS Desktop 以 `web` runtime 分发，单 `⌘+字母` 被判 `unsupported-browser`（官方 `⌘K` 也失效），`⌘⌥<死键>`（如 `U`）被当输入法组合丢弃，`⌘U` 又归 Desktop 菜单「检查更新」，R 系撞官方 `session.rename` / `page.refresh`，`Mod+K` 与 Web 上的 `Mod+Alt+K` 撞官方 `session.search`，`Mod+P` 与 Web 上的 `Mod+Alt+P` 撞官方 `workspace.files`；所以 J / I 的 macOS 默认用 `⌘⇧<字母>`、Windows/Linux 用 `Ctrl+Alt+<字母>`，K 则全域用 `Mod+Shift+K`（Windows/Linux 即 `Ctrl+Shift+K`）；Linux Web 只放行三个固定组合，三条都没有默认键。

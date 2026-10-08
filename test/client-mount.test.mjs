@@ -155,11 +155,12 @@ function fakeContext(values = {}) {
       },
     },
     get(name) {
-      // The retry dialog reaches the sessions domain itself for its prompt
-      // transport, so the double carries the binding lookup too.
-      return name === 'sessions'
-        ? { list: sessions, binding: values.binding ?? (() => undefined) }
-        : { list: workspaces }
+      // The retry transport is the wire root, not the sessions object layer:
+      // the served client build resolves `sessions.binding(id)` only for an
+      // already-retained scope, so the double deliberately has none.
+      if (name === 'sessions') return { list: sessions }
+      if (name === 'connection') return values.connection
+      return { list: workspaces }
     },
     configForms: {
       get: () => ({
@@ -1179,7 +1180,7 @@ async function mountRetry(ids, { running = [], bootAt = BOOT, fresh = true } = {
   // exist to prove what the marker does across a reload and a restart.
   if (fresh) window.localStorage.removeItem(RETRY_BOOT_KEY)
   buildSidebar(document)
-  const prompts = []
+  const sends = []
   const calls = []
   const listed = {
     now: Date.now(),
@@ -1208,14 +1209,14 @@ async function mountRetry(ids, { running = [], bootAt = BOOT, fresh = true } = {
     sessions: source({ ids, byId: Object.fromEntries(sessions.map((row) => [row.id, row])), phase: 'ready' }),
     statuses: source(new Map()),
     workspaces: source({ items: [], archivedSessionIds: [] }),
-    binding: (id) => ({
-      session: {
-        prompt: (content, mode) => {
-          prompts.push({ id, content, mode })
+    connection: {
+      rpc: {
+        call: (channel, endpoint, payload) => {
+          sends.push({ channel, endpoint, payload })
           return Promise.resolve({ ok: true, value: { accepted: true } })
         },
       },
-    }),
+    },
   })
   const { ctx, disposers } = handle
   const captured = () => handle.captured
@@ -1226,7 +1227,7 @@ async function mountRetry(ids, { running = [], bootAt = BOOT, fresh = true } = {
   }))
   await React.act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
   return {
-    prompts,
+    sends,
     calls,
     view,
     disposers,
@@ -1255,11 +1256,16 @@ test('a fresh boot asks about the interrupted Sessions, everything retryable che
     await h.view.click(panel.querySelector('.rt-send'))
     await React.act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
 
-    assert.equal(h.prompts.length, 1, 'only the checked Session is prompted')
-    assert.equal(h.prompts[0].id, 's1')
-    assert.equal(h.prompts[0].mode, 'queue', 'the retry appends a turn rather than steering one')
+    assert.equal(h.sends.length, 1, 'only the checked Session is prompted')
+    assert.equal(h.sends[0].channel, '/api', 'official Remote calls share the API channel')
+    assert.equal(h.sends[0].endpoint, 'session/prompt')
+    const request = h.sends[0].payload.args.request
+    assert.equal(request.sessionId, 's1')
+    assert.equal(request.mode, 'queue', 'the retry appends a turn rather than steering one')
+    assert.equal(typeof request.requestId, 'string')
+    assert.notEqual(request.requestId, '', 'every prompt carries its own identity')
     assert.deepEqual(
-      h.prompts[0].content,
+      request.content,
       [{ type: 'text', text: zh['retry.continueMessage'] }],
       'the shipped continue message, verbatim',
     )
@@ -1290,7 +1296,7 @@ test('leaving a Session unchecked keeps it unread, and the ask happens once per 
     assert.equal(panel.querySelector('.rt-send').textContent, '重试选中 0 个')
 
     await h.view.click(panel.querySelector('.rt-foot .rt-mini'))
-    assert.equal(h.prompts.length, 0, 'later sends nothing')
+    assert.equal(h.sends.length, 0, 'later sends nothing')
     assert.equal(document.querySelector('.rt-panel'), null)
     assert.equal(
       h.calls.some(call => call.target.endsWith('/session-radar/read')),

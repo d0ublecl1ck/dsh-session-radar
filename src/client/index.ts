@@ -22,6 +22,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { IWorkspaces } from '@deepseek-ai/dsh-api-workspace-controller/client'
+import type { SessionPromptRequest } from '@deepseek-ai/dsh-api-session-controller/types'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -90,8 +91,23 @@ export function apply(ctx: Context): void {
   const sessions = (ctx.get('sessions') as ISessions).list
   const statuses = ctx.uiSession.sessionStatus
   const workspaces = (ctx.get('workspaces') as IWorkspaces).list
-  /** The sessions domain itself, for the retry dialog's prompt transport. */
-  const sessionDomain = ctx.get('sessions') as ISessions
+  // The retry dialog's send path goes out over the wire root rather than the
+  // sessions object layer. Reason (measured 2026-10-08): the types this repo
+  // compiles against describe `sessions.binding(id)` as materializing a scope
+  // on demand, but the client build actually served to the page resolves
+  // `binding(id)` only for a scope someone already retained, so every retry
+  // came back "unavailable". `ctx.connection.rpc.call` is the stable seam —
+  // the API gateway calls every official Remote exactly this way — and the
+  // host's own `session/prompt` resumes a stored Session by itself.
+  const connection = ctx.get('connection') as
+    | { readonly rpc: { call(
+      channel: string,
+      endpoint: string,
+      payload: unknown,
+      signal?: AbortSignal,
+    ): Promise<{ readonly ok: true; readonly value: unknown }
+      | { readonly ok: false; readonly error: { readonly message: string } }> } }
+    | undefined
   // One ledger, one reader: the bell's badge and jump order. The bell keeps no
   // unread memory of its own.
   const ledger = createLedgerSource(ctx, sessions)
@@ -122,17 +138,23 @@ export function apply(ctx: Context): void {
       pinSession: (sessionId: SessionId) => ctx.uiWorkspace.pinSession(sessionId),
       unpinSession: (sessionId: SessionId) => ctx.uiWorkspace.unpinSession(sessionId),
       archiveSession: (sessionId: SessionId) => ctx.uiWorkspace.archiveSession(sessionId),
-      // Asking a cut-off Session to carry on goes through the shipped session
-      // face: the host resumes a stored Session on its own, so this works for
-      // one that was never opened, and it never moves the operator's stage.
+      // Asking a cut-off Session to carry on: one official `session/prompt`
+      // Remote call. The host resumes a stored Session by itself, so this works
+      // for one that was never opened, and it never moves the operator's stage.
       retrySession: async (sessionId: SessionId) => {
-        const face = sessionDomain.binding(sessionId)?.session
-        if (face === undefined) return { ok: false as const, message: t('retry.unavailable') }
-        const result = await face.prompt(
-          [{ type: 'text', text: t('retry.continueMessage') }],
-          'queue',
-        )
-        return result.ok ? { ok: true as const } : { ok: false as const, message: result.error.message }
+        if (connection === undefined) return { ok: false as const, message: t('retry.unavailable') }
+        const request: SessionPromptRequest = {
+          requestId: crypto.randomUUID() as SessionPromptRequest['requestId'],
+          sessionId,
+          mode: 'queue',
+          content: [{ type: 'text', text: t('retry.continueMessage') }],
+        }
+        try {
+          const result = await connection.rpc.call('/api', 'session/prompt', { args: { request } })
+          return result.ok ? { ok: true as const } : { ok: false as const, message: result.error.message }
+        } catch (error: unknown) {
+          return { ok: false as const, message: String((error as Error)?.message ?? error) }
+        }
       },
       sessions,
       statuses,
