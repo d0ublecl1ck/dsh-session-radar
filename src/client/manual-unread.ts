@@ -171,6 +171,28 @@ function touchesViewStore(event: Event): boolean {
 }
 
 /**
+ * The ids the operator just cleared by hand.
+ *
+ * A manual read is the operator's own acknowledgement, so the ledger has to
+ * hear about it: without this, a green dot painted from a durable reminder
+ * would outlive the very mark that was supposed to clear it.
+ *
+ * @param previous - the manual-unread set before the write.
+ * @param next - the manual-unread set after it.
+ * @returns the ids present before and gone now, in the previous set's order.
+ */
+export function droppedIds(
+  previous: ReadonlySet<SessionId>,
+  next: ReadonlySet<SessionId>,
+): SessionId[] {
+  const dropped: SessionId[] = []
+  for (const id of previous) {
+    if (!next.has(id)) dropped.push(id)
+  }
+  return dropped
+}
+
+/**
  * Watch the browser's manual-unread set and report every real change.
  *
  * @param onChange - called with the new set, and only when the id set changed.

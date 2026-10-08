@@ -114,3 +114,24 @@ test('the readout stays an injectable list occupant next to the bell', () => {
   assert.equal(typeof readout.options.inject().config.getSnapshot(), 'object')
   assert.equal(readout.options.order, bell.options.order - 10, 'the readout leads the bell in the footer action list')
 })
+
+test('the row badge registers into the Session row leading seat', () => {
+  const mounted = mount()
+  const badge = mounted.byId('sidebar.session.row.leading', 'session-radar.row-badge')
+  assert.notEqual(badge, undefined, 'the row badge is registered')
+  assert.equal(mounted.inSlot('sidebar.session.row.leading').length, 1)
+  assert.equal(badge.options.locale, NS)
+  assert.equal(typeof badge.options.order, 'number')
+  const face = badge.options.inject()
+  assert.equal(typeof face.ledger.read, 'function')
+  assert.equal(face.config.getSnapshot().rowBadge, true, 'the row badge ships on')
+})
+
+test('the row-badge preference writes its own Config field', async () => {
+  const mounted = mount()
+  const face = mounted.byId(FOOTER_SLOT, STATUS_ID).options.inject()
+  face.config.setRowBadge(false)
+  await Promise.resolve()
+  await Promise.resolve()
+  assert.deepEqual(mounted.writes, [['showRowBadge', false]])
+})

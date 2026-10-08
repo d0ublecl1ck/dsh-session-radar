@@ -269,7 +269,7 @@ test('the client half registers the bell, the readout, the gated settings row, a
   apply(ctx)
   // The bell and the merged status readout share the sidebar foot slot; the
   // readout's settings row lives in the settings list under the row id.
-  assert.equal(handle.all.size, 3, 'bell + readout + settings row')
+  assert.equal(handle.all.size, 4, 'bell + readout + settings row + row badge')
   assert.equal(captured().options.name, 'sidebar.footer.action')
   assert.equal(captured().options.id, 'session-radar')
   assert.equal(captured().options.locale, 'session-radar')
@@ -286,6 +286,36 @@ test('the client half registers the bell, the readout, the gated settings row, a
   assert.equal(document.querySelector('style[data-plugin="dsh-session-radar"]') !== null, true)
   for (const dispose of [...disposers].reverse()) dispose()
   assert.equal(document.querySelector('style[data-plugin="dsh-session-radar"]'), null)
+})
+
+test('clearing a manual unread mark tells the ledger the Session was read', async () => {
+  document.body.innerHTML = ''
+  buildSidebar(document)
+  const calls = []
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async (url, init) => {
+    const target = String(url)
+    calls.push({ target, body: init?.body === undefined ? undefined : JSON.parse(String(init.body)) })
+    return { json: async () => ({ ok: true, value: { now: 0, bootAt: 0, unread: [], error: null } }) }
+  }
+  try {
+    window.localStorage.setItem(WORKSPACE_VIEW_STORAGE_KEY, JSON.stringify({ unreadSessionIds: ['s1'] }))
+    const handle = fakeContext()
+    const { ctx, disposers } = handle
+    apply(ctx)
+    // The operator's own "mark as read" removes the id from the view store; the
+    // ledger has to hear about it or the green dot outlives the mark.
+    clearManualUnread('s1')
+    await React.act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
+    assert.ok(
+      calls.some(call => call.target.endsWith('/session-radar/read') && call.body?.sessionId === 's1'),
+      'the ledger hears about the manual read',
+    )
+    for (const dispose of [...disposers].reverse()) dispose()
+  } finally {
+    globalThis.fetch = originalFetch
+    window.localStorage.removeItem(WORKSPACE_VIEW_STORAGE_KEY)
+  }
 })
 
 test('the bell renders beside the search control with the unread badge', async () => {

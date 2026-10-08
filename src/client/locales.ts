@@ -90,6 +90,7 @@ export const zh = {
   'row.thresholdLabel': '未归档告警阈值',
   'row.thresholdHint': '未归档超过该数量时，未归档计数进入告警色。',
   'row.inputLabel': '未归档会话阈值',
+  'row.badgeLabel': '重启后保留未读小标',
   'row.saveFailed': '保存失败，请重试',
 }
 
@@ -179,5 +180,6 @@ export const en: Record<SessionRadarKey, string> = {
   'row.thresholdLabel': 'Unarchived warning threshold',
   'row.thresholdHint': 'The unarchived count turns warning-coloured above this number.',
   'row.inputLabel': 'Unarchived session threshold',
+  'row.badgeLabel': 'Keep unread dots across restarts',
   'row.saveFailed': 'Could not save; try again',
 }

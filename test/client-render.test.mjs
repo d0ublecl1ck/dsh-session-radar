@@ -160,7 +160,9 @@ test('the settings row offers every toggle, every layout, and the threshold inpu
   for (const metric of ['running', 'unread', 'pending', 'idle', 'unarchived', 'archived']) {
     assert.match(markup, new RegExp('class="sw-toggle" data-metric="' + metric + '"'))
   }
-  assert.equal((markup.match(/type="checkbox"/g) ?? []).length, 6, 'one checkbox per metric')
+  assert.match(markup, /class="sw-toggle sw-toggle-badge" data-metric="rowBadge"/, 'the durable row badge has its own switch')
+  assert.match(markup, /重启后保留未读小标/, 'and says what it does')
+  assert.equal((markup.match(/type="checkbox"/g) ?? []).length, 7, 'one checkbox per metric plus the row badge')
   for (const label of ['胶囊', '比例条']) {
     assert.match(markup, new RegExp(label), 'the ' + label + ' layout control is offered')
   }

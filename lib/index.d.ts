@@ -36,6 +36,8 @@ export interface Config {
     showUnarchived: boolean;
     /** Whether the archived metric appears in the readout. */
     showArchived: boolean;
+    /** Whether a Session the host ledger still owes keeps its green row badge. */
+    showRowBadge: boolean;
 }
 /**
  * Row config. volatile is what makes a field live-editable from the Settings
@@ -50,6 +52,7 @@ export declare const Config: z<Schemastery.ObjectS<NoInfer<{
     showIdle: z<boolean, boolean, "volatile-defined">;
     showUnarchived: z<boolean, boolean, "volatile-defined">;
     showArchived: z<boolean, boolean, "volatile-defined">;
+    showRowBadge: z<boolean, boolean, "volatile-defined">;
 }>>, Schemastery.ObjectT<NoInfer<{
     threshold: z<number, number, "volatile-defined">;
     variant: z<string, string, "volatile-defined">;
@@ -59,6 +62,7 @@ export declare const Config: z<Schemastery.ObjectS<NoInfer<{
     showIdle: z<boolean, boolean, "volatile-defined">;
     showUnarchived: z<boolean, boolean, "volatile-defined">;
     showArchived: z<boolean, boolean, "volatile-defined">;
+    showRowBadge: z<boolean, boolean, "volatile-defined">;
 }>>, "plain">;
 /**
  * Mount the host half: the cross-restart ledger, its persistence, and the

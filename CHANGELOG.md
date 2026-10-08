@@ -3,6 +3,12 @@
 本项目的版本变更记录。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。每次发布对应一个 git tag 与一条 npm 版本。
 
+## [Unreleased]
+
+### 新增
+
+- **会话行上的绿色小标跨重启保留**：官方「跑完没看」的绿点由浏览器内存里的 `completionUnread` 驱动，进程一退就空；插件把 host 账本的未读补进官方为 idle 行留出的行位置 `sidebar.session.row.leading`，画的是官方同一个 `StateDot state="done"`。打开会话、把对话滚到底，或在官方行菜单里「标为已读」，绿点都会随账本一起消失（最后一条由 `droppedIds` 把 read 回写账本）。开关是本插件 Config 的第九个 volatile 字段 `showRowBadge`（默认开），在 设置 → 通用 → 会话状态读数 里。
+
 ## [1.2.1] - 2026-10-08
 
 ### 修复

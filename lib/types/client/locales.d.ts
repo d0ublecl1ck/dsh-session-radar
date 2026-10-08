@@ -89,6 +89,7 @@ export declare const zh: {
     'row.thresholdLabel': string;
     'row.thresholdHint': string;
     'row.inputLabel': string;
+    'row.badgeLabel': string;
     'row.saveFailed': string;
 };
 /** Every key this namespace owns. */

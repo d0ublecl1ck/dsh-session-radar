@@ -9,6 +9,7 @@
  * @module dsh-session-radar/client/SettingsRow
  */
 import { useEffect, useState, useSyncExternalStore } from 'react'
+import { StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
 import { ALL_METRICS, metricLabel, metricValue, summaryText } from './summary.js'
 import { VARIANTS } from '../config.js'
 import { MetricIcon } from './icons.js'
@@ -112,6 +113,19 @@ export function SettingsRow({ useSessions, useSessionStatus, useWorkspaces, conf
             </label>
           ))}
         </fieldset>
+        <label className="sw-toggle sw-toggle-badge" data-metric="rowBadge">
+          <input
+            type="checkbox"
+            checked={watch.rowBadge}
+            onChange={(event) => {
+              void config.setRowBadge(event.currentTarget.checked)
+            }}
+          />
+          <span className="sw-toggle-swatch" aria-hidden="true">
+            <StateDot state="done" />
+          </span>
+          <span className="sw-toggle-label">{t('row.badgeLabel')}</span>
+        </label>
         <label className="sw-field">
           <span className="sw-field-label">{t('row.thresholdLabel')}</span>
           <span className="sw-field-hint">{t('row.thresholdHint')}</span>

@@ -14,7 +14,7 @@
  * @module dsh-session-radar
  */
 import z from '@deepseek-ai/schemastery'
-import { DEFAULT_VARIANT, DEFAULT_VISIBILITY } from './config.js'
+import { DEFAULT_ROW_BADGE, DEFAULT_VARIANT, DEFAULT_VISIBILITY } from './config.js'
 import { DEFAULT_THRESHOLD } from './count.js'
 import { mount } from './host.js'
 
@@ -42,6 +42,8 @@ export interface Config {
   showUnarchived: boolean
   /** Whether the archived metric appears in the readout. */
   showArchived: boolean
+  /** Whether a Session the host ledger still owes keeps its green row badge. */
+  showRowBadge: boolean
 }
 
 /**
@@ -57,6 +59,7 @@ export const Config = z.object({
   showIdle: z.boolean().default(DEFAULT_VISIBILITY.idle).volatile(),
   showUnarchived: z.boolean().default(DEFAULT_VISIBILITY.unarchived).volatile(),
   showArchived: z.boolean().default(DEFAULT_VISIBILITY.archived).volatile(),
+  showRowBadge: z.boolean().default(DEFAULT_ROW_BADGE).volatile(),
 })
 
 /**

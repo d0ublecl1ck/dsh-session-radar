@@ -21,6 +21,8 @@ export interface WatchConfig {
     readonly variant: Variant;
     /** Which metrics the readout renders. */
     readonly visibility: Visibility;
+    /** Whether the durable Session row badge is painted. */
+    readonly rowBadge: boolean;
 }
 /** Observable preference source. */
 export interface ConfigSource {
@@ -34,6 +36,8 @@ export interface ConfigSource {
     setVisible(metric: Metric, visible: boolean): Promise<boolean>;
     /** @param variant - next layout. @returns whether the Host accepted the write. */
     setVariant(variant: Variant): Promise<boolean>;
+    /** @param value - next row-badge visibility. @returns whether the Host accepted the write. */
+    setRowBadge(value: boolean): Promise<boolean>;
     /** Release the config-form subscription (client fiber dispose). */
     dispose(): void;
 }

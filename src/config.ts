@@ -31,6 +31,28 @@ export const METRIC_FIELD: Readonly<Record<Metric, VisibilityField>> = {
   archived: 'showArchived',
 }
 
+/** The Config field that keeps ledger reminders painted on the Session rows. */
+export type RowBadgeField = 'showRowBadge'
+
+/** Config field name of the Session row badge. */
+export const ROW_BADGE_FIELD: RowBadgeField = 'showRowBadge'
+
+/** The row badge ships on; turning it off never touches the official dots. */
+export const DEFAULT_ROW_BADGE = true
+
+/**
+ * Read the row-badge preference off a raw config value.
+ *
+ * Only an explicit boolean counts; anything else keeps the shipped default, so
+ * a hand-edited profile patch never silently drops the reminders.
+ *
+ * @param value - raw config value.
+ * @returns whether the durable row badge is enabled.
+ */
+export function normalizeRowBadge(value: unknown): boolean {
+  return typeof value === 'boolean' ? value : DEFAULT_ROW_BADGE
+}
+
 /** A metric's visibility, keyed by metric. */
 export type Visibility = Readonly<Record<Metric, boolean>>
 

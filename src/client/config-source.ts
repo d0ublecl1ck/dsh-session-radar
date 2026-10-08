@@ -13,8 +13,10 @@
 import { METRICS, normalizeThreshold, type Metric } from '../count.js'
 import {
   METRIC_FIELD,
+  normalizeRowBadge,
   normalizeVariant,
   normalizeVisibility,
+  type RowBadgeField,
   type Variant,
   type Visibility,
   type VisibilityField,
@@ -29,6 +31,8 @@ export interface WatchConfig {
   readonly variant: Variant
   /** Which metrics the readout renders. */
   readonly visibility: Visibility
+  /** Whether the durable Session row badge is painted. */
+  readonly rowBadge: boolean
 }
 
 /** Observable preference source. */
@@ -43,6 +47,8 @@ export interface ConfigSource {
   setVisible(metric: Metric, visible: boolean): Promise<boolean>
   /** @param variant - next layout. @returns whether the Host accepted the write. */
   setVariant(variant: Variant): Promise<boolean>
+  /** @param value - next row-badge visibility. @returns whether the Host accepted the write. */
+  setRowBadge(value: boolean): Promise<boolean>
   /** Release the config-form subscription (client fiber dispose). */
   dispose(): void
 }
@@ -59,6 +65,7 @@ function read(form: ConfigFormLike): WatchConfig {
     threshold: normalizeThreshold(value.threshold),
     variant: normalizeVariant(value.variant),
     visibility: normalizeVisibility(value),
+    rowBadge: normalizeRowBadge(value.showRowBadge),
   }
 }
 
@@ -73,6 +80,7 @@ function sameConfig(left: WatchConfig, right: WatchConfig): boolean {
   return (
     left.threshold === right.threshold &&
     left.variant === right.variant &&
+    left.rowBadge === right.rowBadge &&
     sameVisibility(left.visibility, right.visibility)
   )
 }
@@ -96,7 +104,7 @@ export function createConfigSource(form: ConfigFormLike): ConfigSource {
     publish(read(form))
   })
 
-  const write = async (field: VisibilityField | 'threshold' | 'variant', value: unknown): Promise<boolean> => {
+  const write = async (field: VisibilityField | RowBadgeField | 'threshold' | 'variant', value: unknown): Promise<boolean> => {
     let accepted = false
     try {
       accepted = await form.set(field, value)
@@ -130,6 +138,11 @@ export function createConfigSource(form: ConfigFormLike): ConfigSource {
     setVariant: (variant) => {
       publish({ ...current, variant })
       return write('variant', variant)
+    },
+    setRowBadge: (value) => {
+      // Publish first so the checkbox reacts to the edit, not the round-trip.
+      publish({ ...current, rowBadge: value })
+      return write('showRowBadge', value)
     },
     dispose: () => {
       unsubscribe()

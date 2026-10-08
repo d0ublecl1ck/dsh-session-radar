@@ -33,6 +33,8 @@ import { createConfigSource } from './config-source.js'
 import { askJumpCommand, createJumpSeat, overviewCommand, unreadJumpCommand } from './jump-command.js'
 import { createLedgerSource } from './ledger-source.js'
 import { en, zh } from './locales.js'
+import { droppedIds, readManualUnread, watchManualUnread } from './manual-unread.js'
+import { RowBadge } from './RowBadge.js'
 import { SettingsRow } from './SettingsRow.js'
 import { StatusWatch } from './StatusWatch.js'
 import { injectStyles, removeStyles } from './styles.js'
@@ -59,6 +61,13 @@ const STATUS_ORDER = 890
 
 /** Settings-list order of the preference row, ahead of the shipped rows. */
 const SETTINGS_ORDER = 16
+
+/**
+ * Entry id and order of the durable row badge. The seat is a list, so the
+ * official Schedule marker keeps its own entry beside this one.
+ */
+const ROW_BADGE_ID = PLUGIN_ID + '.row-badge'
+const ROW_BADGE_ORDER = 10
 
 /** Services required before this plugin mounts. */
 export const inject = ['slots', 'locale', 'configForms', 'shortcuts', 'sessions', 'workspaces', 'uiSession', 'uiWorkspace']
@@ -190,4 +199,28 @@ export function apply(ctx: Context): void {
     locale: NS,
     inject: () => ({ config }),
   }, SettingsRow))), 'session-radar: status settings row')
+
+  // The Session row's leading seat renders only while the row's own status is
+  // idle and the Workspace browser carries no manual unread mark; the official
+  // renderer fills it with the same done dot when either is set. After a
+  // restart the framework's in-memory completion flag is empty, so this is the
+  // one gap a durable ledger reminder can paint into.
+  ctx.effect(() => watchSlots.inject('sidebar.session.row.leading', () => watchSlots.register({
+    name: 'sidebar.session.row.leading',
+    id: ROW_BADGE_ID,
+    order: ROW_BADGE_ORDER,
+    locale: NS,
+    inject: () => ({ ledger, config }),
+  }, RowBadge)), 'session-radar: row badge')
+
+  // The operator's own "mark as read" removes the id from the Workspace view
+  // store; the ledger has to hear about it or the durable dot outlives the mark
+  // it was meant to clear. A fresh mark is never treated as a read.
+  ctx.effect(() => {
+    let previous = readManualUnread()
+    return watchManualUnread((next) => {
+      for (const id of droppedIds(previous, next)) ledger.read(id)
+      previous = next
+    })
+  }, 'session-radar: manual read sync')
 }
