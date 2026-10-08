@@ -103,6 +103,16 @@ test('a restored session whose tail was crash-repaired stays unread', async () =
   assert.deepEqual(body.value.unread, [{ sessionId: 's1', at: T(5), kind: 'interrupted', interrupted: true }])
 })
 
+test('the snapshot carries the instant this process started', async () => {
+  const before = Date.now()
+  const h = await harness()
+  const body = await h.post('list')
+  assert.equal(typeof body.value.bootAt, 'number', 'the browser half needs one boot identity to settle on')
+  assert.ok(body.value.bootAt <= Date.now(), 'a boot instant is never in the future')
+  assert.ok(body.value.bootAt >= before - 60_000, 'and it is this process, not an older one')
+  assert.equal(body.value.bootAt, (await h.post('list')).value.bootAt, 'the same boot keeps its identity across reads')
+})
+
 test('a tail read acknowledges a restored interrupted Session for good', async () => {
   const h = await harness()
   h.emit('session/created', crashTailSession('s1'))

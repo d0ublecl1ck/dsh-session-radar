@@ -23,8 +23,8 @@ DSH Web 插件，合并了三半能力：侧边栏**未读铃铛**（左键顺�
 
 ## 测试与验证
 
-- 一把跑完：`npm ci && npm run verify`（typecheck + build + node 测试，当前 185 个）。
-- 测试清单：`test/ledger.test.mjs` 覆盖账本状态机（未读、已读不回退、三种重启信号、开合回合的标记、启动时采纳遗留回合、存储器尾部扫描）；`test/host.test.mjs` 用假 ctx 挂载 host 半边，断言恢复扫描、live 清除与畸形输入；`test/jump.test.mjs` 覆盖未读选择与分组展开；`test/jump-command.test.mjs` 覆盖三条快捷键命令的座位、默认键位、合法性、官方 KeyK / KeyO 不重叠与 blocked/handled 解析；`test/manual-unread.test.mjs` 覆盖官方手动未读标记的解析与监听；`test/conversation-tail.test.mjs` 覆盖「对话在底部」的锚点与它向账本报的那一次读取（自动恢复的会话不确认中断，自己打开的才确认）；`test/ask-jump.test.mjs` 覆盖等待处理跳转的「队列 + 回栈」状态机；`test/activity-model.test.mjs` 覆盖活动投影与 pending 计数；`test/overview.test.mjs` 覆盖总览两区的分割与去重；`test/overview-cursor.test.mjs` 覆盖方向键游标的环绕、切区与越界收敛；`test/count.test.mjs` 覆盖六项口径、分区不变量与阈值边界；`test/client-mount.test.mjs` 用真实客户端半边挂载，断言铃铛与读数入口、黄色角标只数等待处理、I 的整条往返路径、K 总览的渲染 / 键盘 / 空态 / 关闭、自动恢复的会话停在底部也不确认中断；`test/client-render.test.mjs` 用 SSR 真渲染读数与设置行；`test/client-contract.test.mjs` 覆盖模块 id、inject 清单与三处注册。
+- 一把跑完：`npm ci && npm run verify`（typecheck + build + node 测试，当前 194 个）。
+- 测试清单：`test/ledger.test.mjs` 覆盖账本状态机（未读、已读不回退、三种重启信号、开合回合的标记、启动时采纳遗留回合、存储器尾部扫描）；`test/host.test.mjs` 用假 ctx 挂载 host 半边，断言恢复扫描、live 清除与畸形输入；`test/retry-model.test.mjs` 覆盖续跑清单的纯逻辑（筛出被打断的会话、默认全选、正在跑的不给勾、串行发送与「只确认被接受的那条」）；`test/jump.test.mjs` 覆盖未读选择与分组展开；`test/jump-command.test.mjs` 覆盖三条快捷键命令的座位、默认键位、合法性、官方 KeyK / KeyO 不重叠与 blocked/handled 解析；`test/manual-unread.test.mjs` 覆盖官方手动未读标记的解析与监听；`test/conversation-tail.test.mjs` 覆盖「对话在底部」的锚点与它向账本报的那一次读取（自动恢复的会话不确认中断，自己打开的才确认）；`test/ask-jump.test.mjs` 覆盖等待处理跳转的「队列 + 回栈」状态机；`test/activity-model.test.mjs` 覆盖活动投影与 pending 计数；`test/overview.test.mjs` 覆盖总览两区的分割与去重；`test/overview-cursor.test.mjs` 覆盖方向键游标的环绕、切区与越界收敛；`test/count.test.mjs` 覆盖六项口径、分区不变量与阈值边界；`test/client-mount.test.mjs` 用真实客户端半边挂载，断言铃铛与读数入口、黄色角标只数等待处理、I 的整条往返路径、K 总览的渲染 / 键盘 / 空态 / 关闭、自动恢复的会话停在底部也不确认中断、续跑弹窗的默认全选 / 只发勾选的 / 未勾保持未读 / 同一次启动只问一次；`test/client-render.test.mjs` 用 SSR 真渲染读数与设置行；`test/client-contract.test.mjs` 覆盖模块 id、inject 清单与三处注册。
 - `test/official-contract.test.mjs` 把官方契约钉成快照（已装官方包版本必须落在 `peerDependencies` 内、读数与设置行依赖的字段与槽位、DOM 锚点与 `dsh.workspace.view.v5`），重采用 `node scripts/capture-official-contract.mjs`。
 - 构建与分发：`cordis.patch.yml` 是 bundle 层（往 profile 插入 `session-radar` 一行）；`lib/` 是被跟踪的构建产物（Git 安装免 build），改 `src/` 后必须 `npm run build` 并一起提交，CI 会断言提交进库的 `lib/` 与构建产物一致。
 - 截图：`scripts/capture-bell.mjs` 从运行实例生成 README 用的侧栏标题行截图（headless Chrome，只截不含会话名 / 项目名的行）。
@@ -42,6 +42,7 @@ DSH Web 插件，合并了三半能力：侧边栏**未读铃铛**（左键顺�
 - `src/host.ts` —— host 行为：`session/event` 记账、重启孤儿扫描（`session/created` + 启动时扫一遍 live agents 的 `snapshotEvents()`）、`$DSH_HOME/session-radar.json` 原子写、`POST /session-radar/*` 路由（`connection.requestRejection` 鉴权）。`src/index.ts` 只做导出接线。
 - `src/count.ts` —— 纯计数口径：`countSessions` 六项、`countUnarchived`、`normalizeThreshold`、`shouldWarn`；无框架依赖，读数与设置行共用。
 - `src/config.ts` —— 指标清单（`METRICS`）、Config 字段名（`METRIC_FIELD`）、默认可见性、版式清单（`VARIANTS`）、`PLUGIN_ID`（= row id = settings 命名空间 = locale NS = `session-radar`）。
+- `src/client/retry-model.ts` —— 续跑弹窗的纯逻辑（候选行、勾选、串行发送编排），`RetryDialog.tsx` 只负责渲染；发送动词由 `src/client/index.ts` 注入（见「脆弱契约」）。
 - `src/overview.ts` —— 「等你处理」总览的纯投影：折叠活动列表自己的行，再切成「待决策」与「未读」两区（无框架依赖，单测直接打它）。
 - `src/client/ledger-source.ts` —— 浏览器到账本的唯一桥（同源 `fetch`），把桥接失败**发布**出去而不是吞掉。
 - `src/client/ActivityBell.tsx` 铃铛、活动面板与 K 总览弹窗（弹窗 portal 到 `document.body`，全页浮层，不依赖 `wide`）；`jump.ts` 未读选择、当前会话与行定位；`ask-jump.ts` 等待处理跳转的「队列 + 回栈」纯状态机；`overview-cursor.ts` 总览的两区键盘游标（纯状态机）；`jump-command.ts` 三条快捷键命令（未读 J / 等待处理 I / 总览 K）与各自独立的铃铛座位（官方 `ctx.shortcuts`）；`completions.ts` 本地边沿记账；`manual-unread.ts` 读官方侧边栏的「标为未读」并监听其写入；`conversation-tail.ts` + `use-conversation-tail.ts` 判断对话是否停在底部（`tailLedgerRead` 决定这次尾读要不要报给账本、要不要带 `acknowledgeInterrupt`）；`use-user-open.ts` 记录「操作者自己打开过哪个会话」（行上的 pointerdown 加铃铛自己发起的跳转）；`anchors.ts` 官方 DOM 锚点；`locales.ts` 文案。
@@ -60,6 +61,8 @@ DSH Web 插件，合并了三半能力：侧边栏**未读铃铛**（左键顺�
 - **六项口径只有一份实现**（`src/count.ts`）：读数与设置行共用；筛选依赖 `SessionListState.ids/byId`、`WorkspaceSnapshot.archivedSessionIds` 与 `SessionStatus.running/completionUnread/pendingInteraction`，官方改字段名会静默把数字变成 0 或偏大。
 - **活动四项是分区**：`待处理 > 运行中 > 未读 > 闲置`，四者之和恒等于未归档；阈值告警严格大于（第 11 个才告警）。
 - **读数/设置行不写任何会话或归档状态**：唯一写入是用户在设置里改的偏好字段。
+- **续跑发送只走官方会话动词**：`src/client/index.ts` 里用 `ctx.sessions.binding(id)?.session.prompt([{type:'text',text}], 'queue')`。官方 `binding()` 的资格判定是「在客户端会话列表里」（`eligible(id) = current === id || ids.includes(id)`），所以弹窗只列列表里还看得见的会话；**MUST NOT** 去调私有 route 或 `agents.resolveAgent` 那类宿主内部接口（发消息由宿主的 `session/prompt` 自己 resume 未加载的会话）。它不移动操作者的 stage（不发 `open`）。
+- **续跑弹窗每次进程启动只问一次**：host 快照给 `bootAt`（= 进程启动时刻，`src/host.ts`），浏览器把它记进 `localStorage` 的 `session-radar.retryBoot`；同一个 boot 刷新不再弹，重启才再问。改快照字段或那个键名都会让「只问一次」失效。
 - **快捷键默认位受官方注册表约束**：注册表对**任意**声明 profile 的默认键做重叠检查，撞上官方命令就抛 `Conflicting shortcut defaults`，把整个客户端半边打成 failed。已知占满简单组合的官方命令：`session.search` = 桌面 `Mod+K` / Web `Mod+Alt+K`，`workspace.add` = 桌面 `Mod+O` / Web `Mod+Alt+O`，`workspace.openLocal` = 桌面 `Mod+Alt+O` / Web `Mod+Shift+O`，`workspace.files` = 桌面 `Mod+P` / Web `Mod+Alt+P`。所以 J / I 用 `Mod+Shift`（macOS）与 `Mod+Alt`（Windows/Linux），总览 K 在**所有**平台都用 `Mod+Shift+K`（`Mod+Alt+K` 在 Web 上属于 `session.search`）。新增或改动任何默认键前 **MUST** 先核对官方注册表并在真实实例里做一次激活验证。
 
 ## 当前状态与下一步
@@ -70,4 +73,5 @@ DSH Web 插件，合并了三半能力：侧边栏**未读铃铛**（左键顺�
 - 已实现（本次）：**「等你处理」总览**——官方快捷键命令 `session-radar.overview`（全域 `Mod+Shift+K`，Linux Web 无默认键），弹出全页浮层：左列「待决策」按最新更新在前，右区「未读」自适应网格，两区去重（同时待决策又未读的只在左列），↑↓ 区内环绕、←→ 切区、Enter 打开并关窗、Esc / 点遮罩 / 点关闭 / 再按一次 K 关窗；**没有任何等待时命令也可用**，窗口显示一句空态提示（原先 blocked 会让按键毫无反应）。投影是 `src/overview.ts`（折叠 `buildActivityGroups` 的行，口径与角标一致），游标是 `src/client/overview-cursor.ts`。弹窗 portal 到 `document.body`，因此不受侧边栏宽度限制。
 - 被打断的判据有三条：账本自己在 `turn/start` 记下的开回合（`runningSince`）在进程启动时若仍留着，就证明上一个进程带着它退出了（`adoptAbandonedTurns`，覆盖 SIGKILL 与没等到修复的情况）；优雅退出的 `aborted` + cause `disposed`（走 `session/event`）；以及崩溃修复补写的 `interrupted`（只存在于存储器快照里，host 靠 `session/created` 与启动扫描读取，因为构造 seed 不发 `session/event`）。
 - 已实现（本次）：**「上次中途退出的会话」下次启动就是未读**，`⌘⇧J` 能走到它。三处改动：账本新增 `runningSince` 并在启动时采纳（`LEDGER_VERSION` 1 -> 2，旧文件读作「没有开着的回合」）；`UnreadRow` 新增 `interrupted`，让浏览器半边分得清「没跑完的回合」与「跑完了没看」；尾读改用 `tailLedgerRead`——DSH 自动恢复的那个会话，其尾读不再替操作者确认中断（只有操作者自己打开过的会话才确认），但已完成的回合照旧被读掉。录制方式：行上的 `pointerdown` 与铃铛自己发起的跳转都记进 `use-user-open.ts`。
+- 已实现（本次，2026-10-08）：**启动续跑弹窗**。被打断的会话在启动时列成一张清单（默认全勾、正在跑的禁用），按「重试选中」逐条发续跑消息，被接受的那条立刻清未读、被拒绝的保留并显示原因，没勾的保持未读；每次进程启动只弹一次。发送走官方 `ISession.prompt`（`binding(id)?.session.prompt(content, 'queue')`），消息文案在 `locales.ts` 的 `retry.continueMessage`（中文即定稿的那句）。**注意：这推翻了 2026-10-03「账本刻意不含续跑/重发能力」的约定，是 2026-10-08 按使用方要求加回来的**，护栏是本插件永不自动发送（只在你按下按钮时发），自动续跑仍归 `dsh-client-auto-continue` 那类插件；该插件当前已在 Desktop 的 web profile 里被 `setBundleEnabled` 关掉，避免它抢先把清单里的会话发掉。
 - 下一步（未做）：把桥接失败（账本快照 `error`）重新露出到铃铛、跨工作区排序。

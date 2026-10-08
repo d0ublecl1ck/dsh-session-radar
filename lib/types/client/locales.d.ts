@@ -29,6 +29,17 @@ export declare const zh: {
     'overview.hint': string;
     'overview.close': string;
     'overview.empty': string;
+    'retry.aria': string;
+    'retry.title': string;
+    'retry.intro': string;
+    'retry.selectAll': string;
+    'retry.selectNone': string;
+    'retry.send': string;
+    'retry.later': string;
+    'retry.running': string;
+    'retry.failed': string;
+    'retry.unavailable': string;
+    'retry.continueMessage': string;
     'attention.approval': string;
     'attention.planReview': string;
     'attention.question': string;

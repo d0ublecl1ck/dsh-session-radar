@@ -6,6 +6,7 @@ import type { SessionStatusSnapshot } from '@deepseek-ai/dsh-client-ui-session/c
 import type { SessionId } from '@deepseek-ai/dsh-session/types';
 import type { LedgerSource } from './ledger-source.js';
 import type { JumpSeat } from './jump-command.js';
+import { type RetrySendResult } from './retry-model.js';
 /** Structural view of the observable snapshots this plugin subscribes to. */
 export interface SnapshotSource<T> {
     getSnapshot(): T;
@@ -23,6 +24,11 @@ export interface ActivityBellInjected {
      * rejection carries its own message for the inline notice.
      */
     readonly archiveSession: (sessionId: SessionId) => Promise<void>;
+    /**
+     * Ask one interrupted Session to carry on: the retry dialog's transport. The
+     * continue copy belongs to the client entry, which owns the locale binding.
+     */
+    readonly retrySession: (sessionId: SessionId) => Promise<RetrySendResult>;
     readonly sessions: SnapshotSource<SessionListState>;
     readonly statuses: SnapshotSource<SessionStatusSnapshot>;
     readonly workspaces: SnapshotSource<WorkspaceSnapshot>;
@@ -43,4 +49,4 @@ export type ActivityBellProps = PropsRuntime<'sidebar.footer.action'> & PropsLoc
  * @param props - shell share, locale seat, and injected business face.
  * @returns the two portals, or null before the sidebar region exists.
  */
-export declare function ActivityBell({ wide, t, openSession, pinSession, unpinSession, archiveSession, sessions, statuses, workspaces, ledger, unreadJump, askJump, overviewJump, }: ActivityBellProps): ReactElement | null;
+export declare function ActivityBell({ wide, t, openSession, pinSession, unpinSession, archiveSession, retrySession, sessions, statuses, workspaces, ledger, unreadJump, askJump, overviewJump, }: ActivityBellProps): ReactElement | null;

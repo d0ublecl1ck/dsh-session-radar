@@ -341,6 +341,145 @@ const CSS = `
   to { opacity: 1; }
 }
 
+/* ── restart retry (the boot dialog) ─────────────────────────────────────
+   The only surface that speaks for the operator unprompted: after a restart the
+   ledger knows which turns were cut off, and this asks once per process boot
+   which of them to continue. A veil + panel like the waiting window, but the
+   list is a checklist rather than a cursor grid. */
+.rt-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.rt-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  width: min(620px, 100%);
+  max-height: min(600px, 100%);
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 16px 18px;
+  border: 1px solid var(--dsw-alias-border-l2, #ffffff1f);
+  border-radius: 14px;
+  background: var(--dsw-alias-bg-layer-1, #1f1f21);
+  color: var(--dsw-alias-label-primary, #f9fafb);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.rt-head { font-weight: 560; }
+.rt-intro {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--dsw-alias-label-tertiary, #adb2b8);
+}
+
+.rt-tools { display: flex; gap: 8px; }
+
+.rt-list {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rt-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-2, #2c2c2e);
+  font-size: 13px;
+}
+
+/* A turn is already running: it is listed so the operator sees why it is not
+   offered, but it cannot be picked. */
+.rt-row-running { opacity: 0.6; }
+
+.rt-check { flex: none; margin: 0; }
+
+.rt-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rt-folder {
+  flex: none;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--dsw-alias-label-tertiary, #adb2b8);
+}
+
+.rt-tag {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--dsw-alias-state-warn-tertiary, rgba(245, 166, 35, 0.16));
+  color: var(--dsw-alias-state-warn-primary, #f5a623);
+  font-size: 11px;
+}
+
+.rt-error {
+  flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--dsw-alias-state-error-primary, #e5484d);
+}
+
+.rt-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.rt-mini, .rt-send {
+  padding: 4px 12px;
+  border: 1px solid var(--dsw-alias-border-l2, #ffffff1f);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary, #cfd3d6);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.rt-mini:hover:enabled, .rt-send:hover:enabled { background: var(--dsw-alias-interactive-bg-hover, #ffffff14); }
+.rt-mini:disabled, .rt-send:disabled { opacity: 0.5; cursor: default; }
+
+.rt-send {
+  border-color: transparent;
+  background: var(--dsw-alias-brand-primary, #7aaaff);
+  color: #10131a;
+  font-weight: 560;
+}
+
+.rt-send:hover:enabled { background: var(--dsw-alias-brand-primary, #7aaaff); filter: brightness(1.08); }
+
 /* ── waiting window (the K overview) ─────────────────────────────────────
    A page overlay instead of a sidebar cover: the two zones need more width
    than the sidebar ever has, so this is the one surface that portals into the

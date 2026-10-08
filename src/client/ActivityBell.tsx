@@ -57,6 +57,10 @@ import { useSidebarAnchors } from './use-anchors.js'
 import { useFollowingTailSession } from './use-conversation-tail.js'
 import { tailLedgerRead } from './conversation-tail.js'
 import { useUserOpenedSession } from './use-user-open.js'
+import { RetryDialog } from './RetryDialog.js'
+import {
+  buildRetryCandidates, retrySelected, type RetrySendResult,
+} from './retry-model.js'
 
 /** Structural view of the observable snapshots this plugin subscribes to. */
 export interface SnapshotSource<T> {
@@ -76,6 +80,11 @@ export interface ActivityBellInjected {
    * rejection carries its own message for the inline notice.
    */
   readonly archiveSession: (sessionId: SessionId) => Promise<void>
+  /**
+   * Ask one interrupted Session to carry on: the retry dialog's transport. The
+   * continue copy belongs to the client entry, which owns the locale binding.
+   */
+  readonly retrySession: (sessionId: SessionId) => Promise<RetrySendResult>
   readonly sessions: SnapshotSource<SessionListState>
   readonly statuses: SnapshotSource<SessionStatusSnapshot>
   readonly workspaces: SnapshotSource<WorkspaceSnapshot>
@@ -96,6 +105,32 @@ export type ActivityBellProps =
   & ActivityBellInjected
 
 type Translate = PropsLocale<'session-radar'>['t']
+
+/**
+ * Where the browser remembers which process boot already asked about the
+ * interrupted Sessions, so a reload cannot ask twice and a restart can.
+ */
+const RETRY_BOOT_KEY = 'session-radar.retryBoot'
+
+/** The boot the dialog already asked about, or 0 before any. */
+function retryAskedBoot(): number {
+  try {
+    const raw = window.localStorage.getItem(RETRY_BOOT_KEY)
+    const value = raw === null ? Number.NaN : Number(raw)
+    return Number.isFinite(value) ? value : 0
+  } catch {
+    return 0
+  }
+}
+
+/** Remember one boot as asked; a refusing browser only means asking again. */
+function rememberRetryBoot(bootAt: number): void {
+  try {
+    window.localStorage.setItem(RETRY_BOOT_KEY, String(bootAt))
+  } catch {
+    /* storage is a convenience here, never a correctness requirement */
+  }
+}
 
 /** Calendar bucket → section label. */
 function dayLabel(bucket: ActivityDayBucket, t: Translate, now: number): string {
@@ -478,8 +513,8 @@ function useHosts(anchors: SidebarAnchors | undefined, wide: boolean, active: bo
  * @returns the two portals, or null before the sidebar region exists.
  */
 export function ActivityBell({
-  wide, t, openSession, pinSession, unpinSession, archiveSession, sessions, statuses, workspaces, ledger,
-  unreadJump, askJump, overviewJump,
+  wide, t, openSession, pinSession, unpinSession, archiveSession, retrySession, sessions, statuses,
+  workspaces, ledger, unreadJump, askJump, overviewJump,
 }: ActivityBellProps): ReactElement | null {
   const anchors = useSidebarAnchors()
   const list = useSnapshot(sessions)
@@ -549,6 +584,34 @@ export function ActivityBell({
     restored.current = shown
   }, [shown, opened.current])
 
+  // ── the restart retry dialog ───────────────────────────────────────────
+  // The ledger's interrupted rows, as the checklist the dialog offers.
+  const retryCandidates = useMemo(() => buildRetryCandidates({
+    reminders: ledgerSnapshot.unread,
+    sessions: list,
+    workspaces: workspaceSnapshot,
+  }), [ledgerSnapshot, list, workspaceSnapshot])
+  const [retryOpen, setRetryOpen] = useState(false)
+  // Ask once per process boot: the host stamps the boot the snapshot was written
+  // under, so a reload stays quiet while the next restart asks again.
+  useEffect(() => {
+    if (retryOpen || retryCandidates.length === 0) return
+    if (ledgerSnapshot.bootAt === 0) return
+    if (retryAskedBoot() === ledgerSnapshot.bootAt) return
+    setRetryOpen(true)
+  }, [retryOpen, retryCandidates.length, ledgerSnapshot.bootAt])
+  const closeRetry = useCallback((): void => {
+    setRetryOpen(false)
+    rememberRetryBoot(ledgerSnapshot.bootAt)
+  }, [ledgerSnapshot.bootAt])
+  // The transport prompts; the acknowledgement stays here, so a refused prompt
+  // keeps its reminder and only the accepted ones are spent.
+  const runRetry = useCallback((ids: readonly SessionId[]) => retrySelected({
+    ids,
+    send: retrySession,
+    acknowledge: (id) => { ledger.read(id, { acknowledgeInterrupt: true }) },
+  }), [retrySession, ledger])
+
   // The conversation at its tail is read: drop the surface's own reminder for it
   // and tell the host, so scrolling away can re-arm neither source. The host
   // also drops a restart-interrupt marker on this acknowledgement — a plain open
@@ -560,8 +623,7 @@ export function ActivityBell({
       next.delete(tail)
       return next
     })
-  }, [tail, pending])
-  // The Session DSH reopened by itself is left out of the interrupt
+  }, [tail, pending])  // The Session DSH reopened by itself is left out of the interrupt
   // acknowledgement: after a restart it is usually the very Session the restart
   // cut off, and spending its reminder before the operator chose to open it is
   // how the marker went missing. The tail is still a read of the Session's
@@ -923,6 +985,11 @@ export function ActivityBell({
           />,
           document.body,
         )
+        : null}
+      {/* The restart retry asks before anything else on a fresh boot, and only
+          while the ledger still carries interrupted turns. */}
+      {retryOpen
+        ? <RetryDialog candidates={retryCandidates} t={t} onRetry={runRetry} onClose={closeRetry} />
         : null}
     </>
   )

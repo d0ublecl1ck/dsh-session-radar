@@ -90,6 +90,8 @@ export function apply(ctx: Context): void {
   const sessions = (ctx.get('sessions') as ISessions).list
   const statuses = ctx.uiSession.sessionStatus
   const workspaces = (ctx.get('workspaces') as IWorkspaces).list
+  /** The sessions domain itself, for the retry dialog's prompt transport. */
+  const sessionDomain = ctx.get('sessions') as ISessions
   // One ledger, one reader: the bell's badge and jump order. The bell keeps no
   // unread memory of its own.
   const ledger = createLedgerSource(ctx, sessions)
@@ -120,6 +122,18 @@ export function apply(ctx: Context): void {
       pinSession: (sessionId: SessionId) => ctx.uiWorkspace.pinSession(sessionId),
       unpinSession: (sessionId: SessionId) => ctx.uiWorkspace.unpinSession(sessionId),
       archiveSession: (sessionId: SessionId) => ctx.uiWorkspace.archiveSession(sessionId),
+      // Asking a cut-off Session to carry on goes through the shipped session
+      // face: the host resumes a stored Session on its own, so this works for
+      // one that was never opened, and it never moves the operator's stage.
+      retrySession: async (sessionId: SessionId) => {
+        const face = sessionDomain.binding(sessionId)?.session
+        if (face === undefined) return { ok: false as const, message: t('retry.unavailable') }
+        const result = await face.prompt(
+          [{ type: 'text', text: t('retry.continueMessage') }],
+          'queue',
+        )
+        return result.ok ? { ok: true as const } : { ok: false as const, message: result.error.message }
+      },
       sessions,
       statuses,
       workspaces,

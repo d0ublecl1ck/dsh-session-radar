@@ -155,7 +155,11 @@ function fakeContext(values = {}) {
       },
     },
     get(name) {
-      return name === 'sessions' ? { list: sessions } : { list: workspaces }
+      // The retry dialog reaches the sessions domain itself for its prompt
+      // transport, so the double carries the binding lookup too.
+      return name === 'sessions'
+        ? { list: sessions, binding: values.binding ?? (() => undefined) }
+        : { list: workspaces }
     },
     configForms: {
       get: () => ({
@@ -275,8 +279,8 @@ test('the client half registers the bell, the readout, the gated settings row, a
   assert.notEqual(settings, undefined, 'the settings row is registered under the row id')
   const injected = captured().options.inject()
   assert.deepEqual(Object.keys(injected).sort(), [
-    'archiveSession', 'askJump', 'ledger', 'openSession', 'overviewJump', 'pinSession', 'sessions',
-    'statuses', 'unpinSession', 'unreadJump', 'workspaces',
+    'archiveSession', 'askJump', 'ledger', 'openSession', 'overviewJump', 'pinSession', 'retrySession',
+    'sessions', 'statuses', 'unpinSession', 'unreadJump', 'workspaces',
   ])
   assert.equal(document.querySelector('style[data-plugin="dsh-session-radar"]') !== null, true)
   for (const dispose of [...disposers].reverse()) dispose()
@@ -1159,4 +1163,172 @@ test('the K shortcut answers with the empty copy when nothing waits', async () =
 
   await view.unmount()
   for (const dispose of [...disposers].reverse()) dispose()
+})
+
+/** The boot stamp the retry dialog keys its once-per-process rule on. */
+const BOOT = 1_760_000_000_000
+const RETRY_BOOT_KEY = 'session-radar.retryBoot'
+
+/**
+ * Mount a bell whose host ledger reports one interrupted reminder per id, and
+ * collect what the retry transport was asked to do.
+ */
+async function mountRetry(ids, { running = [], bootAt = BOOT, fresh = true } = {}) {
+  document.body.innerHTML = ''
+  // Only the first mount of a test starts from a clean slate: the later ones
+  // exist to prove what the marker does across a reload and a restart.
+  if (fresh) window.localStorage.removeItem(RETRY_BOOT_KEY)
+  buildSidebar(document)
+  const prompts = []
+  const calls = []
+  const listed = {
+    now: Date.now(),
+    bootAt,
+    unread: ids.map((id, index) => ({
+      sessionId: id, at: Date.now() - index * 1000, kind: 'aborted', interrupted: true,
+    })),
+    error: null,
+  }
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async (url, init) => {
+    const target = String(url)
+    const body = init?.body === undefined ? undefined : JSON.parse(String(init.body))
+    calls.push({ target, body })
+    return { json: async () => ({ ok: true, value: listed }) }
+  }
+  const sessions = ids.map((id) => ({
+    id,
+    displayTitle: '会话 ' + id,
+    blank: false,
+    running: running.includes(id),
+    updatedAt: Date.now(),
+    cwd: '/host/' + id,
+  }))
+  const handle = fakeContext({
+    sessions: source({ ids, byId: Object.fromEntries(sessions.map((row) => [row.id, row])), phase: 'ready' }),
+    statuses: source(new Map()),
+    workspaces: source({ items: [], archivedSessionIds: [] }),
+    binding: (id) => ({
+      session: {
+        prompt: (content, mode) => {
+          prompts.push({ id, content, mode })
+          return Promise.resolve({ ok: true, value: { accepted: true } })
+        },
+      },
+    }),
+  })
+  const { ctx, disposers } = handle
+  const captured = () => handle.captured
+  apply(ctx)
+  const injected = captured().options.inject()
+  const view = await mount(React.createElement(captured().component, {
+    wide: true, t: translate, ...injected,
+  }))
+  await React.act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
+  return {
+    prompts,
+    calls,
+    view,
+    disposers,
+    restore() {
+      globalThis.fetch = originalFetch
+    },
+    clearBootMarker() {
+      window.localStorage.removeItem(RETRY_BOOT_KEY)
+    },
+  }
+}
+
+test('a fresh boot asks about the interrupted Sessions, everything retryable checked', async () => {
+  const h = await mountRetry(['s1', 's2'], { running: ['s2'] })
+  try {
+    const panel = document.querySelector('.rt-panel')
+    assert.ok(panel, 'the dialog opens by itself on a boot that has interrupted turns')
+    const rows = [...panel.querySelectorAll('.rt-row')]
+    assert.deepEqual(rows.map((row) => row.querySelector('.rt-title').textContent), ['会话 s1', '会话 s2'])
+    assert.equal(rows[0].querySelector('.rt-check').checked, true, 'a retryable row starts checked')
+    assert.equal(rows[1].querySelector('.rt-check').checked, false, 'a running row is not offered')
+    assert.equal(rows[1].querySelector('.rt-check').disabled, true)
+    assert.equal(rows[1].querySelector('.rt-tag').textContent, '正在跑')
+    assert.equal(panel.querySelector('.rt-send').textContent, '重试选中 1 个')
+
+    await h.view.click(panel.querySelector('.rt-send'))
+    await React.act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
+
+    assert.equal(h.prompts.length, 1, 'only the checked Session is prompted')
+    assert.equal(h.prompts[0].id, 's1')
+    assert.equal(h.prompts[0].mode, 'queue', 'the retry appends a turn rather than steering one')
+    assert.deepEqual(
+      h.prompts[0].content,
+      [{ type: 'text', text: zh['retry.continueMessage'] }],
+      'the shipped continue message, verbatim',
+    )
+    assert.ok(
+      h.calls.some(call => call.target.endsWith('/session-radar/read')
+        && call.body?.sessionId === 's1' && call.body?.acknowledgeInterrupt === true),
+      'an accepted retry spends that reminder',
+    )
+    assert.equal(
+      h.calls.some(call => call.body?.sessionId === 's2'),
+      false,
+      'the running Session keeps its reminder',
+    )
+    assert.equal(document.querySelector('.rt-panel'), null, 'a clean batch closes the dialog')
+  } finally {
+    await h.view.unmount()
+    for (const dispose of [...h.disposers].reverse()) dispose()
+    h.restore()
+  }
+})
+
+test('leaving a Session unchecked keeps it unread, and the ask happens once per boot', async () => {
+  const h = await mountRetry(['s1'])
+  try {
+    const panel = document.querySelector('.rt-panel')
+    await h.view.click(panel.querySelector('.rt-check'))
+    assert.equal(panel.querySelector('.rt-send').disabled, true, 'nothing checked means nothing to send')
+    assert.equal(panel.querySelector('.rt-send').textContent, '重试选中 0 个')
+
+    await h.view.click(panel.querySelector('.rt-foot .rt-mini'))
+    assert.equal(h.prompts.length, 0, 'later sends nothing')
+    assert.equal(document.querySelector('.rt-panel'), null)
+    assert.equal(
+      h.calls.some(call => call.target.endsWith('/session-radar/read')),
+      false,
+      'the untouched Session keeps its unread reminder',
+    )
+    assert.equal(window.localStorage.getItem(RETRY_BOOT_KEY), String(BOOT), 'this boot is marked as asked')
+  } finally {
+    await h.view.unmount()
+    for (const dispose of [...h.disposers].reverse()) dispose()
+    h.restore()
+  }
+
+  // The same boot never asks twice, but the next process boot does.
+  const again = await mountRetry(['s1'], { fresh: false })
+  try {
+    assert.equal(
+      document.querySelector('.rt-panel') === null,
+      true,
+      'a reload of the same boot stays quiet',
+    )
+  } finally {
+    await again.view.unmount()
+    for (const dispose of [...again.disposers].reverse()) dispose()
+    again.restore()
+  }
+
+  const restarted = await mountRetry(['s1'], { bootAt: BOOT + 60_000, fresh: false })
+  try {
+    assert.equal(
+      document.querySelector('.rt-panel') !== null,
+      true,
+      'the next process boot asks again',
+    )
+  } finally {
+    await restarted.view.unmount()
+    for (const dispose of [...restarted.disposers].reverse()) dispose()
+    restarted.restore()
+    restarted.clearBootMarker()
+  }
 })

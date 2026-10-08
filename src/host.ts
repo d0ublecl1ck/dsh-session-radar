@@ -63,6 +63,12 @@ interface LedgerContext {
 /** A snapshot of everything the browser half renders. */
 interface Snapshot {
   readonly now: number
+  /**
+   * When this process started. The browser half keys "already asked about the
+   * interrupted Sessions this boot" on it, so a reload cannot ask twice while a
+   * real restart does.
+   */
+  readonly bootAt: number
   readonly unread: readonly UnreadRow[]
 }
 
@@ -301,6 +307,7 @@ export function mount(rawCtx: any): void {
   function snapshot(): Snapshot {
     return {
       now: Date.now(),
+      bootAt: processStartedAt,
       unread: listUnread(ledger),
     }
   }

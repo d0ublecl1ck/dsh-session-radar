@@ -30,6 +30,11 @@ export interface LedgerUnreadRow {
 /** Everything the bell renders. */
 export interface LedgerSnapshot {
   readonly now: number
+  /**
+   * When the host process started, or 0 before the first answer. The retry
+   * dialog keys "already asked about this boot" on it.
+   */
+  readonly bootAt: number
   readonly unread: readonly LedgerUnreadRow[]
   /** Last bridge failure, or null. Rendered so a broken bridge is visible. */
   readonly error: string | null
@@ -58,6 +63,7 @@ const BOOT_SETTLE_MS = 3000
 
 const EMPTY: LedgerSnapshot = {
   now: 0,
+  bootAt: 0,
   unread: [],
   error: null,
 }
