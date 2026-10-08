@@ -3,7 +3,7 @@
 本项目的版本变更记录。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。每次发布对应一个 git tag 与一条 npm 版本。
 
-## [未发布]
+## [1.2.0] - 2026-10-08
 
 ### 文档
 
