@@ -48,6 +48,26 @@ test('only interrupted reminders the Session list still shows become candidates'
   assert.deepEqual(rows.map((row) => row.at), [T(3), T(2)])
 })
 
+test('a subagent conversation is never offered, whatever its reminder says', () => {
+  const rows = buildRetryCandidates(inputs({
+    sessions: {
+      ids: ['a', 'sub'],
+      byId: {
+        a: { id: 'a', displayTitle: '外部任务', cwd: '/host/a', running: false, updatedAt: T(3) },
+        sub: {
+          id: 'sub', displayTitle: '你是实现子代理', cwd: '/host/a', running: false,
+          updatedAt: T(2), origin: 'subagent',
+        },
+      },
+    },
+    reminders: [
+      { sessionId: 'a', at: T(3), interrupted: true },
+      { sessionId: 'sub', at: T(2), interrupted: true },
+    ],
+  }))
+  assert.deepEqual(rows.map((row) => row.id), ['a'], 'the host refuses a prompt for a subagent Session')
+})
+
 test('a reminder whose Session left the list is not offered', () => {
   const rows = buildRetryCandidates(inputs({
     reminders: [{ sessionId: 'gone', at: T(9), interrupted: true }],

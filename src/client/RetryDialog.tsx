@@ -111,7 +111,11 @@ export function RetryDialog({ candidates, t, onRetry, onClose }: RetryDialogProp
               {row.folder === '' ? null : <span className="rt-folder">{row.folder}</span>}
               {row.running ? <span className="rt-tag">{t('retry.running')}</span> : null}
               {failures.has(row.id)
-                ? <span className="rt-error">{t('retry.failed', { message: failures.get(row.id) ?? '' })}</span>
+                ? (
+                  <span className="rt-error" title={failures.get(row.id) ?? ''}>
+                    {t('retry.failed', { message: failures.get(row.id) ?? '' })}
+                  </span>
+                )
                 : null}
             </li>
           ))}

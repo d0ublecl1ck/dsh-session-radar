@@ -27,6 +27,8 @@ export interface RetrySession {
   readonly displayTitle: string
   readonly cwd?: string | undefined
   readonly running: boolean
+  /** Coarse durable origin; a subagent conversation is not addressable as a prompt target. */
+  readonly origin?: 'subagent' | undefined
 }
 
 /** One Workspace registry row, for the folder label. */
@@ -83,6 +85,12 @@ function folderIndex(workspaces: readonly RetryWorkspace[]): ReadonlyMap<string,
  * guessed at: the dialog can only promise a retry for a Session the client can
  * address.
  *
+ * Subagent conversations are dropped for the same reason the browsing region
+ * hides them: they are not top-level prompt targets at all — the host answers
+ * `session/prompt` for one with `session/not-found` (measured 2026-10-08). Only
+ * the outer Session is offered, and its retry message asks it to look after the
+ * subagents it started.
+ *
  * @param inputs - ledger reminders plus the Session and Workspace snapshots.
  * @returns the rows the dialog offers.
  */
@@ -92,7 +100,7 @@ export function buildRetryCandidates(inputs: RetryInputs): RetryCandidate[] {
   for (const reminder of inputs.reminders) {
     if (!reminder.interrupted) continue
     const session = inputs.sessions.byId[reminder.sessionId]
-    if (session === undefined) continue
+    if (session === undefined || session.origin === 'subagent') continue
     const id = session.id
     rows.push({
       id,
