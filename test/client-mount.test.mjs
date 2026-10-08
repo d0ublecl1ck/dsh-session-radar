@@ -1173,8 +1173,12 @@ const RETRY_BOOT_KEY = 'session-radar.retryBoot'
 /**
  * Mount a bell whose host ledger reports one interrupted reminder per id, and
  * collect what the retry transport was asked to do.
+ *
+ * `ledgerIds` defaults to every Session carrying an interrupted reminder;
+ * `parents` makes a Session a subagent of another. A subagent can therefore sit
+ * in the list with its own reminder while its parent is the only row offered.
  */
-async function mountRetry(ids, { running = [], bootAt = BOOT, fresh = true } = {}) {
+async function mountRetry(ids, { running = [], bootAt = BOOT, fresh = true, parents = {}, ledgerIds = ids } = {}) {
   document.body.innerHTML = ''
   // Only the first mount of a test starts from a clean slate: the later ones
   // exist to prove what the marker does across a reload and a restart.
@@ -1185,7 +1189,7 @@ async function mountRetry(ids, { running = [], bootAt = BOOT, fresh = true } = {
   const listed = {
     now: Date.now(),
     bootAt,
-    unread: ids.map((id, index) => ({
+    unread: ledgerIds.map((id, index) => ({
       sessionId: id, at: Date.now() - index * 1000, kind: 'aborted', interrupted: true,
     })),
     error: null,
@@ -1204,6 +1208,7 @@ async function mountRetry(ids, { running = [], bootAt = BOOT, fresh = true } = {
     running: running.includes(id),
     updatedAt: Date.now(),
     cwd: '/host/' + id,
+    ...(parents[id] === undefined ? {} : { parentId: parents[id] }),
   }))
   const handle = fakeContext({
     sessions: source({ ids, byId: Object.fromEntries(sessions.map((row) => [row.id, row])), phase: 'ready' }),
@@ -1280,6 +1285,38 @@ test('a fresh boot asks about the interrupted Sessions, everything retryable che
       'the running Session keeps its reminder',
     )
     assert.equal(document.querySelector('.rt-panel'), null, 'a clean batch closes the dialog')
+  } finally {
+    await h.view.unmount()
+    for (const dispose of [...h.disposers].reverse()) dispose()
+    h.restore()
+  }
+})
+
+test('a running subagent puts its top-level Session on the checklist', async () => {
+  // The parent finished its own turn, so its only reminder is the subagent's;
+  // the subagent itself is never a prompt target.
+  const h = await mountRetry(['s1', 's2'], {
+    running: ['s2'], parents: { s2: 's1' }, ledgerIds: ['s2'],
+  })
+  try {
+    const panel = document.querySelector('.rt-panel')
+    assert.ok(panel, 'a subagent still running is a reason to ask about its parent')
+    const rows = [...panel.querySelectorAll('.rt-row')]
+    assert.deepEqual(
+      rows.map((row) => row.querySelector('.rt-title').textContent),
+      ['会话 s1'],
+      'the parent is offered and the subagent is not',
+    )
+    assert.equal(rows[0].querySelector('.rt-check').checked, true, 'the idle parent starts checked')
+
+    await h.view.click(panel.querySelector('.rt-send'))
+    await React.act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
+    assert.equal(h.sends.length, 1, 'only the parent is prompted')
+    assert.equal(h.sends[0].payload.args.request.sessionId, 's1')
+    assert.ok(
+      h.calls.some(call => call.target.endsWith('/session-radar/read') && call.body?.sessionId === 's1'),
+      'an accepted retry spends the parent\u2019s reminder',
+    )
   } finally {
     await h.view.unmount()
     for (const dispose of [...h.disposers].reverse()) dispose()

@@ -15,7 +15,7 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      # typecheck + build + 148 tests
+      # typecheck + build + 199 tests
       - run: npm run verify
       # lib/ is committed (Git installs skip the build), so a stale committed
       # bundle must fail CI rather than ship.

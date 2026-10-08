@@ -48,33 +48,80 @@ test('only interrupted reminders the Session list still shows become candidates'
   assert.deepEqual(rows.map((row) => row.at), [T(3), T(2)])
 })
 
-test('a subagent conversation is never offered, whatever its reminder says', () => {
+test('a subagent reminder that is still running is offered as its top-level Session', () => {
   const rows = buildRetryCandidates(inputs({
+    reminders: [
+      { sessionId: 'kid', at: T(5), interrupted: false },
+      { sessionId: 'a', at: T(3), interrupted: false },
+    ],
     sessions: {
-      ids: ['a', 'sub', 'deep'],
+      ids: ['a', 'kid'],
       byId: {
         a: { id: 'a', displayTitle: '外部任务', cwd: '/host/a', running: false, updatedAt: T(3) },
-        sub: {
-          id: 'sub', displayTitle: '你是实现子代理', cwd: '/host/a', running: false,
-          updatedAt: T(2), origin: 'subagent',
-        },
-        deep: {
-          id: 'deep', displayTitle: '更深一层的子代理', cwd: '/host/a', running: false,
-          updatedAt: T(2), parentId: 's1',
+        kid: {
+          id: 'kid', displayTitle: '你是实现子代理', cwd: '/host/a', running: true,
+          updatedAt: T(5), origin: 'subagent', parentId: 'a',
         },
       },
     },
-    reminders: [
-      { sessionId: 'a', at: T(3), interrupted: true },
-      { sessionId: 'sub', at: T(2), interrupted: true },
-      { sessionId: 'deep', at: T(2), interrupted: true },
-    ],
   }))
   assert.deepEqual(
     rows.map((row) => row.id),
     ['a'],
-    'the host refuses a prompt for a subagent Session, marked or merely parented',
+    'the host refuses a prompt for a subagent Session, so its parent is the one to wake',
   )
+  assert.equal(rows[0].at, T(5), 'the row is dated by the reason it was offered')
+})
+
+test('an interrupted subagent is offered as its top-level Session even after its own reminder was read', () => {
+  const rows = buildRetryCandidates(inputs({
+    reminders: [],
+    sessions: {
+      ids: ['a', 'kid'],
+      byId: {
+        a: { id: 'a', displayTitle: '外部任务', cwd: '/host/a', running: false, updatedAt: T(3) },
+        kid: {
+          id: 'kid', displayTitle: '你是实现子代理', cwd: '/host/a', running: true,
+          updatedAt: T(5), parentId: 'a',
+        },
+      },
+    },
+  }))
+  assert.deepEqual(rows.map((row) => row.id), ['a'], 'a child still running keeps its parent on the list')
+  assert.equal(rows[0].running, false, 'the parent is idle, so it stays retryable')
+})
+
+test('several unfinished subagents of one parent collapse into a single row, dated by the newest', () => {
+  const rows = buildRetryCandidates(inputs({
+    reminders: [
+      { sessionId: 'kid2', at: T(7), interrupted: true },
+      { sessionId: 'kid1', at: T(4), interrupted: true },
+    ],
+    sessions: {
+      ids: ['a', 'kid1', 'kid2'],
+      byId: {
+        a: { id: 'a', displayTitle: '外部任务', cwd: '/host/a', running: false, updatedAt: T(3) },
+        kid1: { id: 'kid1', displayTitle: '子代理一', cwd: '/host/a', running: false, updatedAt: T(4), origin: 'subagent', parentId: 'a' },
+        kid2: { id: 'kid2', displayTitle: '子代理二', cwd: '/host/a', running: false, updatedAt: T(7), origin: 'subagent', parentId: 'a' },
+      },
+    },
+  }))
+  assert.deepEqual(rows.map((row) => row.id), ['a'])
+  assert.equal(rows[0].at, T(7), 'one row per parent, dated by its newest unfinished child')
+})
+
+test('a parent that is gone is not invented: the subagent must still be a listed Session', () => {
+  const rows = buildRetryCandidates(inputs({
+    reminders: [{ sessionId: 'deep', at: T(2), interrupted: true }],
+    sessions: {
+      ids: ['a', 'deep'],
+      byId: {
+        a: { id: 'a', displayTitle: '外部任务', cwd: '/host/a', running: false, updatedAt: T(3) },
+        deep: { id: 'deep', displayTitle: '更深一层', cwd: '/host/a', running: false, updatedAt: T(2), parentId: 'missing' },
+      },
+    },
+  }))
+  assert.deepEqual(rows.map((row) => row.id), ['deep'], 'the nearest listed ancestor is the addressable one')
 })
 
 test('a reminder whose Session left the list is not offered', () => {

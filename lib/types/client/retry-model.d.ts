@@ -9,6 +9,11 @@
  * A Session that is already running is never offered as retryable: sending it
  * another prompt would queue a second turn behind the one nobody asked about.
  *
+ * Subagent conversations are not prompt targets, so a reminder for one is offered
+ * as its top-level ancestor instead: a subagent still midway through a turn means
+ * the outer task stopped with it, and that outer Session is the only thing the
+ * dialog may wake.
+
  * @module dsh-session-radar/client/retry-model
  */
 import type { SessionId } from '@deepseek-ai/dsh-session/types';
@@ -82,11 +87,17 @@ export interface RetryOutcome {
  * guessed at: the dialog can only promise a retry for a Session the client can
  * address.
  *
- * Subagent conversations are dropped for the same reason the browsing region
+ * Subagent conversations are never rows for the same reason the browsing region
  * hides them: they are not top-level prompt targets at all — the host answers
- * `session/prompt` for one with `session/not-found` (measured 2026-10-08). Only
- * the outer Session is offered, and its retry message asks it to look after the
- * subagents it started.
+ * `session/prompt` for one with `session/not-found` (measured 2026-10-08). A
+ * subagent reminder is offered as its top-level ancestor instead, and that
+ * ancestor's retry message asks it to look after the subagents it started.
+ *
+ * The ancestor is offered when the subagent is still running and also when its
+ * reminder is an interrupted turn: a resumed subagent can be running again while
+ * its last turn still carries the marker, and in either case the outer Session is
+ * what picks the work back up. Several unfinished subagents of one parent are one
+ * row, dated by the newest of them.
  *
  * @param inputs - ledger reminders plus the Session and Workspace snapshots.
  * @returns the rows the dialog offers.

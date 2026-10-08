@@ -9,6 +9,11 @@
  * A Session that is already running is never offered as retryable: sending it
  * another prompt would queue a second turn behind the one nobody asked about.
  *
+ * Subagent conversations are not prompt targets, so a reminder for one is offered
+ * as its top-level ancestor instead: a subagent still midway through a turn means
+ * the outer task stopped with it, and that outer Session is the only thing the
+ * dialog may wake.
+
  * @module dsh-session-radar/client/retry-model
  */
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -84,6 +89,58 @@ function folderIndex(workspaces: readonly RetryWorkspace[]): ReadonlyMap<string,
   return index
 }
 
+/** Whether one Session is a subagent conversation rather than a top-level one. */
+function isSubagent(session: RetrySession): boolean {
+  return session.origin === 'subagent' || session.parentId !== undefined
+}
+
+/**
+ * The top-level Session a subagent conversation ultimately belongs to.
+ *
+ * The walk stops at an ancestor the list no longer carries, so the deepest
+ * addressable Session is the one offered. The step cap swallows a corrupt parent
+ * cycle instead of hanging a render.
+ *
+ * @param id - the subagent Session to resolve.
+ * @param sessions - the Session list, keyed by id.
+ * @returns the id of the top-level Session to offer, or `id` itself.
+ */
+function resolveRoot(id: SessionId, sessions: RetryInputs['sessions']): SessionId {
+  let current = id
+  for (let step = 0, cap = sessions.ids.length + 1; step < cap; step += 1) {
+    const parent = sessions.byId[current]?.parentId
+    if (parent === undefined || sessions.byId[parent] === undefined) return current
+    current = parent
+  }
+  return current
+}
+
+/**
+ * The top-level Sessions that unfinished subagents put back on the checklist.
+ *
+ * A subagent that is running, or whose reminder is an interrupted turn, has work
+ * its parent started and never saw finish. The parent is the addressable target,
+ * so every such subagent maps to its top-level ancestor and is never a row
+ * itself.
+ *
+ * @param inputs - ledger reminders plus the Session snapshot.
+ * @returns the roots to offer, each dated by its newest unfinished subagent.
+ */
+function unfinishedSubagentRoots(inputs: RetryInputs): ReadonlyMap<string, number> {
+  const reminders = new Map(inputs.reminders.map((reminder) => [reminder.sessionId, reminder]))
+  const roots = new Map<string, number>()
+  for (const id of inputs.sessions.ids) {
+    const session = inputs.sessions.byId[id]
+    if (session === undefined || !isSubagent(session)) continue
+    const reminder = reminders.get(id)
+    if (!session.running && reminder?.interrupted !== true) continue
+    const root = resolveRoot(id, inputs.sessions)
+    const dated = reminder?.at ?? 0
+    if (dated > (roots.get(root) ?? -1)) roots.set(root, dated)
+  }
+  return roots
+}
+
 /**
  * Project the ledger's interrupted reminders into dialog rows, newest first.
  *
@@ -91,37 +148,51 @@ function folderIndex(workspaces: readonly RetryWorkspace[]): ReadonlyMap<string,
  * guessed at: the dialog can only promise a retry for a Session the client can
  * address.
  *
- * Subagent conversations are dropped for the same reason the browsing region
+ * Subagent conversations are never rows for the same reason the browsing region
  * hides them: they are not top-level prompt targets at all — the host answers
- * `session/prompt` for one with `session/not-found` (measured 2026-10-08). Only
- * the outer Session is offered, and its retry message asks it to look after the
- * subagents it started.
+ * `session/prompt` for one with `session/not-found` (measured 2026-10-08). A
+ * subagent reminder is offered as its top-level ancestor instead, and that
+ * ancestor's retry message asks it to look after the subagents it started.
+ *
+ * The ancestor is offered when the subagent is still running and also when its
+ * reminder is an interrupted turn: a resumed subagent can be running again while
+ * its last turn still carries the marker, and in either case the outer Session is
+ * what picks the work back up. Several unfinished subagents of one parent are one
+ * row, dated by the newest of them.
  *
  * @param inputs - ledger reminders plus the Session and Workspace snapshots.
  * @returns the rows the dialog offers.
  */
 export function buildRetryCandidates(inputs: RetryInputs): RetryCandidate[] {
   const folders = folderIndex(inputs.workspaces.items)
-  const rows: RetryCandidate[] = []
+  /** Newest reason each offered id has, so two reasons for one id never double-list it. */
+  const reasons = new Map<string, number>()
+  const remember = (id: string, at: number): void => {
+    if (at > (reasons.get(id) ?? -1)) reasons.set(id, at)
+  }
   for (const reminder of inputs.reminders) {
-    if (!reminder.interrupted) continue
-    const session = inputs.sessions.byId[reminder.sessionId]
-    if (session === undefined || isSubagent(session)) continue
-    const id = session.id
+    if (reminder.interrupted) remember(reminder.sessionId, reminder.at)
+  }
+  // An interrupted subagent is not its own row, but it means the Session that
+  // started it stopped too, so its top-level ancestor is the one to offer.
+  const subagentRoots = unfinishedSubagentRoots(inputs)
+  for (const [root, at] of subagentRoots) remember(root, at)
+  const rows: RetryCandidate[] = []
+  for (const [id, at] of reasons) {
+    const session = inputs.sessions.byId[id]
+    if (session === undefined) continue
+    // A subagent only reaches the dialog as the deepest ancestor the list still
+    // carries; every other one was folded into its top-level Session above.
+    if (isSubagent(session) && !subagentRoots.has(id)) continue
     rows.push({
-      id,
+      id: session.id,
       title: session.displayTitle === '' ? id : session.displayTitle,
       folder: folders.get(id) ?? pathBasename(session.cwd) ?? '',
-      at: reminder.at,
+      at,
       running: session.running,
     })
   }
   return rows.sort((left, right) => right.at - left.at || (left.id < right.id ? -1 : 1))
-}
-
-/** Whether one Session is a subagent conversation rather than a top-level one. */
-function isSubagent(session: RetrySession): boolean {
-  return session.origin === 'subagent' || session.parentId !== undefined
 }
 
 /** Whether one row may be picked. */
