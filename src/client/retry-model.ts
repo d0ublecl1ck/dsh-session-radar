@@ -29,6 +29,12 @@ export interface RetrySession {
   readonly running: boolean
   /** Coarse durable origin; a subagent conversation is not addressable as a prompt target. */
   readonly origin?: 'subagent' | undefined
+  /**
+   * Direct parent of a subagent conversation. The list only sets `origin` for
+   * part of them (measured 2026-10-08: 172 rows carry a parent, 149 carry the
+   * origin), so the parent is the reliable marker.
+   */
+  readonly parentId?: SessionId | undefined
 }
 
 /** One Workspace registry row, for the folder label. */
@@ -100,7 +106,7 @@ export function buildRetryCandidates(inputs: RetryInputs): RetryCandidate[] {
   for (const reminder of inputs.reminders) {
     if (!reminder.interrupted) continue
     const session = inputs.sessions.byId[reminder.sessionId]
-    if (session === undefined || session.origin === 'subagent') continue
+    if (session === undefined || isSubagent(session)) continue
     const id = session.id
     rows.push({
       id,
@@ -111,6 +117,11 @@ export function buildRetryCandidates(inputs: RetryInputs): RetryCandidate[] {
     })
   }
   return rows.sort((left, right) => right.at - left.at || (left.id < right.id ? -1 : 1))
+}
+
+/** Whether one Session is a subagent conversation rather than a top-level one. */
+function isSubagent(session: RetrySession): boolean {
+  return session.origin === 'subagent' || session.parentId !== undefined
 }
 
 /** Whether one row may be picked. */

@@ -26,6 +26,12 @@ export interface RetrySession {
     readonly running: boolean;
     /** Coarse durable origin; a subagent conversation is not addressable as a prompt target. */
     readonly origin?: 'subagent' | undefined;
+    /**
+     * Direct parent of a subagent conversation. The list only sets `origin` for
+     * part of them (measured 2026-10-08: 172 rows carry a parent, 149 carry the
+     * origin), so the parent is the reliable marker.
+     */
+    readonly parentId?: SessionId | undefined;
 }
 /** One Workspace registry row, for the folder label. */
 export interface RetryWorkspace {
