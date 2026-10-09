@@ -92,6 +92,21 @@ test('the chips readout shows every visible metric with its own count', () => {
   assert.match(markup, /data-metric="archived"[^>]*>[\s\S]*?sw-chip-count">2</)
 })
 
+test('a parent with a running subagent is counted beside its own running Session', () => {
+  const mounted = mount()
+  // One ordinary parent whose own turn is over, plus the child Session that
+  // keeps it going; the child row must not be counted anywhere on its own.
+  const list = sessionRows(2, { 'session-1': { parentId: 'session-0' } })
+  list.projectionsBySession = {
+    'session-0': { values: { subagentCatalog: [{ id: 'session-1' }] }, state: 'ready', error: null },
+  }
+  const statuses = statusMap(['session-0', { running: false }], ['session-1', { running: true }])
+  const markup = renderRegistered(mounted, FOOTER_SLOT, STATUS_ID, standardHooks(list, [], [], statuses))
+  assert.match(markup, /data-metric="running"[^>]*>[\s\S]*?sw-chip-count">1/)
+  assert.match(markup, /data-metric="idle"[^>]*>[\s\S]*?sw-chip-count">0/)
+  assert.match(markup, /data-metric="unarchived"[^>]*>[\s\S]*?sw-chip-count">1/)
+})
+
 test('only the enabled metrics are rendered', () => {
   const mounted = mount({ value: { showIdle: false, showArchived: false } })
   const { list, statuses, archived } = fixture()

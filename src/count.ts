@@ -10,6 +10,9 @@
  * - blank Sessions are excluded — they are the reusable "New Session" seat
  *   rather than a conversation.
  *
+ * A parent whose direct subagents are still running counts as running: the
+ * shell paints that row ongoing, and the readout follows the shell.
+ *
  * The six metrics are then two independent splits of that scope:
  * - archive:   archived vs unarchived;
  * - activity:  the unarchived rows fold into exactly one of
@@ -42,10 +45,27 @@ export interface SessionRowLike {
   readonly updatedAt?: unknown
 }
 
+/** One direct-subagent catalog row, as a projection carries it. */
+export interface SubagentCatalogEntryLike {
+  readonly id?: unknown
+}
+
+/** One Session's projection values (a structural subset of SessionProjectionSnapshot). */
+export interface SessionProjectionLike {
+  readonly values?: {
+    readonly subagentCatalog?: readonly SubagentCatalogEntryLike[] | undefined
+  } | undefined
+}
+
 /** The list fields this module reads (a structural subset of SessionListState). */
-export interface SessionListLike {
-  readonly ids: readonly string[]
+export interface SessionListLike<Id extends string = string> {
+  readonly ids: readonly Id[]
   readonly byId: Readonly<Record<string, SessionRowLike | undefined>>
+  /**
+   * Per-Session projection values. A shell that carries none simply reports no
+   * known subagents, which keeps the readout on its own-turn-only rule.
+   */
+  readonly projectionsBySession?: Readonly<Record<string, SessionProjectionLike | undefined>> | undefined
 }
 
 /** Independent UI status facts for one Session (structural subset of SessionStatus). */
@@ -88,19 +108,23 @@ function isOrdinary(row: SessionRowLike): boolean {
  * Precedence is pending > running > unread > idle: a Session waiting for an
  * answer is the operator's next action even while its Agent is technically
  * alive, and a value the status stream has not established yet falls back to
- * the list row's own running flag.
+ * the list row's own running flag. A live subagent makes its parent run too —
+ * the shell paints that row ongoing — and it outranks a completion reminder the
+ * same way the parent's own live turn does.
  *
  * @param status - the Session's UI status, when the stream knows it.
  * @param row - the Session list row.
+ * @param liveSubagent - whether any direct subagent of this Session is running.
  * @returns the bucket key.
  */
 function activityBucket(
   status: SessionStatusLike | undefined,
   row: SessionRowLike,
+  liveSubagent: boolean,
 ): 'pending' | 'running' | 'unread' | 'idle' {
   if (status?.pendingInteraction !== undefined) return 'pending'
   const running = status?.running ?? row.running
-  if (running === true) return 'running'
+  if (running === true || liveSubagent) return 'running'
   if (status?.completionUnread === true) return 'unread'
   return 'idle'
 }
@@ -116,6 +140,52 @@ export type MetricBuckets<Id extends string = string> = Readonly<Record<Metric, 
 /** A Session's durable update instant, or 0 when the row carries none. */
 function updatedAtOf(row: SessionRowLike): number {
   return typeof row.updatedAt === 'number' && Number.isFinite(row.updatedAt) ? row.updatedAt : 0
+}
+
+/**
+ * Whether one catalog row names a subagent that is running right now.
+ *
+ * The status stream is the primary evidence and the list row is the fallback,
+ * exactly like the shell's own row status: a child whose status entry carries
+ * no `running` value still falls through to its row, and a child with neither
+ * leaves no evidence at all.
+ *
+ * @param child - one catalog entry, or anything shaped like one.
+ * @param byId - the list's own rows, for children the stream has not reached.
+ * @param statuses - the UI status snapshot, when one is installed.
+ * @returns whether the child is running.
+ */
+function childRunning(
+  child: unknown,
+  byId: Readonly<Record<string, SessionRowLike | undefined>>,
+  statuses: StatusMapLike | undefined | null,
+): boolean {
+  const id = typeof child === 'object' && child !== null ? (child as SubagentCatalogEntryLike).id : undefined
+  if (id === undefined || id === null) return false
+  const key = String(id)
+  const status = typeof statuses?.get === 'function' ? statuses.get(key) : undefined
+  return (status?.running ?? byId[key]?.running) === true
+}
+
+/**
+ * Whether any direct subagent of one Session is running.
+ *
+ * Absence is never evidence: a shell without the projection store, a catalog
+ * that is not a list, and a named child the readout can resolve no running
+ * value for all leave the parent on its own state.
+ *
+ * @param catalog - the parent's `subagentCatalog` projection value, if any.
+ * @param byId - the list's own rows, for children the stream has not reached.
+ * @param statuses - the UI status snapshot, when one is installed.
+ * @returns whether a live subagent makes the parent ongoing.
+ */
+function catalogHasRunningChild(
+  catalog: unknown,
+  byId: Readonly<Record<string, SessionRowLike | undefined>>,
+  statuses: StatusMapLike | undefined | null,
+): boolean {
+  if (!Array.isArray(catalog)) return false
+  return catalog.some((child) => childRunning(child, byId, statuses))
 }
 
 /** One ordinary Session, with the facts that order the walks. */
@@ -141,8 +211,7 @@ interface Bucketed<Id extends string> {
  * @returns one id list per metric, in walk order.
  */
 export function classifySessions<Id extends string = string>(
-  list: { readonly ids: readonly Id[]; readonly byId: Readonly<Record<string, SessionRowLike | undefined>> }
-    | undefined | null,
+  list: SessionListLike<Id> | undefined | null,
   archivedIds: readonly unknown[] | undefined | null,
   statuses?: StatusMapLike | undefined | null,
 ): MetricBuckets<Id> {
@@ -161,7 +230,9 @@ export function classifySessions<Id extends string = string>(
       return
     }
     const status = typeof statuses?.get === 'function' ? statuses.get(String(id)) : undefined
-    rows.push({ id, bucket: activityBucket(status, row), at: updatedAtOf(row), index })
+    const catalog = list.projectionsBySession?.[String(id)]?.values?.subagentCatalog
+    const liveSubagent = catalogHasRunningChild(catalog, byId, statuses)
+    rows.push({ id, bucket: activityBucket(status, row, liveSubagent), at: updatedAtOf(row), index })
   })
   // Two stable keys: the newest update leads, and equal timestamps (including
   // the undated rows) keep the list's own order.

@@ -12,12 +12,13 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)))
 
 /** One package plus the files and fragments the plugin depends on. */
 const TARGETS = [
-  ['@deepseek-ai/dsh-api-session-controller', 'lib/types/client/sessions/service.d.ts', ['interface SessionListState', 'ids: SessionId[]', 'byId: Record<SessionId, SessionSummary>']],
+  ['@deepseek-ai/dsh-api-session-controller', 'lib/types/client/sessions/service.d.ts', ['interface SessionListState', 'ids: SessionId[]', 'byId: Record<SessionId, SessionSummary>', 'projectionsBySession: Readonly<Record<SessionId, SessionProjectionSnapshot>>']],
   ['@deepseek-ai/dsh-api-session-controller', 'lib/types/client/contract/sessions.d.ts', ['interface ISessions', 'readonly list: ObservableSnapshot<SessionListState>']],
   ['@deepseek-ai/dsh-client-ui-session', 'lib/types/client/index.d.ts', ['interface SessionStatus {', 'readonly running: boolean | undefined', 'readonly pendingInteraction: SessionPendingInteraction | undefined', 'readonly completionUnread: boolean']],
   ['@deepseek-ai/dsh-api-workspace-controller', 'lib/types/client/model.d.ts', ['interface WorkspaceSnapshot {', 'readonly archivedSessionIds:']],
   ['@deepseek-ai/dsh-client-ui-sidebar', 'lib/types/client/contract/slots.d.ts', ["'sidebar.footer.action': {", 'owner: SidebarFooterActionOwnerProps']],
   ['@deepseek-ai/dsh-client-ui-settings', 'lib/types/client/config-form.d.ts', ['getSnapshot(): ConfigFormSnapshot<T>', 'whileServed(namespaces: readonly string[]']],
+  ['@deepseek-ai/dsh-api-session-controller', 'lib/client.js', ['subagentCatalog']],
   ['@deepseek-ai/dsh-client-ui-workspace', 'lib/client.js', ['data-row-key', 'listArea', 'sectionHeader']],
   ['@deepseek-ai/dsh-client-locale', 'lib/client.js', ['dsh.workspace.view.v5']],
 ]

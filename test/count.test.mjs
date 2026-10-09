@@ -35,6 +35,22 @@ function statuses(...rows) {
   return new Map(rows)
 }
 
+/**
+ * Build a Session list snapshot that also carries each parent's direct-subagent
+ * catalog, the way SessionListState carries projectionsBySession.
+ */
+function listWithSubagents(rows, catalogs) {
+  return {
+    ...list(...rows),
+    projectionsBySession: Object.fromEntries(
+      Object.entries(catalogs).map(([parentId, childIds]) => [
+        parentId,
+        { values: { subagentCatalog: childIds.map((id) => ({ id })) }, state: 'ready', error: null },
+      ]),
+    ),
+  }
+}
+
 test('countUnarchived still counts every ordinary Session when nothing is archived', () => {
   const sessions = list(['a', {}], ['b', { title: 'x' }])
   assert.equal(countUnarchived(sessions, []), 2)
@@ -183,6 +199,135 @@ test('classifySessions answers six empty buckets for a malformed snapshot', () =
   const empty = { running: [], unread: [], pending: [], idle: [], unarchived: [], archived: [] }
   assert.deepEqual(classifySessions(undefined, undefined, undefined), empty)
   assert.deepEqual(classifySessions({ ids: undefined, byId: {} }, []), empty)
+})
+
+test('a parent with a live subagent counts as running', () => {
+  const sessions = listWithSubagents([['parent', { updatedAt: 1 }]], { parent: ['kid'] })
+  const counts = countSessions(
+    sessions,
+    [],
+    statuses(['parent', { running: false, completionUnread: false }], ['kid', { running: true }]),
+  )
+  assert.equal(counts.running, 1, 'the shell calls a parent with a live child ongoing')
+  assert.equal(counts.idle, 0)
+})
+
+test('the walk bucket visits the parent the running number counted', () => {
+  const sessions = listWithSubagents(
+    [['parent', { updatedAt: 2 }], ['other', { updatedAt: 1 }]],
+    { parent: ['kid'] },
+  )
+  const buckets = classifySessions(
+    sessions,
+    [],
+    statuses(['parent', { running: false }], ['other', { running: false }], ['kid', { running: true }]),
+  )
+  assert.deepEqual(buckets.running, ['parent'])
+  assert.deepEqual(buckets.idle, ['other'])
+  assert.equal(buckets.running.length + buckets.idle.length, buckets.unarchived.length)
+})
+
+test('a child the status stream still reports wins over a missing list row', () => {
+  const sessions = listWithSubagents([['parent', {}]], { parent: ['kid'] })
+  const counts = countSessions(sessions, [], statuses(['parent', { running: false }], ['kid', { running: true }]))
+  assert.equal(counts.running, 1, 'the status stream is the primary evidence, the row only a fallback')
+})
+
+test('a parent whose subagents all stopped falls back to its own state', () => {
+  const sessions = listWithSubagents(
+    [['done', { updatedAt: 2 }], ['quiet', { updatedAt: 1 }]],
+    { done: ['kid1'], quiet: ['kid2'] },
+  )
+  const counts = countSessions(
+    sessions,
+    [],
+    statuses(
+      ['done', { running: false, completionUnread: true }],
+      ['quiet', { running: false, completionUnread: false }],
+      ['kid1', { running: false }],
+      ['kid2', { running: false }],
+    ),
+  )
+  assert.equal(counts.running, 0, 'a finished child leaves no live activity behind')
+  assert.equal(counts.unread, 1)
+  assert.equal(counts.idle, 1)
+})
+
+test('a live subagent outranks its parent own completion reminder', () => {
+  const sessions = listWithSubagents([['parent', {}]], { parent: ['kid'] })
+  const counts = countSessions(
+    sessions,
+    [],
+    statuses(['parent', { running: false, completionUnread: true }], ['kid', { running: true }]),
+  )
+  assert.equal(counts.running, 1, 'the shell paints that row ongoing, not completed')
+  assert.equal(counts.unread, 0)
+})
+
+test('a parent waiting for an answer stays pending while its subagent runs', () => {
+  const sessions = listWithSubagents([['parent', {}]], { parent: ['kid'] })
+  const counts = countSessions(
+    sessions,
+    [],
+    statuses(['parent', { running: false, pendingInteraction: { kind: 'approval' } }], ['kid', { running: true }]),
+  )
+  assert.equal(counts.pending, 1, 'waiting for the operator still outranks background activity')
+  assert.equal(counts.running, 0)
+})
+
+test('an archived parent stays archived while its subagent runs', () => {
+  const sessions = listWithSubagents([['parent', {}]], { parent: ['kid'] })
+  const counts = countSessions(sessions, ['parent'], statuses(['kid', { running: true }]))
+  assert.deepEqual(counts, { running: 0, unread: 0, pending: 0, idle: 0, unarchived: 0, archived: 1 })
+})
+
+test('a child Session is never a row of its own, only evidence for its parent', () => {
+  const sessions = listWithSubagents(
+    [['parent', {}], ['kid', { parentId: 'parent', running: true }]],
+    { parent: ['kid'] },
+  )
+  const counts = countSessions(sessions, [], statuses(['kid', { running: true }]))
+  assert.equal(counts.unarchived, 1, 'only the parent is an ordinary Session')
+  assert.equal(counts.running, 1, 'and it runs because the child does')
+})
+
+test('a child the status stream has not reached still makes its parent run', () => {
+  const sessions = listWithSubagents(
+    [['parent', {}], ['kid', { parentId: 'parent', running: true }]],
+    { parent: ['kid'] },
+  )
+  assert.equal(countSessions(sessions, [], undefined).running, 1, 'the list row is the fallback')
+})
+
+test('a parent runs only on evidence: empty, malformed, or unresolvable catalogs leave it alone', () => {
+  const shellWithoutProjections = list(['parent', {}])
+  assert.equal(
+    countSessions(shellWithoutProjections, [], statuses(['parent', { running: false }])).running,
+    0,
+    'a snapshot from a shell that carries no projection store keeps the old rule',
+  )
+
+  const empty = listWithSubagents([['parent', {}]], { parent: [] })
+  assert.equal(countSessions(empty, [], statuses(['parent', { running: false }])).running, 0)
+
+  const notAList = {
+    ...list(['parent', {}]),
+    projectionsBySession: { parent: { values: { subagentCatalog: 'not-a-list' } } },
+  }
+  assert.equal(countSessions(notAList, [], statuses(['parent', { running: false }])).running, 0)
+
+  const unnamed = {
+    ...list(['parent', {}]),
+    projectionsBySession: { parent: { values: { subagentCatalog: [null, {}, undefined] } } },
+  }
+  assert.equal(countSessions(unnamed, [], statuses(['parent', { running: false }])).running, 0)
+
+  const noEvidence = listWithSubagents([['parent', {}]], { parent: ['ghost'] })
+  assert.equal(
+    countSessions(noEvidence, [], statuses(['parent', { running: false }])).running,
+    0,
+    'a child named only by the catalog has no running evidence',
+  )
 })
 
 test('normalizeThreshold keeps positive integers and rejects the rest', () => {

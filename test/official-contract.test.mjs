@@ -38,6 +38,7 @@ const DECLARATIONS = [
     'interface SessionListState',
     'ids: SessionId[]',
     'byId: Record<SessionId, SessionSummary>',
+    'projectionsBySession: Readonly<Record<SessionId, SessionProjectionSnapshot>>',
   ]],
   [PKGS.sessions, 'lib/types/client/contract/sessions.d.ts', [
     'interface ISessions',
@@ -78,6 +79,8 @@ const DECLARATIONS = [
 const SHIPPED = [
   [PKGS.workspaceUi, 'lib/client.js', ['data-row-key', 'listArea', 'sectionHeader']],
   [PKGS.workspaceUi, 'lib/client.js', ['dsh.workspace.view.v5']],
+  // The projection key the readout resolves a parent's live subagents through.
+  [PKGS.sessions, 'lib/client.js', ['subagentCatalog']],
 ]
 
 /** The bundle row id this plugin registers; also its settings namespace. */

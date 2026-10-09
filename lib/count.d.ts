@@ -10,6 +10,9 @@
  * - blank Sessions are excluded — they are the reusable "New Session" seat
  *   rather than a conversation.
  *
+ * A parent whose direct subagents are still running counts as running: the
+ * shell paints that row ongoing, and the readout follows the shell.
+ *
  * The six metrics are then two independent splits of that scope:
  * - archive:   archived vs unarchived;
  * - activity:  the unarchived rows fold into exactly one of
@@ -37,10 +40,25 @@ export interface SessionRowLike {
     /** Latest durable update instant; a walk leads with the newest Session. */
     readonly updatedAt?: unknown;
 }
+/** One direct-subagent catalog row, as a projection carries it. */
+export interface SubagentCatalogEntryLike {
+    readonly id?: unknown;
+}
+/** One Session's projection values (a structural subset of SessionProjectionSnapshot). */
+export interface SessionProjectionLike {
+    readonly values?: {
+        readonly subagentCatalog?: readonly SubagentCatalogEntryLike[] | undefined;
+    } | undefined;
+}
 /** The list fields this module reads (a structural subset of SessionListState). */
-export interface SessionListLike {
-    readonly ids: readonly string[];
+export interface SessionListLike<Id extends string = string> {
+    readonly ids: readonly Id[];
     readonly byId: Readonly<Record<string, SessionRowLike | undefined>>;
+    /**
+     * Per-Session projection values. A shell that carries none simply reports no
+     * known subagents, which keeps the readout on its own-turn-only rule.
+     */
+    readonly projectionsBySession?: Readonly<Record<string, SessionProjectionLike | undefined>> | undefined;
 }
 /** Independent UI status facts for one Session (structural subset of SessionStatus). */
 export interface SessionStatusLike {
@@ -81,10 +99,7 @@ export type MetricBuckets<Id extends string = string> = Readonly<Record<Metric, 
  * @param statuses - the UI status snapshot; absence falls back to row facts.
  * @returns one id list per metric, in walk order.
  */
-export declare function classifySessions<Id extends string = string>(list: {
-    readonly ids: readonly Id[];
-    readonly byId: Readonly<Record<string, SessionRowLike | undefined>>;
-} | undefined | null, archivedIds: readonly unknown[] | undefined | null, statuses?: StatusMapLike | undefined | null): MetricBuckets<Id>;
+export declare function classifySessions<Id extends string = string>(list: SessionListLike<Id> | undefined | null, archivedIds: readonly unknown[] | undefined | null, statuses?: StatusMapLike | undefined | null): MetricBuckets<Id>;
 /**
  * Count the six status metrics over one set of snapshots.
  *
