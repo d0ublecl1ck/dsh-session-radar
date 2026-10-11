@@ -3,6 +3,12 @@
 本项目的版本变更记录。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。每次发布对应一个 git tag 与一条 npm 版本。
 
+## [Unreleased]
+
+### 文档
+
+- 补 `assets/readout.png`：六项读数两种版式（胶囊 / 比例条）的示意图，由新增的 `scripts/render-readout-shot.mjs` 用固定夹具渲染真实组件与样式表，**不来自任何真实会话**；README 的「会话状态读数」一节引用它。截图流程同时落进 `scripts/browser-lease.sh` / `scripts/check-residue.sh`（一次任务一个浏览器实例、收尾体检残留）。
+
 ## [1.4.0] - 2026-10-11
 
 ### 新增
