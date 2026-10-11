@@ -10,7 +10,7 @@ DSH Web 插件，合并了三半能力：侧边栏**未读铃铛**（左键顺�
 - CI：`.github/workflows/verify.yml` 在 push/PR 上跑 `npm run verify`，并断言提交进库的 `lib/` 与构建产物一致（两处都要通过）。
 - 装进实例：`dsh plugin --profile web add <本目录绝对路径>`，然后刷新页面。
 - `lib/` 是**被跟踪的构建产物**：改 `src/` 后必须 `npm run build` 并一起提交，否则安装方拿到旧 bundle。
-- **改了 host 半边必须 `remove` + `add`**：宿主按 URL 缓存模块，只 `add` 不会重新导入；症状是"改了没生效"。**IF** 改包名或目录后宿主行第一次激活失败 -> **MUST** 重启 DSH Desktop；运行中的实例会把那次模块解析失败缓存住，之后即使文件系统已正确，`setBundleEnabled` 重挂也一直报 `Cannot find package …index.js`。
+- **改了 host 半边只有重启 App 才会重新导入**（2026-10-09 实测，推翻了原先「`remove` + `add` 就够」的说法）：`remove` + `add` 只重新激活客户端条目（`plugins/??<pkg>/client.js&rev=` 换成新字节），**同路径的 host 模块仍被 ESM 缓存复用**——实测 `remove` + `add` 之后客户端已是新 bundle（响应里能搜到新导出的符号），而账本仍被旧代码写回 `session-radar.json` 的 `version: 2`、没有 `parentId`；重启 App 后才变成 `version: 3`、每条 entry 带 `parentId`。判断 host 半边换没换就看这个 `version` 字段（任一次记账落盘后读一次即可）。**IF** 改包名或目录后宿主行第一次激活失败 -> **MUST** 重启 DSH Desktop：运行中的实例会把那次模块解析失败缓存住，之后即使文件系统已正确，`setBundleEnabled` 重挂也一直报 `Cannot find package …index.js`。
 - **只改了客户端半边**：宿主按 `/plugins/…&rev=<hash>` 分发 bundle，响应头是 `cache-control: public, max-age=31536000, immutable`，所以普通刷新可能命中旧缓存 —— 验证新代码 **MUST** 用硬刷新（`⌘⇧R` / `Ctrl+Shift+R`），否则会把「缓存里还是旧 bundle」误判成「功能没生效」。
 
 ## 技术栈

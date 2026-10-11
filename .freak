@@ -2,7 +2,7 @@
 
 - [ ] `src/client/anchors.ts` / `src/client/jump.ts` — 依赖官方 CSS module 类名子串（`listArea` / `sectionHeader` / `searchSlot` / `headerActions`）与 `[data-row-key="session:<id>"]` 契约；DSH 升级后先核对这两处，再谈行为回归。`listArea`、`sectionHeader`、`data-row-key` 已由 `test/official-contract.test.mjs` 自动盯住（2026-10-04 起），`searchSlot`、`headerActions` 仍靠人工。记录：2026-09-28
 - [ ] `lib/` — 被跟踪的构建产物；改 `src/` 后忘记 `npm run build` 并提交，安装方会拿到旧 bundle。核对方式：`lib/client.js` 是否含 `expandOwningGroup`。记录：2026-09-28
-- [ ] host 半边改动 — 宿主按 URL 缓存模块，只 `dsh plugin add` 不会重新导入；必须 `remove` + `add`。症状：路由 404/405、日志行号仍指向旧代码。**若新行第一次激活失败，运行中的实例会缓存该模块解析失败**：文件系统改对后 `setBundleEnabled` 重挂仍报 `Cannot find package …index.js`，只能重启 DSH Desktop（重启后 `POST /session-radar/list` 应为 401）。记录：2026-10-03
+- [ ] host 半边改动 — **`remove` + `add` 不会重新导入同路径的 host 模块**（2026-10-09 实测更正）：它只重新激活客户端条目（`client.js` 的字节会换），host 模块仍被 ESM 缓存复用，必须重启 DSH Desktop。核查方式是读 `session-radar.json` 的 `version`——remove+add 后仍是 2、重启后才是 3 且每条 entry 带 `parentId`。症状：路由 404/405、日志行号仍指向旧代码。**若新行第一次激活失败，运行中的实例会缓存该模块解析失败**：文件系统改对后 `setBundleEnabled` 重挂仍报 `Cannot find package …index.js`，同样只能重启（重启后 `POST /session-radar/list` 应为 401）。记录：2026-10-03，2026-10-09
 - [ ] 插件标识沿革 — `session-ledger`（2026-10-03 之前）→ `unread-helper`（2026-10-03 起）→ `session-radar`（2026-10-04 起，现役）。旧账本 `session-ledger.json` 当年未继承，`unread-helper.json` 从 1.0 起会被一次性抄入新文件但保留原地。核对标识时以现役名为准。记录：2026-10-04
 - [ ] `test/client-mount.test.mjs` — 夹具按 `options.id` 存注册，`captured` 取 `session-radar` 那条，并用 `handle.all.size` 断言侧边栏只有一个入口；`inject()` 返回的键列表也在该文件里逐字断言（铃铛注入面 2026-10-08 加入 `metricJump`、读数注入面加入 `metricJump`，两处都改了），再新增入口时这两处要一并改。记录：2026-10-03，2026-10-08
 - [ ] `src/client/ledger-source.ts` — 桥接失败仍发布到快照 `error` 并保留上一次已知数据，但 chip 删除后没有界面渲染它；改回 `catch(() => {})` 之前先给 `error` 找一个可见出口。记录：2026-10-03
