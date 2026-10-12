@@ -14,6 +14,10 @@ export declare const zh: {
     'bell.noUnread': string;
     'bell.jumpAsk': string;
     'bell.noAsk': string;
+    'bell.historyBack': string;
+    'bell.historyForward': string;
+    'bell.noHistoryBack': string;
+    'bell.noHistoryForward': string;
     'bell.pending': string;
     'bell.openActivity': string;
     'panel.aria': string;

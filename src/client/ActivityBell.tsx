@@ -40,7 +40,10 @@ import { buildOverview, type Overview, type OverviewCard } from '../overview.js'
 import {
   applyRowInset, ensurePositioned, measureRowInset, mountContainer, type SidebarAnchors,
 } from './anchors.js'
-import { nextAskJump } from './ask-jump.js'
+import { nextAsk } from './ask-jump.js'
+import {
+  emptyHistory, recordVisit, stepHistory, type HistoryStep, type SessionHistory,
+} from './session-history.js'
 import { nextPending, sessionFacts, type SessionFacts } from './completions.js'
 import type { LedgerSource } from './ledger-source.js'
 import {
@@ -96,6 +99,10 @@ export interface ActivityBellInjected {
   readonly unreadJump: JumpSeat
   /** Seat the plugin-scope pending-ask command reads to run this bell's walk. */
   readonly askJump: JumpSeat
+  /** Seat the previous-conversation command reads to step the visit history back. */
+  readonly historyBack: JumpSeat
+  /** Seat the next-conversation command reads to step the visit history forward. */
+  readonly historyForward: JumpSeat
   /** Seat the plugin-scope waiting-window command reads to toggle the window. */
   readonly overviewJump: JumpSeat
   /** Seat the status readout presses to walk one of its metrics. */
@@ -518,7 +525,7 @@ function useHosts(anchors: SidebarAnchors | undefined, wide: boolean, active: bo
  */
 export function ActivityBell({
   wide, t, openSession, pinSession, unpinSession, archiveSession, retrySession, sessions, statuses,
-  workspaces, ledger, unreadJump, askJump, overviewJump, metricJump,
+  workspaces, ledger, unreadJump, askJump, historyBack, historyForward, overviewJump, metricJump,
 }: ActivityBellProps): ReactElement | null {
   const anchors = useSidebarAnchors()
   const list = useSnapshot(sessions)
@@ -697,9 +704,11 @@ export function ActivityBell({
     [groups],
   )
   const cursor = useRef<SessionId | null>(null)
-  // The stops the ask walk left behind, oldest first; the last one is where a
-  // press returns once no ask is left.
-  const askTrail = useRef<readonly SessionId[]>([])
+  // The visited-conversation history the back/forward commands step through.
+  // Every Session the conversation column shows is fed to it (see the recording
+  // effect below), and a revisit only moves the cursor, so the pair works like a
+  // browser's back and forward rather than a one-way trail.
+  const history = useRef<SessionHistory<SessionId>>(emptyHistory())
   // The readout's own walks. They read the classifier the readout's numbers
   // come from, so a press always moves through the Sessions the number beside
   // it counts; each metric keeps its own cursor, so one walk never moves
@@ -709,6 +718,16 @@ export function ActivityBell({
     [list, workspaceSnapshot, statusMap],
   )
   const metricCursor = useRef<Partial<Record<JumpMetric, SessionId>>>({})
+
+  // Record where the conversation column has been. The Session snapshot is the
+  // one source that sees every switch, however it was made - a sidebar click,
+  // the official UI, or one of this plugin's own jumps - so the history is the
+  // operator's real trail rather than only this component's moves. A revisit
+  // only moves the cursor, which is what lets forward undo back.
+  useEffect(() => {
+    if (shown === null) return
+    history.current = recordVisit(history.current, shown)
+  }, [shown])
 
   // Bring one Session's sidebar row into view, expanding its Workspace group
   // first when the group is collapsed and renders no member rows.
@@ -749,16 +768,29 @@ export function ActivityBell({
     openByUser(target)
   }, [acknowledge, openByUser, revealSession, unreadOrder])
 
-  // One press walks the pending asks; once none is left it retraces the trail
-  // of Sessions the walk came through. Unlike the unread walk it acknowledges
-  // nothing: only the operator's answer clears an ask.
+  // One press walks the pending asks. Unlike the unread walk it acknowledges
+  // nothing: only the operator's answer clears an ask. The way back is the
+  // history commands, not this walk.
   const jumpNextAsk = useCallback((): void => {
-    const step = nextAskJump(askOrder, currentSessionId(list), askTrail.current)
-    askTrail.current = step.stack
-    if (step.target === null) return
-    revealSession(step.target)
-    openByUser(step.target)
+    const target = nextAsk(askOrder, currentSessionId(list))
+    if (target === null) return
+    revealSession(target)
+    openByUser(target)
   }, [askOrder, list, openByUser, revealSession])
+
+  // One press steps the visit history one stop in either direction, scrolling
+  // the Session's row into view and opening it. Running out of stops is a no-op;
+  // the seat's availability already reports that, so the command blocks there.
+  const jumpHistory = useCallback((step: HistoryStep): void => {
+    const jump = stepHistory(history.current, step, (id) => list.byId[id] !== undefined)
+    history.current = jump.history
+    if (jump.target === null) return
+    revealSession(jump.target)
+    openByUser(jump.target)
+  }, [list, openByUser, revealSession])
+
+  const jumpHistoryBack = useCallback((): void => { jumpHistory(-1) }, [jumpHistory])
+  const jumpHistoryForward = useCallback((): void => { jumpHistory(1) }, [jumpHistory])
 
   // One press on a readout chip. Unread and pending hand over to the bell's own
   // walks, so the badge, the shortcuts, and the chips stay one cursor over the
@@ -841,17 +873,27 @@ export function ActivityBell({
 
   // Each seat is its plugin-scope command's only way to reach this component's
   // jump: publish while mounted, clear on unmount, and re-publish whenever the
-  // order or the closure's anchors change. The ask seat's availability reads
-  // the trail ref, so the walk home keeps working after the last ask clears.
+  // order or the closure's anchors change. The two history seats read the ref,
+  // so their availability follows the same trail the press will step.
   useEffect(() => unreadJump.publish({
     available: () => unreadOrder.length > 0,
     run: jumpNextUnread,
   }), [unreadJump, jumpNextUnread, unreadOrder])
 
   useEffect(() => askJump.publish({
-    available: () => askOrder.length > 0 || askTrail.current.length > 0,
+    available: () => askOrder.length > 0,
     run: jumpNextAsk,
   }), [askJump, jumpNextAsk, askOrder])
+
+  useEffect(() => historyBack.publish({
+    available: () => stepHistory(history.current, -1, (id) => list.byId[id] !== undefined).target !== null,
+    run: jumpHistoryBack,
+  }), [historyBack, jumpHistoryBack, list])
+
+  useEffect(() => historyForward.publish({
+    available: () => stepHistory(history.current, 1, (id) => list.byId[id] !== undefined).target !== null,
+    run: jumpHistoryForward,
+  }), [historyForward, jumpHistoryForward, list])
 
   // The waiting window's own seat. It stays available while the window is up,
   // because the same press closes it again, and it is available with nothing

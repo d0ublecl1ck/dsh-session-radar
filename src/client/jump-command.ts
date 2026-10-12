@@ -57,6 +57,12 @@ export const UNREAD_JUMP_COMMAND = 'session-radar.jumpUnread' as ShortcutCommand
 /** Pending-ask command id. It keys the stored override, so it has to stay stable. */
 export const ASK_JUMP_COMMAND = 'session-radar.jumpAsk' as ShortcutCommandId
 
+/** History-back command id. It keys the stored override, so it has to stay stable. */
+export const HISTORY_BACK_COMMAND = 'session-radar.historyBack' as ShortcutCommandId
+
+/** History-forward command id. It keys the stored override, so it has to stay stable. */
+export const HISTORY_FORWARD_COMMAND = 'session-radar.historyForward' as ShortcutCommandId
+
 /**
  * Per-profile default bindings for the unread walk.
  *
@@ -198,6 +204,73 @@ export function askJumpCommand(
   return seatCommand(
     ASK_JUMP_COMMAND, seat, label, unavailable,
     ['jump to pending ask', 'next ask', 'pending ask'], ASK_JUMP_DEFAULTS,
+  )
+}
+
+/**
+ * Per-profile default bindings for the back and forward walks.
+ *
+ * Both commands use the two physical keys whose shifted glyphs are `<` and
+ * `>`, so the pair reads as "previous / next" where the operator already
+ * expects it. This is exactly the combination the shipped Web rule singles out:
+ * `isWebBindingAllowed` admits `Mod+/`, `Mod+Shift+,` and `Mod+Shift+.` on
+ * Linux, and its two-extra-modifier branch admits them on macOS and Windows, so
+ * all six profiles can declare a default. The one shipped command on the comma
+ * is `settings.open` (`Mod+,` on desktop, `Mod+Alt+,` on Web) — a different
+ * modifier set, so nothing overlaps.
+ */
+const HISTORY_BACK_DEFAULTS: ShortcutCommand['defaults'] = {
+  'desktop:macos': { code: 'Comma', modifiers: ['primary', 'shift'] },
+  'desktop:windows': { code: 'Comma', modifiers: ['primary', 'shift'] },
+  'desktop:linux': { code: 'Comma', modifiers: ['primary', 'shift'] },
+  'web:macos': { code: 'Comma', modifiers: ['primary', 'shift'] },
+  'web:windows': { code: 'Comma', modifiers: ['primary', 'shift'] },
+  'web:linux': { code: 'Comma', modifiers: ['primary', 'shift'] },
+}
+
+/** Per-profile default bindings for the forward walk; the period to the comma. */
+const HISTORY_FORWARD_DEFAULTS: ShortcutCommand['defaults'] = {
+  'desktop:macos': { code: 'Period', modifiers: ['primary', 'shift'] },
+  'desktop:windows': { code: 'Period', modifiers: ['primary', 'shift'] },
+  'desktop:linux': { code: 'Period', modifiers: ['primary', 'shift'] },
+  'web:macos': { code: 'Period', modifiers: ['primary', 'shift'] },
+  'web:windows': { code: 'Period', modifiers: ['primary', 'shift'] },
+  'web:linux': { code: 'Period', modifiers: ['primary', 'shift'] },
+}
+
+/**
+ * Build the history-back command over a seat.
+ * @param seat - the seat the mounted bell publishes into.
+ * @param label - localized command name shown in the shortcut reference.
+ * @param unavailable - localized reason for a blocked resolution.
+ * @returns the command definition for `ctx.shortcuts.register`.
+ */
+export function historyBackCommand(
+  seat: JumpSeat,
+  label: () => string,
+  unavailable: string,
+): ShortcutCommand {
+  return seatCommand(
+    HISTORY_BACK_COMMAND, seat, label, unavailable,
+    ['previous conversation', 'history back', 'back'], HISTORY_BACK_DEFAULTS,
+  )
+}
+
+/**
+ * Build the history-forward command over a seat.
+ * @param seat - the seat the mounted bell publishes into.
+ * @param label - localized command name shown in the shortcut reference.
+ * @param unavailable - localized reason for a blocked resolution.
+ * @returns the command definition for `ctx.shortcuts.register`.
+ */
+export function historyForwardCommand(
+  seat: JumpSeat,
+  label: () => string,
+  unavailable: string,
+): ShortcutCommand {
+  return seatCommand(
+    HISTORY_FORWARD_COMMAND, seat, label, unavailable,
+    ['next conversation', 'history forward', 'forward'], HISTORY_FORWARD_DEFAULTS,
   )
 }
 

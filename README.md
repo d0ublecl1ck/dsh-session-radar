@@ -11,7 +11,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![DSH plugin](https://img.shields.io/badge/DSH-plugin-4f46e5)](https://github.com/deepseek-ai/deepseek-harness)
 
-**DSH 侧边栏的未读与待办中枢：`⌘⇧J` 按顺序定位未读会话，`⌘⇧I` 处理正在等你输入的会话（提问 / 审批 / 计划审阅），`⌘⇧K` 弹出「等你处理」总览——所有未读与待决策的会话分成两区铺成卡片网格，一眼看清还欠多少；账本落在 host 半边，重启也不丢——**上次退出时还在跑的会话，下次启动就算未读**，`⌘⇧J` 一步走到。侧边栏底部另有一行六项会话状态读数——每个图标都能点，点一下跳到下一个同类会话，设置页可逐项开关。**
+**DSH 侧边栏的未读与待办中枢：`⌘⇧J` 按顺序定位未读会话，`⌘⇧I` 处理正在等你输入的会话（提问 / 审批 / 计划审阅），`⌘⇧,` / `⌘⇧.` 在访问过的对话之间前后切换，`⌘⇧K` 弹出「等你处理」总览——所有未读与待决策的会话分成两区铺成卡片网格，一眼看清还欠多少；账本落在 host 半边，重启也不丢——**上次退出时还在跑的会话，下次启动就算未读**，`⌘⇧J` 一步走到。侧边栏底部另有一行六项会话状态读数——每个图标都能点，点一下跳到下一个同类会话，设置页可逐项开关。**
 
 [效果](#效果) · [安装](#安装) · [装完怎么确认](#装完怎么确认) · [怎么用](#怎么用) · [等你处理总览](#等你处理总览k) · [会话状态读数](#会话状态读数六项计数) · [已知限制](#已知限制) · [安全边界](#安全边界) · [兼容性](#兼容性)
 
@@ -32,7 +32,7 @@
 这个插件把两件事搬回侧边栏：
 
 - 一个**红色角标**告诉你还欠几个「跑完没看」的会话，`⌘⇧J` 带你按顺序一个个过；
-- 一个**黄色角标**（铃铛左上角）告诉你谁在**等你输入**——提问、审批、计划审阅都算，`⌘⇧I` 带你处理，处理完再按一下会**原路返回**；
+- 一个**黄色角标**（铃铛左上角）告诉你谁在**等你输入**——提问、审批、计划审阅都算，`⌘⇧I` 带你处理；`⌘⇧,` / `⌘⇧.` 则在**访问过的对话**之间前后切换（像浏览器的后退 / 前进，和审批互不干扰）；
 - 想知道**总账**时按 `⌘⇧K`：所有未读与待决策的会话在一个弹窗里铺成两区网格，不用一个接一个按过去才知道还有多少；
 - 两者的账本由 host 半边持有，写进 `$DSH_HOME/session-radar.json`，**重启 dsh 后欠的账还在**；
 - **上次退出时还没跑完的会话，下次启动直接算未读**（见「被重启打断的会话」），不会因为当时没看到就被忘在列表里；
@@ -45,7 +45,8 @@
 ![铃铛：左上黄色等待处理角标 + 右上红色未读角标](assets/ask-badge.png)
 
 - `⌘⇧J`：按顺序走未读会话，走到末尾绕回第一个；
-- `⌘⇧I`：先走等待项（最早开始等待的排最前），处理完再按就跳到下一个；没有等待项了，再按会**沿原路返回**你上一个停留点；
+- `⌘⇧I`：先走等待项（最早开始等待的排最前），处理完再按就跳到下一个；
+- `⌘⇧,` / `⌘⇧.`：在访问过的对话之间后退 / 前进，走到两端停住；
 - `⌘⇧K`：弹出「等你处理」总览——左边一列是**待决策**（提问 / 审批 / 计划审阅），右边网格是**未读**，方向键选、Enter 打开、再按一次 `⌘⇧K` 或 Esc 关掉。
 
 三个出口读的是同一份投影，所以角标数字、跳转顺序、总览卡片永远一致：
@@ -114,7 +115,8 @@ dsh plugin --profile web add /绝对路径/dsh-session-radar
 | 会话行上的绿色小标 | 账本里还欠你的会话在行首显示绿点（官方那套「跑完没看」的标记重启后会丢，这个不会）；打开它、把对话滚到底，或在官方行菜单里「标为已读」，绿点都会消失 |
 | 黄色角标 | 正在等你处理的会话数：审批、计划审阅、提问都算；与红色角标分开计数，不会互相顶掉 |
 | 快捷键 J | 与左键点铃铛同一个跳转，默认 macOS `⌘⇧J`、Windows / Linux `Ctrl+Alt+J`，在 设置 → 通用 → 快捷键 改键 |
-| 快捷键 I | 定位等待处理的会话：优先到最早开始等待的那个；处理完再按一次——还有别的 ask 就跳过去，没有了就原路返回上一个停留点 |
+| 快捷键 I | 定位等待处理的会话：优先到最早开始等待的那个；处理完再按一次——还有别的 ask 就跳过去，没有了就没有反应 |
+| 快捷键 `⌘⇧,` / `⌘⇧.` | 在访问过的对话之间后退 / 前进：记录「对话栏显示过哪些会话」，手点、壳自动切、插件跳都算；走到两端停住，从中间新开一个会话会清掉前进那一半 |
 | 快捷键 K | 弹出「等你处理」总览：左列待决策（提问 / 审批 / 计划审阅），右区未读完成的会话，两边都是卡片网格；再按一次 K 关掉。**没有任何等待时也会打开**，窗口给一句「没有未读或待决策的会话」 |
 | 总览里按 ↑ ↓ | 在当前区内上下移动选中卡片（到末尾绕回开头） |
 | 总览里按 ← → | 在「待决策」与「未读」两区之间切换 |
@@ -135,20 +137,25 @@ dsh plugin --profile web add /绝对路径/dsh-session-radar
 | 命令 | 作用 | macOS（Desktop / Web） | Windows / Linux | Web Linux |
 | --- | --- | --- | --- | --- |
 | `session-radar.jumpUnread` | 与铃铛左键同一个跳转（共享同一个游标） | `⌘⇧J`（`Mod+Shift+J`） | `Ctrl+Alt+J`（`Mod+Alt+J`） | 不绑默认 |
-| `session-radar.jumpAsk` | 定位等待处理的会话，并沿原路返回 | `⌘⇧I`（`Mod+Shift+I`） | `Ctrl+Alt+I`（`Mod+Alt+I`） | 不绑默认 |
+| `session-radar.jumpAsk` | 定位等待处理的会话（等待处理队列） | `⌘⇧I`（`Mod+Shift+I`） | `Ctrl+Alt+I`（`Mod+Alt+I`） | 不绑默认 |
+| `session-radar.historyBack` | 回到上一个访问过的对话 | `⌘⇧,`（`Mod+Shift+Comma`） | `Ctrl+Shift+,`（`Mod+Shift+Comma`） | `Ctrl+Shift+,`（`Mod+Shift+Comma`） |
+| `session-radar.historyForward` | 前进到下一个访问过的对话 | `⌘⇧.`（`Mod+Shift+Period`） | `Ctrl+Shift+.`（`Mod+Shift+Period`） | `Ctrl+Shift+.`（`Mod+Shift+Period`） |
 | `session-radar.overview` | 弹出「等你处理」总览（待决策 + 未读两区网格），再按一次关掉 | `⌘⇧K`（`Mod+Shift+K`） | `Ctrl+Shift+K`（`Mod+Shift+K`） | 不绑默认 |
 
 J 与 I 两条命令的辅助键完全一致，只有字母不同：J 走未读，I 走等待处理。字母不能用 O——官方 `workspace.add`（桌面 `Mod+O`、Web `Mod+Alt+O`）与 `workspace.openLocal`（桌面 `Mod+Alt+O`、Web `Mod+Shift+O`）已经占满 O 的简单组合，而注册表在**任意** profile 上发现默认键重叠就会抛错，直接把整个客户端半边打挂。I 没有任何官方命令占用，也不是浏览器或系统快捷键。Web Linux 都只放行三个固定组合，所以三条都没有默认键。
 
 K 也是同理：官方 `session.search`（搜索会话）占着桌面 `Mod+K` 与 Web `Mod+Alt+K`，所以总览**在所有平台都用 `Mod+Shift+K`**——这是三条命令里唯一不按 J / I 家族走的一条，Windows / Linux 上因此是 `Ctrl+Shift+K` 而不是 `Ctrl+Alt+K`。顺带记一笔：`P` 也被官方 `workspace.files` 占着（桌面 `Mod+P`、Web `Mod+Alt+P`），想换字母时别踩。
 
-### I 的走法：先队列，再回栈
+### 前后切换访问过的对话（`⌘⇧,` / `⌘⇧.`）
 
-1. 只要还有会话在等你处理，按 I 就落到其中最早开始等待的那个，同时把「你原来在哪」记进回栈。
-2. 处理完一个 ask（回答提问、批准、或处理计划审阅）后它就不再等待；再按 I——还有 ask 就跳到下一个，并把当前这个记进回栈。
-3. 没有 ask 了，再按 I 就弹出回栈、回到上一个停留点；继续按就一路回到最开始的会话，走完为止。
+`⌘⇧,` 回到上一个访问过的对话，`⌘⇧.` 前进到下一个。它们维护的是一条**浏览器式历史**：
 
-例：`A`（当前）按 I 到 `B` → 处理完 `B` 按 I 到 `C` → 处理完 `C` 按 I 回到 `B` → 再按 I 回到 `A` → 再按没有反应（没有 ask，回栈也空了）。
+1. 「对话栏显示过哪些会话」都会被记下——你手点的、壳自动切的、插件跳的（未读跳转、等待处理跳转、总览打开）都算，所以从来没用过审批也能用。
+2. 已经记过的会话被再打开只是**移动游标**，前面记过的还在，于是后退之后还能前进；从中间打开一个**新**会话会把「前进」那一半丢掉（和浏览器一样）。
+3. 已经不在会话列表里的条目会被跳过（不打开）；走到两端停住，不循环。
+4. 这几条和审批队列是**两套独立逻辑**：`⌘⇧I` 只负责等待处理队列，历史前后只认 `⌘⇧,` / `⌘⇧.`。
+
+macOS 默认 `⌘⇧,` / `⌘⇧.`，Windows / Linux 默认 `Ctrl+Shift+,` / `Ctrl+Shift+.`；Linux Web 也放行这两个组合（官方 Web 规则的白名单里正好有 `Mod+Shift+,` 与 `Mod+Shift+.`），所以六个 profile 都有默认键。命令 id 是 `session-radar.historyBack` / `session-radar.historyForward`，可在 设置 → 通用 → 快捷键 改键。
 
 macOS 只能用 `Mod+Shift+<字母>`，是两个约束卡在一起的结果：macOS Desktop 的 preload 会设 `data-dsh-desktop-web-shortcuts="true"`，runtime 因此是 `web`，所以（1）单 `⌘+字母` 被 Web 规则判 `unsupported-browser` 直接禁用——官方 `⌘K` 就因此无反应；（2）`⌘⌥U` 虽然注册合法，但 `Option+U` 是 macOS 死键，DOM 分发器把死键当输入法组合丢弃，框架只对 `⌘⌥N` 硬编码豁免。`Mod+Shift+J` 两个坑都躲开。R 系组合被官方 `session.rename`、`page.refresh` 占用；`⌘U` 则属于 Desktop 菜单的「检查更新」。要在 Web 改键，也在 设置 → 通用 → 快捷键 里录一个服务允许的组合；Web 默认值只保证注册合法，浏览器是否真的把按键送到页面仍需实测。
 
@@ -285,7 +292,7 @@ host 半边持有账本 `$DSH_HOME/session-radar.json`，原子写（临时文�
 - 行首绿点占用官方行位置 `sidebar.session.row.leading`，官方只在这一行的主状态是 idle 且没有手动未读时才渲染它；官方改位置名、或改成非 idle 行也占用，绿点会静默失效，铃铛角标与跳转不受影响。
 - 快捷键默认值同时受官方服务、macOS 死键与 Desktop 菜单限制：macOS Desktop 以 `web` runtime 分发，单 `⌘+字母` 被判 `unsupported-browser`（官方 `⌘K` 也失效），`⌘⌥<死键>`（如 `U`）被当输入法组合丢弃，`⌘U` 又归 Desktop 菜单「检查更新」，R 系撞官方 `session.rename` / `page.refresh`，`Mod+K` 与 Web 上的 `Mod+Alt+K` 撞官方 `session.search`，`Mod+P` 与 Web 上的 `Mod+Alt+P` 撞官方 `workspace.files`；所以 J / I 的 macOS 默认用 `⌘⇧<字母>`、Windows/Linux 用 `Ctrl+Alt+<字母>`，K 则全域用 `Mod+Shift+K`（Windows/Linux 即 `Ctrl+Shift+K`）；Linux Web 只放行三个固定组合，三条都没有默认键。
 - 「等待处理」角标与 I 跳转覆盖审批、计划审阅、提问三类，数据来自实时状态；跳转顺序取活动列表「最新更新在前」的逆序，所以通常是**最早开始等待**的排最前。打开会话不会清掉等待处理，只有真正回答/批准/处理计划审阅才会清。
-- I 的回栈只活在当前页面的内存里：刷新页面后回栈清空（等待处理角标与队列会由实时状态重建）。
+- 前后切换用的访问历史只活在当前页面的内存里：刷新页面后清空（等待处理角标与队列会由实时状态重建）。
 - 「等你处理」总览（K）与角标共用同一份投影，窗口本身不缓存任何东西；窗口打开期间若某个会话被别处处理掉，卡片会立即跟着消失。K 在 Linux Web 同样没有默认键（该平台只放行三个固定组合），需要在 设置 → 通用 → 快捷键 里自己录一个。
 
 ## 安全边界
@@ -327,7 +334,8 @@ MIT。`LICENSE` 保留上游版权行，并追加本项目版权行。
 **dsh-session-radar** adds an unread/attention bell to the DeepSeek Harness sidebar.
 
 - `⌘⇧J` (macOS) / `Ctrl+Alt+J` (Windows/Linux) walks unread sessions in order.
-- `⌘⇧I` / `Ctrl+Alt+I` walks sessions waiting for you (questions, approvals, plan reviews) and then retraces your path back.
+- `⌘⇧I` / `Ctrl+Alt+I` walks sessions waiting for you (questions, approvals, plan reviews).
+- `⌘⇧,` / `⌘⇧.` (`Ctrl+Shift+,` / `Ctrl+Shift+.` on Windows/Linux) steps back and forward through the conversations you have visited, browser-style: revisiting only moves the cursor, while opening a new conversation drops the forward half.
 - `⌘⇧K` / `Ctrl+Shift+K` opens a waiting overview: pending asks in a fixed left column, unread completions in a grid beside them; arrows move, Enter opens the selected session, Esc (or the same shortcut again) closes it.
 - A host-side ledger at `$DSH_HOME/session-radar.json` keeps the unread/attention state across restarts.
 - A sidebar-foot readout shows six Session counts (running / unread / pending / idle / unarchived / archived) in two layouts; Settings → General → Session status readout toggles each metric and sets the unarchived warning threshold.

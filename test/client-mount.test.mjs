@@ -280,8 +280,9 @@ test('the client half registers the bell, the readout, the gated settings row, a
   assert.notEqual(settings, undefined, 'the settings row is registered under the row id')
   const injected = captured().options.inject()
   assert.deepEqual(Object.keys(injected).sort(), [
-    'archiveSession', 'askJump', 'ledger', 'metricJump', 'openSession', 'overviewJump', 'pinSession',
-    'retrySession', 'sessions', 'statuses', 'unpinSession', 'unreadJump', 'workspaces',
+    'archiveSession', 'askJump', 'historyBack', 'historyForward', 'ledger', 'metricJump',
+    'openSession', 'overviewJump', 'pinSession', 'retrySession', 'sessions', 'statuses',
+    'unpinSession', 'unreadJump', 'workspaces',
   ])
   // The readout renders the presses; the bell owns the walks behind them.
   const readoutFace = readout.options.inject()
@@ -896,7 +897,7 @@ test('a session awaiting the operator raises a warning badge apart from the unre
   for (const dispose of [...disposers].reverse()) dispose()
 })
 
-test('the I shortcut walks the pending asks and retraces the path back', async () => {
+test('the I shortcut walks the pending asks, then the visit history behind them', async () => {
   document.body.innerHTML = ''
   buildSidebar(document)
   let value = {
@@ -970,28 +971,114 @@ test('the I shortcut walks the pending asks and retraces the path back', async (
     'with another ask open the press follows the queue',
   )
 
-  // C is answered too; nothing waits any more.
+  // C is answered too; nothing waits any more. The I command is approval-only:
+  // with no ask left it blocks instead of walking anywhere.
   await React.act(async () => { statusesState.set(new Map()) })
   assert.equal(document.querySelector('.ab-badge-ask'), null, 'a cleared ask drops out of the badge')
-
-  await press()
-  assert.deepEqual(
-    opened,
-    [['open', 'b'], ['open', 'c'], ['open', 'b']],
-    'with no ask left it returns to the session it came from',
-  )
-
-  await press()
-  assert.deepEqual(
-    opened,
-    [['open', 'b'], ['open', 'c'], ['open', 'b'], ['open', 'a']],
-    'and then to the one before that',
-  )
 
   assert.deepEqual(
     await press(),
     { status: 'blocked', reason: '没有等待处理的会话' },
-    'an exhausted trail leaves nothing to jump to',
+    'the ask command has nothing to do once every ask is answered',
+  )
+  assert.deepEqual(
+    opened,
+    [['open', 'b'], ['open', 'c']],
+    'so it opens nothing else',
+  )
+
+  await view.unmount()
+  for (const dispose of [...disposers].reverse()) dispose()
+})
+
+test('the history shortcuts step the visited conversations back and forward', async () => {
+  document.body.innerHTML = ''
+  buildSidebar(document)
+  let value = {
+    ids: ['a', 'b', 'c'],
+    byId: {
+      a: { id: 'a', displayTitle: 'A', blank: false, running: false, updatedAt: localAt(0, 10), retainedBy: { mainView: 1 } },
+      b: { id: 'b', displayTitle: 'B', blank: false, running: false, updatedAt: localAt(0, 11) },
+      c: { id: 'c', displayTitle: 'C', blank: false, running: false, updatedAt: localAt(0, 12) },
+    },
+    phase: 'ready',
+  }
+  const sessionsState = mutableSource(value)
+  const handle = fakeContext({
+    sessions: sessionsState.source,
+    statuses: source(new Map()),
+    workspaces: source({ items: [], archivedSessionIds: [] }),
+  })
+  const { ctx, opened, disposers } = handle
+  // Moving the conversation without the plugin: what a plain sidebar click or
+  // the official UI does. This is the history the two shortcuts step through.
+  const show = (sessionId) => {
+    value = {
+      ...value,
+      byId: Object.fromEntries(Object.entries(value.byId).map(([id, row]) => [
+        id, { ...row, retainedBy: { mainView: id === sessionId ? 1 : 0 } },
+      ])),
+    }
+    sessionsState.set(value)
+  }
+  // The plugin's own opens move mainView the way the real service does.
+  ctx.uiWorkspace.openSession = (sessionId) => {
+    opened.push(['open', sessionId])
+    show(sessionId)
+  }
+  const captured = () => handle.captured
+  apply(ctx)
+  const injected = captured().options.inject()
+  const view = await mount(React.createElement(captured().component, {
+    wide: true, t: translate, ...injected,
+  }))
+
+  const back = handle.shortcut('session-radar.historyBack')
+  const forward = handle.shortcut('session-radar.historyForward')
+  assert.ok(back, 'apply registers the back command')
+  assert.ok(forward, 'apply registers the forward command')
+  const press = async (command) => {
+    const resolution = command.resolve({ region: 'page', modal: null, target: null })
+    if (resolution.status === 'handled') await React.act(async () => { resolution.run() })
+    return resolution
+  }
+
+  assert.deepEqual(
+    await press(back),
+    { status: 'blocked', reason: '没有上一个对话' },
+    'nothing has been visited yet, so there is no previous conversation',
+  )
+
+  // The operator moved A -> B -> C by hand; no approval is involved anywhere.
+  await React.act(async () => { show('b') })
+  await React.act(async () => { show('c') })
+
+  await press(back)
+  assert.deepEqual(opened, [['open', 'b']], 'back opens the conversation before C')
+  await press(back)
+  assert.deepEqual(opened, [['open', 'b'], ['open', 'a']], 'and then the one before that')
+  assert.deepEqual(
+    await press(back),
+    { status: 'blocked', reason: '没有上一个对话' },
+    'the walk stops at the oldest visit instead of wrapping',
+  )
+
+  await press(forward)
+  assert.deepEqual(
+    opened,
+    [['open', 'b'], ['open', 'a'], ['open', 'b']],
+    'forward re-opens the conversation back came from',
+  )
+  await press(forward)
+  assert.deepEqual(
+    opened,
+    [['open', 'b'], ['open', 'a'], ['open', 'b'], ['open', 'c']],
+    'and then the one after that',
+  )
+  assert.deepEqual(
+    await press(forward),
+    { status: 'blocked', reason: '没有下一个对话' },
+    'the walk stops at the newest visit instead of wrapping',
   )
 
   await view.unmount()

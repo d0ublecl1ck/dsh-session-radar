@@ -40,6 +40,10 @@ export declare function createJumpSeat(): JumpSeat;
 export declare const UNREAD_JUMP_COMMAND: ShortcutCommandId;
 /** Pending-ask command id. It keys the stored override, so it has to stay stable. */
 export declare const ASK_JUMP_COMMAND: ShortcutCommandId;
+/** History-back command id. It keys the stored override, so it has to stay stable. */
+export declare const HISTORY_BACK_COMMAND: ShortcutCommandId;
+/** History-forward command id. It keys the stored override, so it has to stay stable. */
+export declare const HISTORY_FORWARD_COMMAND: ShortcutCommandId;
 /** Waiting-window command id. It keys the stored override, so it has to stay stable. */
 export declare const OVERVIEW_COMMAND: ShortcutCommandId;
 /**
@@ -62,6 +66,22 @@ export declare function unreadJumpCommand(seat: JumpSeat, label: () => string, u
  * @returns the command definition for `ctx.shortcuts.register`.
  */
 export declare function askJumpCommand(seat: JumpSeat, label: () => string, unavailable: string): ShortcutCommand;
+/**
+ * Build the history-back command over a seat.
+ * @param seat - the seat the mounted bell publishes into.
+ * @param label - localized command name shown in the shortcut reference.
+ * @param unavailable - localized reason for a blocked resolution.
+ * @returns the command definition for `ctx.shortcuts.register`.
+ */
+export declare function historyBackCommand(seat: JumpSeat, label: () => string, unavailable: string): ShortcutCommand;
+/**
+ * Build the history-forward command over a seat.
+ * @param seat - the seat the mounted bell publishes into.
+ * @param label - localized command name shown in the shortcut reference.
+ * @param unavailable - localized reason for a blocked resolution.
+ * @returns the command definition for `ctx.shortcuts.register`.
+ */
+export declare function historyForwardCommand(seat: JumpSeat, label: () => string, unavailable: string): ShortcutCommand;
 /**
  * Build the waiting-window command over a seat.
  *

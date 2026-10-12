@@ -1,53 +1,36 @@
 /**
- * Pure-lane test: the pending-ask jump. The walk is a fold over the pending
- * order plus a LIFO trail of the sessions the operator left behind, so it is
- * testable without DOM, React, or the shell's services.
+ * Pure-lane test: the pending-ask queue. It is a fold over the pending order,
+ * so it is testable without DOM, React, or the shell's services. The walk home
+ * is the visited-conversation history (./session-history), not this module.
  */
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { nextAskJump } from '../.test-build/client/ask-jump.js'
+import { nextAsk } from '../.test-build/client/ask-jump.js'
 
-test('no pending ask and an empty trail has nowhere to go', () => {
-  assert.deepEqual(nextAskJump([], 'a', []), { target: null, stack: [] })
+test('no pending ask has nowhere to go', () => {
+  assert.equal(nextAsk([], 'a'), null)
 })
 
-test('the first ask press remembers the session it came from', () => {
-  assert.deepEqual(nextAskJump(['b', 'c'], 'a', []), { target: 'b', stack: ['a'] })
+test('the first ask press lands on the earliest waiting session', () => {
+  assert.equal(nextAsk(['b', 'c'], 'a'), 'b')
 })
 
 test('a press with no current session still lands on the first ask', () => {
-  assert.deepEqual(nextAskJump(['b', 'c'], null, []), { target: 'b', stack: [] })
-})
-
-test('after the first ask is handled the walk follows the queue and remembers each stop', () => {
-  assert.deepEqual(nextAskJump(['c'], 'b', ['a']), { target: 'c', stack: ['a', 'b'] })
-})
-
-test('with every ask handled the walk returns along the trail, newest stop first', () => {
-  assert.deepEqual(nextAskJump([], 'c', ['a', 'b']), { target: 'b', stack: ['a'] })
-  assert.deepEqual(nextAskJump([], 'b', ['a']), { target: 'a', stack: [] })
-})
-
-test('an exhausted trail ends the walk instead of looping', () => {
-  assert.deepEqual(nextAskJump([], 'a', []), { target: null, stack: [] })
+  assert.equal(nextAsk(['b', 'c'], null), 'b')
 })
 
 test('pressing again while the ask is still open cycles to the next one', () => {
-  assert.deepEqual(nextAskJump(['b', 'c'], 'b', ['a']), { target: 'c', stack: ['a'] })
+  assert.equal(nextAsk(['b', 'c'], 'b'), 'c')
+})
+
+test('the queue wraps around', () => {
+  assert.equal(nextAsk(['b', 'c'], 'c'), 'b')
 })
 
 test('the only open ask is already the current session, so the press does nothing', () => {
-  assert.deepEqual(nextAskJump(['b'], 'b', ['a']), { target: null, stack: ['a'] })
+  assert.equal(nextAsk(['b'], 'b'), null)
 })
 
-test('a session already on the trail is never pushed twice', () => {
-  assert.deepEqual(nextAskJump(['c'], 'a', ['a', 'b']), { target: 'c', stack: ['a', 'b'] })
-})
-
-test('the walk back never lands on the session it is already showing', () => {
-  assert.deepEqual(nextAskJump([], 'b', ['a', 'b']), { target: 'a', stack: [] })
-})
-
-test('a trail that only holds the current session is consumed and ends the walk', () => {
-  assert.deepEqual(nextAskJump([], 'a', ['a']), { target: null, stack: [] })
+test('a current session that is not waiting enters the queue at its head', () => {
+  assert.equal(nextAsk(['c', 'd'], 'a'), 'c')
 })

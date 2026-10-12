@@ -6,7 +6,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  ASK_JUMP_COMMAND, askJumpCommand, createJumpSeat, overviewCommand, OVERVIEW_COMMAND,
+  ASK_JUMP_COMMAND, askJumpCommand, createJumpSeat, HISTORY_BACK_COMMAND, HISTORY_FORWARD_COMMAND,
+  historyBackCommand, historyForwardCommand, overviewCommand, OVERVIEW_COMMAND,
   unreadJumpCommand, UNREAD_JUMP_COMMAND,
 } from '../.test-build/client/jump-command.js'
 // The shipped service's own rules: a default it rejects throws inside
@@ -287,20 +288,26 @@ test('no overview default overlaps the shipped KeyK search binding', () => {
   }
 })
 
-test('the three session-radar commands never overlap each other', () => {
+test('the five session-radar commands never overlap each other', () => {
   const commands = [
     unreadJumpCommand(createJumpSeat(), () => 'x', 'y'),
     askJumpCommand(createJumpSeat(), () => 'x', 'y'),
     overviewCommand(createJumpSeat(), () => 'x', 'y'),
+    historyBackCommand(createJumpSeat(), () => 'x', 'y'),
+    historyForwardCommand(createJumpSeat(), () => 'x', 'y'),
   ]
-  for (const profile of Object.keys(commands[0].defaults)) {
+  const profiles = new Set(commands.flatMap((command) => Object.keys(command.defaults)))
+  for (const profile of profiles) {
     const platform = profile.split(':')[1]
     for (let left = 0; left < commands.length; left += 1) {
       for (let right = left + 1; right < commands.length; right += 1) {
+        const leftDefault = commands[left].defaults[profile]
+        const rightDefault = commands[right].defaults[profile]
+        if (leftDefault === undefined || rightDefault === undefined) continue
         assert.equal(
           overlappingBindings(
-            normalizeBinding(commands[left].defaults[profile], platform),
-            normalizeBinding(commands[right].defaults[profile], platform),
+            normalizeBinding(leftDefault, platform),
+            normalizeBinding(rightDefault, platform),
           ),
           false,
           `${profile}: ${commands[left].id} must not collide with ${commands[right].id}`,
@@ -316,4 +323,99 @@ test('the overview command blocks while nothing waits', () => {
   assert.deepEqual(command.resolve(CONTEXT), { status: 'blocked', reason: '没有未读或待决策的会话' })
   seat.publish({ available: () => false, run: () => { throw new Error('must not run') } })
   assert.deepEqual(command.resolve(CONTEXT), { status: 'blocked', reason: '没有未读或待决策的会话' })
+})
+test('the history commands key their stored overrides on stable ids and names', () => {
+  const back = historyBackCommand(createJumpSeat(), () => '回到上一个对话', '没有上一个对话')
+  const forward = historyForwardCommand(createJumpSeat(), () => '前进到下一个对话', '没有下一个对话')
+  assert.equal(back.id, 'session-radar.historyBack')
+  assert.equal(HISTORY_BACK_COMMAND, 'session-radar.historyBack')
+  assert.equal(forward.id, 'session-radar.historyForward')
+  assert.equal(HISTORY_FORWARD_COMMAND, 'session-radar.historyForward')
+  assert.equal(back.label(), '回到上一个对话')
+  assert.equal(forward.label(), '前进到下一个对话')
+  assert.deepEqual(back.aliases, ['previous conversation', 'history back', 'back'])
+  assert.deepEqual(forward.aliases, ['next conversation', 'history forward', 'forward'])
+  assert.deepEqual(back.regions, ['page', 'editable'])
+  assert.deepEqual(back.modals, [])
+})
+
+test('the history defaults use the shifted comma and period on every profile', () => {
+  const back = historyBackCommand(createJumpSeat(), () => 'x', 'y')
+  const forward = historyForwardCommand(createJumpSeat(), () => 'x', 'y')
+  const profiles = [
+    'desktop:macos', 'desktop:windows', 'desktop:linux',
+    'web:macos', 'web:windows', 'web:linux',
+  ]
+  for (const profile of profiles) {
+    assert.deepEqual(back.defaults[profile], { code: 'Comma', modifiers: ['primary', 'shift'] })
+    assert.deepEqual(forward.defaults[profile], { code: 'Period', modifiers: ['primary', 'shift'] })
+  }
+  assert.equal(Object.keys(back.defaults).length, 6, 'both keys are Web-legal, so Linux Web declares one too')
+})
+
+test('every history default passes the shipped service legality checks, Linux Web included', () => {
+  const commands = [
+    historyBackCommand(createJumpSeat(), () => 'x', 'y'),
+    historyForwardCommand(createJumpSeat(), () => 'x', 'y'),
+  ]
+  for (const command of commands) {
+    for (const [profile, binding] of Object.entries(command.defaults)) {
+      const [runtime, platform] = profile.split(':')
+      const normalized = normalizeBinding(binding, platform)
+      assert.equal(
+        bindingIssue(normalized, runtime, platform), null,
+        `${command.id} ${profile} must not be reserved or unsupported`,
+      )
+      if (runtime === 'web') {
+        assert.equal(
+          isWebBindingAllowed(normalized, platform), true,
+          `${command.id} ${profile} must be a Web-legal combination`,
+        )
+      }
+    }
+  }
+})
+
+/**
+ * The one shipped command on the comma. `settings.open` (dsh-client-ui-settings)
+ * takes Mod+, on desktop and Mod+Alt+, on Web, so the history keys cannot reuse
+ * those modifier sets; Shift is a different set, which is why they may.
+ */
+const SHIPPED_KEY_COMMA_COMMANDS = {
+  'settings.open': {
+    'desktop:macos': { code: 'Comma', modifiers: ['primary'] },
+    'desktop:windows': { code: 'Comma', modifiers: ['primary'] },
+    'desktop:linux': { code: 'Comma', modifiers: ['primary'] },
+    'web:macos': { code: 'Comma', modifiers: ['primary', 'alt'] },
+    'web:windows': { code: 'Comma', modifiers: ['primary', 'alt'] },
+  },
+}
+
+test('no history default overlaps the shipped settings binding', () => {
+  const commands = [
+    historyBackCommand(createJumpSeat(), () => 'x', 'y'),
+    historyForwardCommand(createJumpSeat(), () => 'x', 'y'),
+  ]
+  for (const [name, profiles] of Object.entries(SHIPPED_KEY_COMMA_COMMANDS)) {
+    for (const [profile, official] of Object.entries(profiles)) {
+      const platform = profile.split(':')[1]
+      for (const command of commands) {
+        const ours = command.defaults[profile]
+        if (ours === undefined) continue
+        assert.equal(
+          overlappingBindings(normalizeBinding(ours, platform), normalizeBinding(official, platform)),
+          false,
+          `${profile}: ${command.id} must not collide with ${name}`,
+        )
+      }
+    }
+  }
+})
+
+test('the history commands block with their own reason when the walk runs out', () => {
+  const seat = createJumpSeat()
+  const command = historyBackCommand(seat, () => 'x', '没有上一个对话')
+  assert.deepEqual(command.resolve(CONTEXT), { status: 'blocked', reason: '没有上一个对话' })
+  seat.publish({ available: () => true, run: () => {} })
+  assert.equal(command.resolve(CONTEXT).status, 'handled')
 })

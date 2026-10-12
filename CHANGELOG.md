@@ -5,6 +5,11 @@
 
 ## [Unreleased]
 
+### 新增
+
+- **`⌘⇧,` / `⌘⇧.` 前后切换访问过的对话**：维护一条浏览器式访问历史——「对话栏显示过哪些会话」都会被记下（手点、壳自动切、插件跳都算），`⌘⇧,` 后退、`⌘⇧.` 前进；已记过的会话再打开只移动游标，所以后退之后还能前进；从中间打开一个新会话会丢掉「前进」那一半，走到两端停住，已不在列表里的条目跳过。纯逻辑在 `src/client/session-history.ts`（`recordVisit` / `stepHistory`，可单测），两个命令 `session-radar.historyBack` / `session-radar.historyForward` 默认 `Mod+Shift+,` / `Mod+Shift+.`——官方 Web 规则的白名单明确放行这两个组合，六个 profile 都有默认键；唯一用逗号的官方命令 `settings.open`（`Mod+,` / `Mod+Alt+,`）修饰键不同，不重叠。
+- **`⌘⇧I` 保持只管等待处理队列**：审批队列与上面的历史前后是两套独立逻辑，I 不再兼任「回到上一个」。
+
 ### 文档
 
 - 补 `assets/readout.png`：六项读数两种版式（胶囊 / 比例条）的示意图，由新增的 `scripts/render-readout-shot.mjs` 用固定夹具渲染真实组件与样式表，**不来自任何真实会话**；README 的「会话状态读数」一节引用它。截图流程同时落进 `scripts/browser-lease.sh` / `scripts/check-residue.sh`（一次任务一个浏览器实例、收尾体检残留）。

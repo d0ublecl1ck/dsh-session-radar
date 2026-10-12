@@ -30,7 +30,10 @@ import { PLUGIN_ID } from '../config.js'
 import './types.js'
 import { ActivityBell } from './ActivityBell.js'
 import { createConfigSource } from './config-source.js'
-import { askJumpCommand, createJumpSeat, overviewCommand, unreadJumpCommand } from './jump-command.js'
+import {
+  askJumpCommand, createJumpSeat, historyBackCommand, historyForwardCommand, overviewCommand,
+  unreadJumpCommand,
+} from './jump-command.js'
 import { createLedgerSource } from './ledger-source.js'
 import { createMetricJumpSeat } from './metric-jump.js'
 import { en, zh } from './locales.js'
@@ -127,6 +130,8 @@ export function apply(ctx: Context): void {
   // and the waiting window's seat is a door rather than a target.
   const unreadJump = createJumpSeat()
   const askJump = createJumpSeat()
+  const historyBack = createJumpSeat()
+  const historyForward = createJumpSeat()
   const overviewJump = createJumpSeat()
   // The status readout's per-metric walks: the bell publishes them, the
   // readout presses them.
@@ -138,6 +143,12 @@ export function apply(ctx: Context): void {
   ctx.effect(() => ctx.shortcuts.register(
     askJumpCommand(askJump, () => t('bell.jumpAsk'), t('bell.noAsk')),
   ), 'session-radar: ask shortcut command')
+  ctx.effect(() => ctx.shortcuts.register(
+    historyBackCommand(historyBack, () => t('bell.historyBack'), t('bell.noHistoryBack')),
+  ), 'session-radar: history back command')
+  ctx.effect(() => ctx.shortcuts.register(
+    historyForwardCommand(historyForward, () => t('bell.historyForward'), t('bell.noHistoryForward')),
+  ), 'session-radar: history forward command')
   ctx.effect(() => ctx.shortcuts.register(
     overviewCommand(overviewJump, () => t('overview.open'), t('overview.noWaiting')),
   ), 'session-radar: overview shortcut command')
@@ -175,6 +186,8 @@ export function apply(ctx: Context): void {
       ledger,
       unreadJump,
       askJump,
+      historyBack,
+      historyForward,
       overviewJump,
       metricJump,
     }),
