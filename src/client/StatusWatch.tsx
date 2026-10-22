@@ -75,9 +75,9 @@ export function StatusWatch({
   if (!wide) {
     return (
       <Tooltip label={label} side="top" delayMs={200} portal>
-        <span className="sw-rail" role="status" aria-label={label} data-warn={warn ? 'true' : undefined}>
+        <span className="dsr-sw-rail" role="status" aria-label={label} data-warn={warn ? 'true' : undefined}>
           <WatchIcon />
-          <span className="sw-rail-count" aria-hidden="true">{counts.unarchived}</span>
+          <span className="dsr-sw-rail-count" aria-hidden="true">{counts.unarchived}</span>
         </span>
       </Tooltip>
     )
@@ -111,14 +111,14 @@ function MetricCell({
   readonly metric: Metric
   readonly count: number
   readonly warn: boolean
-  readonly className: 'sw-chip' | 'sw-legend'
+  readonly className: 'dsr-sw-chip' | 'dsr-sw-legend'
   readonly t: Translate
   readonly metricJump: MetricJumpSeat | undefined
 }) {
   const glyph = (
     <>
       <MetricIcon metric={metric} />
-      <span className="sw-chip-count">{count}</span>
+      <span className="dsr-sw-chip-count">{count}</span>
     </>
   )
   // The archive is not a jump target (the shell refuses to open an archived
@@ -150,11 +150,11 @@ function renderChips(
   metricJump: MetricJumpSeat | undefined,
 ) {
   return (
-    <span className="sw-watch" data-variant="chips" role="status" aria-label={label}>
+    <span className="dsr-sw-watch" data-variant="chips" role="status" aria-label={label}>
       {shown.map((metric) => (
         <MetricCell
           key={metric}
-          className="sw-chip"
+          className="dsr-sw-chip"
           metric={metric}
           count={counts[metric]}
           warn={warn}
@@ -177,14 +177,14 @@ function renderMeter(
 ) {
   const activity = ACTIVITY.filter((metric) => shown.includes(metric))
   return (
-    <span className="sw-meter" data-variant="meter" role="status" aria-label={label}>
-      <span className="sw-meter-bar" aria-hidden="true">
+    <span className="dsr-sw-meter" data-variant="meter" role="status" aria-label={label}>
+      <span className="dsr-sw-meter-bar" aria-hidden="true">
         {activity.length === 0 ? (
-          <span className="sw-meter-seg" data-metric="idle" data-empty="true" />
+          <span className="dsr-sw-meter-seg" data-metric="idle" data-empty="true" />
         ) : (
           activity.map((metric) => (
             <span
-              className="sw-meter-seg"
+              className="dsr-sw-meter-seg"
               data-metric={metric}
               key={metric}
               style={{ flexGrow: Math.max(0, counts[metric]) }}
@@ -192,11 +192,11 @@ function renderMeter(
           ))
         )}
       </span>
-      <span className="sw-meter-legend">
+      <span className="dsr-sw-meter-legend">
         {shown.map((metric) => (
           <MetricCell
             key={metric}
-            className="sw-legend"
+            className="dsr-sw-legend"
             metric={metric}
             count={counts[metric]}
             warn={warn}

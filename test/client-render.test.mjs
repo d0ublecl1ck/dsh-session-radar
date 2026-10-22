@@ -84,12 +84,12 @@ test('the chips readout shows every visible metric with its own count', () => {
   for (const metric of ['running', 'unread', 'pending', 'idle', 'unarchived', 'archived']) {
     assert.match(markup, new RegExp('data-metric="' + metric + '"'), 'the ' + metric + ' chip is rendered')
   }
-  assert.match(markup, /data-metric="running"[^>]*>[\s\S]*?sw-chip-count">1</)
-  assert.match(markup, /data-metric="pending"[^>]*>[\s\S]*?sw-chip-count">1</)
-  assert.match(markup, /data-metric="unread"[^>]*>[\s\S]*?sw-chip-count">1</)
-  assert.match(markup, /data-metric="idle"[^>]*>[\s\S]*?sw-chip-count">1</)
-  assert.match(markup, /data-metric="unarchived"[^>]*>[\s\S]*?sw-chip-count">4</)
-  assert.match(markup, /data-metric="archived"[^>]*>[\s\S]*?sw-chip-count">2</)
+  assert.match(markup, /data-metric="running"[^>]*>[\s\S]*?dsr-sw-chip-count">1</)
+  assert.match(markup, /data-metric="pending"[^>]*>[\s\S]*?dsr-sw-chip-count">1</)
+  assert.match(markup, /data-metric="unread"[^>]*>[\s\S]*?dsr-sw-chip-count">1</)
+  assert.match(markup, /data-metric="idle"[^>]*>[\s\S]*?dsr-sw-chip-count">1</)
+  assert.match(markup, /data-metric="unarchived"[^>]*>[\s\S]*?dsr-sw-chip-count">4</)
+  assert.match(markup, /data-metric="archived"[^>]*>[\s\S]*?dsr-sw-chip-count">2</)
 })
 
 test('a parent with a running subagent is counted beside its own running Session', () => {
@@ -102,9 +102,9 @@ test('a parent with a running subagent is counted beside its own running Session
   }
   const statuses = statusMap(['session-0', { running: false }], ['session-1', { running: true }])
   const markup = renderRegistered(mounted, FOOTER_SLOT, STATUS_ID, standardHooks(list, [], [], statuses))
-  assert.match(markup, /data-metric="running"[^>]*>[\s\S]*?sw-chip-count">1/)
-  assert.match(markup, /data-metric="idle"[^>]*>[\s\S]*?sw-chip-count">0/)
-  assert.match(markup, /data-metric="unarchived"[^>]*>[\s\S]*?sw-chip-count">1/)
+  assert.match(markup, /data-metric="running"[^>]*>[\s\S]*?dsr-sw-chip-count">1/)
+  assert.match(markup, /data-metric="idle"[^>]*>[\s\S]*?dsr-sw-chip-count">0/)
+  assert.match(markup, /data-metric="unarchived"[^>]*>[\s\S]*?dsr-sw-chip-count">1/)
 })
 
 test('only the enabled metrics are rendered', () => {
@@ -150,9 +150,9 @@ test('the collapsed rail shows one mark with the unarchived count and the full n
     wide: false,
     ...standardHooks(list, archived, [], statuses),
   })
-  assert.match(markup, /class="sw-rail"/)
-  assert.match(markup, /class="sw-rail-count"[^>]*>4</)
-  assert.doesNotMatch(markup, /sw-chip/)
+  assert.match(markup, /class="dsr-sw-rail"/)
+  assert.match(markup, /class="dsr-sw-rail-count"[^>]*>4</)
+  assert.doesNotMatch(markup, /dsr-sw-chip/)
   assert.match(markup, /aria-label="会话状态：/)
   assert.match(markup, /未归档 4 个/)
 })
@@ -162,9 +162,9 @@ test('the meter layout renders the bar and the same legend numbers', () => {
   const { list, statuses, archived } = fixture()
   const markup = renderRegistered(mounted, FOOTER_SLOT, STATUS_ID, standardHooks(list, archived, [], statuses))
   assert.match(markup, /data-variant="meter"/)
-  assert.match(markup, /class="sw-meter-bar"/)
-  assert.match(markup, /class="sw-meter-seg" data-metric="running"/)
-  assert.match(markup, /data-metric="unarchived"[^>]*>[\s\S]*?sw-chip-count">4</)
+  assert.match(markup, /class="dsr-sw-meter-bar"/)
+  assert.match(markup, /class="dsr-sw-meter-seg" data-metric="running"/)
+  assert.match(markup, /data-metric="unarchived"[^>]*>[\s\S]*?dsr-sw-chip-count">4</)
 })
 
 /** A jump-seat double that records the metric each press asked for. */
@@ -186,12 +186,12 @@ test('every metric but the archive is a jump button carrying its own name', () =
   for (const metric of ['running', 'unread', 'pending', 'idle', 'unarchived']) {
     assert.match(
       markup,
-      new RegExp('<button[^>]*class="sw-chip"[^>]*data-metric="' + metric + '"'),
+      new RegExp('<button[^>]*class="dsr-sw-chip"[^>]*data-metric="' + metric + '"'),
       'the ' + metric + ' chip is a button',
     )
   }
   assert.doesNotMatch(markup, /<button[^>]*data-metric="archived"/, 'the archive stays a count, not a target')
-  assert.match(markup, /<span[^>]*class="sw-chip"[^>]*data-metric="archived"/)
+  assert.match(markup, /<span[^>]*class="dsr-sw-chip"[^>]*data-metric="archived"/)
   assert.match(markup, /aria-label="未读 1 个，点击跳到下一个"/, 'a chip says what pressing it does')
   assert.match(markup, /aria-label="会话状态：[^"]*已归档 2 个/, 'the group keeps naming the readout')
 })
@@ -206,12 +206,12 @@ test('the jumpable metrics stay buttons in the meter legend, and the archive sta
   for (const metric of ['running', 'unread', 'pending', 'idle', 'unarchived']) {
     assert.match(
       markup,
-      new RegExp('<button[^>]*class="sw-legend"[^>]*data-metric="' + metric + '"'),
+      new RegExp('<button[^>]*class="dsr-sw-legend"[^>]*data-metric="' + metric + '"'),
       'the ' + metric + ' legend entry is a button',
     )
   }
   assert.doesNotMatch(markup, /<button[^>]*data-metric="archived"/)
-  assert.match(markup, /<span[^>]*class="sw-legend"[^>]*data-metric="archived"/)
+  assert.match(markup, /<span[^>]*class="dsr-sw-legend"[^>]*data-metric="archived"/)
 })
 
 test('the collapsed rail stays a readout rather than a control', () => {
@@ -222,7 +222,7 @@ test('the collapsed rail stays a readout rather than a control', () => {
     ...standardHooks(list, archived, [], statuses),
     metricJump: jumpSeat([]),
   })
-  assert.match(markup, /<span[^>]*class="sw-rail"/)
+  assert.match(markup, /<span[^>]*class="dsr-sw-rail"/)
   assert.doesNotMatch(markup, /<button/)
 })
 
@@ -232,15 +232,15 @@ test('the settings row offers every toggle, every layout, and the threshold inpu
   const markup = renderRegistered(mounted, SETTINGS_SLOT, BELL_ID, standardHooks(list, archived, [], statuses))
   assert.match(markup, /会话状态读数/)
   for (const metric of ['running', 'unread', 'pending', 'idle', 'unarchived', 'archived']) {
-    assert.match(markup, new RegExp('class="sw-toggle" data-metric="' + metric + '"'))
+    assert.match(markup, new RegExp('class="dsr-sw-toggle" data-metric="' + metric + '"'))
   }
-  assert.match(markup, /class="sw-toggle sw-toggle-badge" data-metric="rowBadge"/, 'the durable row badge has its own switch')
+  assert.match(markup, /class="dsr-sw-toggle dsr-sw-toggle-badge" data-metric="rowBadge"/, 'the durable row badge has its own switch')
   assert.match(markup, /重启后保留未读小标/, 'and says what it does')
   assert.equal((markup.match(/type="checkbox"/g) ?? []).length, 7, 'one checkbox per metric plus the row badge')
   for (const label of ['胶囊', '比例条']) {
     assert.match(markup, new RegExp(label), 'the ' + label + ' layout control is offered')
   }
-  assert.equal((markup.match(/sw-variant[" ]/g) ?? []).length, 2, 'exactly the two offered layouts render')
+  assert.equal((markup.match(/dsr-sw-variant[" ]/g) ?? []).length, 2, 'exactly the two offered layouts render')
   assert.match(markup, /<input[^>]*type="number"/)
   assert.match(markup, /<input[^>]*value="7"/)
   assert.match(markup, /未归档会话阈值/)

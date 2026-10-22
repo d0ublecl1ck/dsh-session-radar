@@ -17,13 +17,13 @@
  * Usage:
  *   node scripts/capture-bell.mjs --url 'http://127.0.0.1:43129/?token=...' \
  *     --out assets/bell.png [--selector '[class*="sectionHeader"]'] [--pad 8] \
- *     [--wait-for '.ab-badge-ask'] [--settle-ms 800] [--cookie 'dsh-auth-…=v1.…']
+ *     [--wait-for '.dsr-ab-badge-ask'] [--settle-ms 800] [--cookie 'dsh-auth-…=v1.…']
  *
  * The ?token= in the URL is a one-shot login: a second run against the same
  * instance lands on "authentication required". Pass --cookie instead for any
  * repeatable capture — the value is the signed `dsh-auth-<authority>` cookie the
  * instance mints from `<DSH_HOME>/.credentials.yaml`. The restart-retry dialog
- * is captured the same way with --selector '.rt-panel' and --wait-for '.rt-panel',
+ * is captured the same way with --selector '.dsr-rt-panel' and --wait-for '.dsr-rt-panel',
  * but only from an instance whose sessions are all examples: point it at a
  * throwaway home (a second harness on its own port), never at the operator's
  * live session list.

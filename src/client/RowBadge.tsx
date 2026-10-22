@@ -44,7 +44,7 @@ export function RowBadge({ sessionId, ledger, config, t }: RowBadgeProps) {
   return (
     <>
       <StateDot state="done" />
-      <span className="sw-sr-only">{t('row.unread')}</span>
+      <span className="dsr-sw-sr-only">{t('row.unread')}</span>
     </>
   )
 }

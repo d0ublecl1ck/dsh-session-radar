@@ -66,20 +66,20 @@ export function SettingsRow({ useSessions, useSessionStatus, useWorkspaces, conf
   const warn = counts.unarchived > watch.threshold
 
   return (
-    <div className="sw-row">
-      <div className="sw-row-text">
-        <span className="sw-row-title">{t('row.title')}</span>
-        <span className="sw-row-desc">{t('row.description', { summary })}</span>
-        {failed ? <span className="sw-row-error">{t('row.saveFailed')}</span> : null}
+    <div className="dsr-sw-row">
+      <div className="dsr-sw-row-text">
+        <span className="dsr-sw-row-title">{t('row.title')}</span>
+        <span className="dsr-sw-row-desc">{t('row.description', { summary })}</span>
+        {failed ? <span className="dsr-sw-row-error">{t('row.saveFailed')}</span> : null}
       </div>
-      <div className="sw-row-controls">
-        <div className="sw-variants" role="radiogroup" aria-label={t('row.variantLabel')}>
+      <div className="dsr-sw-row-controls">
+        <div className="dsr-sw-variants" role="radiogroup" aria-label={t('row.variantLabel')}>
           {VARIANTS.map((variant) => (
             <button
               type="button"
               role="radio"
               aria-checked={watch.variant === variant}
-              className={watch.variant === variant ? 'sw-variant sw-variant-on' : 'sw-variant'}
+              className={watch.variant === variant ? 'dsr-sw-variant dsr-sw-variant-on' : 'dsr-sw-variant'}
               key={variant}
               onClick={() => {
                 void config.setVariant(variant)
@@ -89,10 +89,10 @@ export function SettingsRow({ useSessions, useSessionStatus, useWorkspaces, conf
             </button>
           ))}
         </div>
-        <fieldset className="sw-toggles">
-          <legend className="sw-field-label">{t('row.showLabel')}</legend>
+        <fieldset className="dsr-sw-toggles">
+          <legend className="dsr-sw-field-label">{t('row.showLabel')}</legend>
           {ALL_METRICS.map((metric) => (
-            <label className="sw-toggle" data-metric={metric} key={metric}>
+            <label className="dsr-sw-toggle" data-metric={metric} key={metric}>
               <input
                 type="checkbox"
                 checked={watch.visibility[metric]}
@@ -100,12 +100,12 @@ export function SettingsRow({ useSessions, useSessionStatus, useWorkspaces, conf
                   void config.setVisible(metric, event.currentTarget.checked)
                 }}
               />
-              <span className="sw-toggle-swatch" aria-hidden="true">
+              <span className="dsr-sw-toggle-swatch" aria-hidden="true">
                 <MetricIcon metric={metric} />
               </span>
-              <span className="sw-toggle-label">{metricLabel(t, metric)}</span>
+              <span className="dsr-sw-toggle-label">{metricLabel(t, metric)}</span>
               <span
-                className="sw-toggle-count"
+                className="dsr-sw-toggle-count"
                 data-warn={metric === 'unarchived' && warn ? 'true' : undefined}
               >
                 {metricValue(counts, metric)}
@@ -113,7 +113,7 @@ export function SettingsRow({ useSessions, useSessionStatus, useWorkspaces, conf
             </label>
           ))}
         </fieldset>
-        <label className="sw-toggle sw-toggle-badge" data-metric="rowBadge">
+        <label className="dsr-sw-toggle dsr-sw-toggle-badge" data-metric="rowBadge">
           <input
             type="checkbox"
             checked={watch.rowBadge}
@@ -121,17 +121,17 @@ export function SettingsRow({ useSessions, useSessionStatus, useWorkspaces, conf
               void config.setRowBadge(event.currentTarget.checked)
             }}
           />
-          <span className="sw-toggle-swatch" aria-hidden="true">
+          <span className="dsr-sw-toggle-swatch" aria-hidden="true">
             <StateDot state="done" />
           </span>
-          <span className="sw-toggle-label">{t('row.badgeLabel')}</span>
+          <span className="dsr-sw-toggle-label">{t('row.badgeLabel')}</span>
         </label>
-        <label className="sw-field">
-          <span className="sw-field-label">{t('row.thresholdLabel')}</span>
-          <span className="sw-field-hint">{t('row.thresholdHint')}</span>
-          <span className="sw-sr-only">{t('row.inputLabel')}</span>
+        <label className="dsr-sw-field">
+          <span className="dsr-sw-field-label">{t('row.thresholdLabel')}</span>
+          <span className="dsr-sw-field-hint">{t('row.thresholdHint')}</span>
+          <span className="dsr-sw-sr-only">{t('row.inputLabel')}</span>
           <input
-            className="sw-input"
+            className="dsr-sw-input"
             type="number"
             min={1}
             step={1}

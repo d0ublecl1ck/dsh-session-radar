@@ -335,20 +335,20 @@ test('the bell renders beside the search control with the unread badge', async (
     wide: true, t: translate, ...injected,
   }))
 
-  const bell = document.querySelector('.ab-bell')
+  const bell = document.querySelector('.dsr-ab-bell')
   assert.ok(bell, 'the bell mounts into the sidebar header')
   assert.equal(bell.parentElement.parentElement, shell.header)
   assert.equal(bell.parentElement.previousElementSibling, shell.searchSlot, 'the bell sits beside the search control')
   assert.equal(bell.parentElement.nextElementSibling, shell.actions)
   assert.equal(bell.getAttribute('aria-pressed'), 'false')
   assert.equal(bell.getAttribute('aria-label'), '定位下一个未读，2 个会话已完成未查看')
-  assert.equal(document.querySelector('.ab-badge').textContent, '2')
-  assert.equal(document.querySelector('.ab-panel'), null)
+  assert.equal(document.querySelector('.dsr-ab-badge').textContent, '2')
+  assert.equal(document.querySelector('.dsr-ab-panel'), null)
 
   await view.unmount()
   for (const dispose of [...disposers].reverse()) dispose()
-  assert.equal(document.querySelector('.ab-bell'), null)
-  assert.equal(document.querySelector('.ab-bell-host'), null)
+  assert.equal(document.querySelector('.dsr-ab-bell'), null)
+  assert.equal(document.querySelector('.dsr-ab-bell-host'), null)
   assert.equal(document.querySelector('style[data-plugin="dsh-session-radar"]'), null)
   assert.equal(shell.header.children.length, 3, 'the shell keeps only its own children')
 })
@@ -365,41 +365,41 @@ test('right-clicking the bell swaps in the day-grouped activity list and back', 
     wide: true, t: translate, ...injected,
   }))
 
-  await view.contextMenu(document.querySelector('.ab-bell'))
-  const panel = document.querySelector('.ab-panel')
+  await view.contextMenu(document.querySelector('.dsr-ab-bell'))
+  const panel = document.querySelector('.dsr-ab-panel')
   assert.ok(panel, 'the panel replaces the workspace list')
-  assert.equal(document.querySelector('.ab-bell').getAttribute('aria-pressed'), 'true')
-  assert.equal(document.querySelector('.ab-bell').className, 'ab-bell ab-bell-active')
-  assert.equal(document.querySelector('.ab-bell').getAttribute('aria-label'), '打开最近活动')
+  assert.equal(document.querySelector('.dsr-ab-bell').getAttribute('aria-pressed'), 'true')
+  assert.equal(document.querySelector('.dsr-ab-bell').className, 'dsr-ab-bell dsr-ab-bell-active')
+  assert.equal(document.querySelector('.dsr-ab-bell').getAttribute('aria-label'), '打开最近活动')
   assert.equal(panel.parentElement.parentElement, shell.listArea, 'the panel covers the list seat')
   assert.equal(shell.list.inert, true, 'the covered rows leave the tab order')
 
   assert.deepEqual(
-    [...panel.querySelectorAll('.ab-group-label')].map(node => node.textContent),
+    [...panel.querySelectorAll('.dsr-ab-group-label')].map(node => node.textContent),
     ['今天', '昨天'],
   )
   assert.deepEqual(
-    [...panel.querySelectorAll('.ab-row')].map(node => node.querySelector('.ab-row-title').textContent),
+    [...panel.querySelectorAll('.dsr-ab-row')].map(node => node.querySelector('.dsr-ab-row-title').textContent),
     ['对比新旧分区库结构差异', '生成软著申请资料', '排查漏损计算时间因子错误'],
   )
   assert.deepEqual(
-    [...panel.querySelectorAll('.ab-row-folder-text')].map(node => node.textContent),
+    [...panel.querySelectorAll('.dsr-ab-row-folder-text')].map(node => node.textContent),
     ['test', 'game', 'iot-platform'],
   )
   // Rows carry their status for assistive tech: finished-unviewed first.
   assert.deepEqual(
-    [...panel.querySelectorAll('.ab-row')].map(node => node.querySelector('.ab-sr-only')?.textContent ?? null),
+    [...panel.querySelectorAll('.dsr-ab-row')].map(node => node.querySelector('.dsr-ab-sr-only')?.textContent ?? null),
     ['运行中', '已完成未查看', '已完成未查看'],
   )
   // The finished-unviewed rows render the shipped green "done" dot; running
   // rows render the ongoing loader dot.
   assert.deepEqual(
-    [...panel.querySelectorAll('.ab-row [data-state-dot]')].map(node => node.getAttribute('data-state-dot')),
+    [...panel.querySelectorAll('.dsr-ab-row [data-state-dot]')].map(node => node.getAttribute('data-state-dot')),
     ['ongoing', 'done', 'done'],
   )
   // The panel is the list and nothing else: no added heading, no extra
   // affordance above the day sections.
-  assert.equal(panel.querySelector('.ab-panel-head'), null)
+  assert.equal(panel.querySelector('.dsr-ab-panel-head'), null)
   assert.equal(panel.textContent.startsWith('今天'), true, 'the first day section leads the panel')
   assert.equal(panel.textContent.includes('最近活动'), false, 'no added title copy')
   assert.equal(panel.textContent.includes('全部已读'), false)
@@ -408,36 +408,36 @@ test('right-clicking the bell swaps in the day-grouped activity list and back', 
 
   // Every row keeps the shipped row affordances: pin and archive, revealed on
   // hover/focus, acting without opening the session.
-  const firstRow = panel.querySelector('.ab-row')
+  const firstRow = panel.querySelector('.dsr-ab-row')
   assert.deepEqual(
-    [...firstRow.querySelectorAll('.ab-icon-button')].map(node => node.getAttribute('aria-label')),
+    [...firstRow.querySelectorAll('.dsr-ab-icon-button')].map(node => node.getAttribute('aria-label')),
     ['置顶', '归档'],
   )
-  await view.click(firstRow.querySelector('.ab-icon-button'))
+  await view.click(firstRow.querySelector('.dsr-ab-icon-button'))
   assert.deepEqual(opened, [['pin', 's3']], 'the pin affordance does not open the session')
-  await view.click(firstRow.querySelectorAll('.ab-icon-button')[1])
+  await view.click(firstRow.querySelectorAll('.dsr-ab-icon-button')[1])
   assert.deepEqual(opened, [['pin', 's3'], ['archive', 's3']])
   assert.equal(
-    panel.querySelector('.ab-panel-notice').textContent,
+    panel.querySelector('.dsr-ab-panel-notice').textContent,
     '归档失败：该会话还有运行中的工作',
     'a refused archive says so instead of dropping the row',
   )
 
-  await view.click(panel.querySelector('.ab-row'))
+  await view.click(panel.querySelector('.dsr-ab-row'))
   assert.deepEqual(opened, [['pin', 's3'], ['archive', 's3'], ['open', 's3']], 'a row opens its session')
-  assert.equal(document.querySelector('.ab-badge').textContent, '2', 'opening does not touch other rows')
+  assert.equal(document.querySelector('.dsr-ab-badge').textContent, '2', 'opening does not touch other rows')
 
-  await view.contextMenu(document.querySelector('.ab-bell'))
-  assert.equal(document.querySelector('.ab-panel'), null)
-  assert.equal(document.querySelector('.ab-bell').getAttribute('aria-pressed'), 'false')
+  await view.contextMenu(document.querySelector('.dsr-ab-bell'))
+  assert.equal(document.querySelector('.dsr-ab-panel'), null)
+  assert.equal(document.querySelector('.dsr-ab-bell').getAttribute('aria-pressed'), 'false')
   assert.equal(
-    document.querySelector('.ab-bell').getAttribute('aria-label'),
+    document.querySelector('.dsr-ab-bell').getAttribute('aria-label'),
     '定位下一个未读，2 个会话已完成未查看',
     'the closed bell falls back to the unread label',
   )
   assert.equal(shell.list.inert, false, 'the restored rows rejoin the tab order')
   assert.equal(
-    document.querySelector('.ab-panel-host'),
+    document.querySelector('.dsr-ab-panel-host'),
     null,
     'a closed activity list leaves no hit target over the workspace list',
   )
@@ -458,12 +458,12 @@ test('Escape closes the activity list', async () => {
   const view = await mount(React.createElement(captured().component, {
     wide: true, t: translate, ...injected,
   }))
-  await view.contextMenu(document.querySelector('.ab-bell'))
-  assert.ok(document.querySelector('.ab-panel'))
+  await view.contextMenu(document.querySelector('.dsr-ab-bell'))
+  assert.ok(document.querySelector('.dsr-ab-panel'))
   await React.act(async () => {
     document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
   })
-  assert.equal(document.querySelector('.ab-panel'), null)
+  assert.equal(document.querySelector('.dsr-ab-panel'), null)
   await view.unmount()
   for (const dispose of [...disposers].reverse()) dispose()
 })
@@ -480,21 +480,21 @@ test('a press on neighbouring sidebar chrome hands the region back', async () =>
     wide: true, t: translate, ...injected,
   }))
 
-  await view.contextMenu(document.querySelector('.ab-bell'))
-  assert.ok(document.querySelector('.ab-panel'))
+  await view.contextMenu(document.querySelector('.dsr-ab-bell'))
+  assert.ok(document.querySelector('.dsr-ab-panel'))
   // A neighbouring plugin's tab must not end up under the activity list.
   await view.press(shell.tab)
-  assert.equal(document.querySelector('.ab-panel'), null, 'the region goes back to the other surface')
-  assert.equal(document.querySelector('.ab-bell').getAttribute('aria-pressed'), 'false')
+  assert.equal(document.querySelector('.dsr-ab-panel'), null, 'the region goes back to the other surface')
+  assert.equal(document.querySelector('.dsr-ab-bell').getAttribute('aria-pressed'), 'false')
 
   // Pressing the activity surface itself keeps it open, and so does a press in
   // the conversation column (outside the sidebar).
-  await view.contextMenu(document.querySelector('.ab-bell'))
-  const row = document.querySelector('.ab-row')
+  await view.contextMenu(document.querySelector('.dsr-ab-bell'))
+  const row = document.querySelector('.dsr-ab-row')
   await view.press(row)
-  assert.ok(document.querySelector('.ab-panel'), 'the list survives its own presses')
+  assert.ok(document.querySelector('.dsr-ab-panel'), 'the list survives its own presses')
   await view.press(document.body)
-  assert.ok(document.querySelector('.ab-panel'), 'the conversation column does not close the list')
+  assert.ok(document.querySelector('.dsr-ab-panel'), 'the conversation column does not close the list')
 
   await view.unmount()
   for (const dispose of [...disposers].reverse()) dispose()
@@ -528,25 +528,25 @@ test('a turn seen finishing raises the badge until its Session is opened', async
   const view = await mount(React.createElement(captured().component, {
     wide: true, t: translate, ...injected,
   }))
-  assert.equal(document.querySelector('.ab-badge'), null)
+  assert.equal(document.querySelector('.dsr-ab-badge'), null)
 
   const running = new Map([['s1', { running: true, completionUnread: false }]])
   await React.act(async () => { statuses.set(running) })
-  assert.equal(document.querySelector('.ab-badge'), null, 'a running turn is not a completion')
+  assert.equal(document.querySelector('.dsr-ab-badge'), null, 'a running turn is not a completion')
 
   const stopped = new Map([['s1', { running: false, completionUnread: false }]])
   await React.act(async () => { statuses.set(stopped) })
-  assert.equal(document.querySelector('.ab-badge').textContent, '1')
+  assert.equal(document.querySelector('.dsr-ab-badge').textContent, '1')
   assert.equal(
-    document.querySelector('.ab-bell').getAttribute('aria-label'),
+    document.querySelector('.dsr-ab-bell').getAttribute('aria-label'),
     '定位下一个未读，1 个会话已完成未查看',
   )
 
-  await view.contextMenu(document.querySelector('.ab-bell'))
-  const row = document.querySelector('.ab-row')
+  await view.contextMenu(document.querySelector('.dsr-ab-bell'))
+  const row = document.querySelector('.dsr-ab-row')
   assert.equal(
     row.className,
-    'ab-row ab-row-current',
+    'dsr-ab-row dsr-ab-row-current',
     'the open Session carries the shipped selected fill',
   )
   assert.deepEqual(
@@ -555,7 +555,7 @@ test('a turn seen finishing raises the badge until its Session is opened', async
   )
   await view.click(row)
   assert.deepEqual(opened, [['open', 's1']])
-  assert.equal(document.querySelector('.ab-badge'), null, 'opening the Session acknowledges it')
+  assert.equal(document.querySelector('.dsr-ab-badge'), null, 'opening the Session acknowledges it')
 
   await view.unmount()
   for (const dispose of [...disposers].reverse()) dispose()
@@ -573,16 +573,16 @@ test('the collapsed sidebar drops the bell and closes the activity list', async 
   const view = await mount(React.createElement(captured().component, {
     wide: true, t: translate, ...injected,
   }))
-  await view.contextMenu(document.querySelector('.ab-bell'))
-  assert.ok(document.querySelector('.ab-panel'))
+  await view.contextMenu(document.querySelector('.dsr-ab-bell'))
+  assert.ok(document.querySelector('.dsr-ab-panel'))
 
   await view.render(element(false))
-  assert.equal(document.querySelector('.ab-bell'), null)
-  assert.equal(document.querySelector('.ab-panel'), null)
+  assert.equal(document.querySelector('.dsr-ab-bell'), null)
+  assert.equal(document.querySelector('.dsr-ab-panel'), null)
 
   await view.render(element(true))
-  assert.ok(document.querySelector('.ab-bell'), 'the bell returns on expand')
-  assert.equal(document.querySelector('.ab-panel'), null, 'the activity list does not reopen by itself')
+  assert.ok(document.querySelector('.dsr-ab-bell'), 'the bell returns on expand')
+  assert.equal(document.querySelector('.dsr-ab-panel'), null, 'the activity list does not reopen by itself')
   await view.unmount()
   for (const dispose of [...disposers].reverse()) dispose()
 })
@@ -612,18 +612,18 @@ test('clicking the bell reveals and opens the next unread Session, wrapping arou
   }
 
   assert.equal(
-    document.querySelector('.ab-bell').getAttribute('aria-label'),
+    document.querySelector('.dsr-ab-bell').getAttribute('aria-label'),
     '定位下一个未读，2 个会话已完成未查看',
   )
 
-  await view.click(document.querySelector('.ab-bell'))
+  await view.click(document.querySelector('.dsr-ab-bell'))
   assert.deepEqual(opened, [['open', 's1']], 'the first press lands on the first unread Session')
   assert.equal(revealed.get('s1')(), 1, 'the row is scrolled into view')
 
-  await view.click(document.querySelector('.ab-bell'))
+  await view.click(document.querySelector('.dsr-ab-bell'))
   assert.deepEqual(opened, [['open', 's1'], ['open', 's2']], 'the second press advances')
 
-  await view.click(document.querySelector('.ab-bell'))
+  await view.click(document.querySelector('.dsr-ab-bell'))
   assert.deepEqual(
     opened,
     [['open', 's1'], ['open', 's2'], ['open', 's1']],
@@ -705,7 +705,7 @@ test('a Session marked unread by hand raises the badge until it is opened', asyn
   const view = await mount(React.createElement(captured().component, {
     wide: true, t: translate, ...injected,
   }))
-  assert.equal(document.querySelector('.ab-badge'), null, 'the store holds no manual mark yet')
+  assert.equal(document.querySelector('.dsr-ab-badge'), null, 'the store holds no manual mark yet')
 
   await React.act(async () => {
     window.localStorage.setItem(
@@ -713,20 +713,20 @@ test('a Session marked unread by hand raises the badge until it is opened', asyn
       JSON.stringify({ groupBy: 'workspace', unreadSessionIds: ['s1'] }),
     )
   })
-  assert.equal(document.querySelector('.ab-badge').textContent, '1')
+  assert.equal(document.querySelector('.dsr-ab-badge').textContent, '1')
   assert.equal(
-    document.querySelector('.ab-bell').getAttribute('aria-label'),
+    document.querySelector('.dsr-ab-bell').getAttribute('aria-label'),
     '定位下一个未读，1 个会话已完成未查看',
   )
 
-  await view.contextMenu(document.querySelector('.ab-bell'))
-  const row = document.querySelector('.ab-row')
-  assert.equal(row.querySelector('.ab-row-title').textContent, '手动标记未读')
-  assert.equal(row.querySelector('.ab-sr-only').textContent, '标为未读')
+  await view.contextMenu(document.querySelector('.dsr-ab-bell'))
+  const row = document.querySelector('.dsr-ab-row')
+  assert.equal(row.querySelector('.dsr-ab-row-title').textContent, '手动标记未读')
+  assert.equal(row.querySelector('.dsr-ab-sr-only').textContent, '标为未读')
 
   await view.click(row)
   assert.deepEqual(opened, [['open', 's1']])
-  assert.equal(document.querySelector('.ab-badge'), null, 'opening clears the manual mark')
+  assert.equal(document.querySelector('.dsr-ab-badge'), null, 'opening clears the manual mark')
 
   await view.unmount()
   for (const dispose of [...disposers].reverse()) dispose()
@@ -736,7 +736,7 @@ test('a Session marked unread by hand raises the badge until it is opened', asyn
 test('a completion is unread while scrolled up and read once the conversation reaches its tail', async () => {
   document.body.innerHTML = ''
   buildSidebar(document)
-  const badge = () => document.querySelector('.ab-badge')?.textContent ?? null
+  const badge = () => document.querySelector('.dsr-ab-badge')?.textContent ?? null
   const statuses = mutableSource(new Map())
   const row = {
     id: 's1', displayTitle: '当前对话', blank: false, running: false,
@@ -884,12 +884,12 @@ test('a session awaiting the operator raises a warning badge apart from the unre
 
   // The red badge keeps counting unread completions; the asks get their own
   // warning-coloured badge so the two reminders never blur into one number.
-  assert.equal(document.querySelector('.ab-badge').textContent, '1', 'the unread badge is untouched')
-  const askBadge = document.querySelector('.ab-badge-ask')
+  assert.equal(document.querySelector('.dsr-ab-badge').textContent, '1', 'the unread badge is untouched')
+  const askBadge = document.querySelector('.dsr-ab-badge-ask')
   assert.ok(askBadge, 'the pending asks carry their own badge')
   assert.equal(askBadge.textContent, '2')
   assert.equal(
-    document.querySelector('.ab-bell').getAttribute('aria-label'),
+    document.querySelector('.dsr-ab-bell').getAttribute('aria-label'),
     '定位下一个未读，1 个会话已完成未查看 · 等待你处理 2 个',
   )
 
@@ -951,7 +951,7 @@ test('the I shortcut walks the pending asks, then the visit history behind them'
   await press()
   assert.deepEqual(opened, [['open', 'b']], 'the first press lands on the earliest pending ask')
   assert.equal(
-    document.querySelector('.ab-badge-ask').textContent,
+    document.querySelector('.dsr-ab-badge-ask').textContent,
     '2',
     'opening an ask does not answer it: the badge waits for the real reply',
   )
@@ -962,7 +962,7 @@ test('the I shortcut walks the pending asks, then the visit history behind them'
       ['c', { running: false, completionUnread: false, pendingInteraction: { kind: 'question' } }],
     ]))
   })
-  assert.equal(document.querySelector('.ab-badge-ask').textContent, '1')
+  assert.equal(document.querySelector('.dsr-ab-badge-ask').textContent, '1')
 
   await press()
   assert.deepEqual(
@@ -974,7 +974,7 @@ test('the I shortcut walks the pending asks, then the visit history behind them'
   // C is answered too; nothing waits any more. The I command is approval-only:
   // with no ask left it blocks instead of walking anywhere.
   await React.act(async () => { statusesState.set(new Map()) })
-  assert.equal(document.querySelector('.ab-badge-ask'), null, 'a cleared ask drops out of the badge')
+  assert.equal(document.querySelector('.dsr-ab-badge-ask'), null, 'a cleared ask drops out of the badge')
 
   assert.deepEqual(
     await press(),
@@ -1141,44 +1141,44 @@ test('the K shortcut opens the waiting window over both zones', async () => {
 
   // Opening the window hands the sidebar list back to the shell: the two
   // surfaces never stack.
-  await view.contextMenu(document.querySelector('.ab-bell'))
-  assert.ok(document.querySelector('.ab-panel'))
+  await view.contextMenu(document.querySelector('.dsr-ab-bell'))
+  assert.ok(document.querySelector('.dsr-ab-panel'))
   await press()
-  assert.equal(document.querySelector('.ab-panel'), null, 'the activity list closes')
+  assert.equal(document.querySelector('.dsr-ab-panel'), null, 'the activity list closes')
 
-  const dialog = document.querySelector('.ov-panel')
+  const dialog = document.querySelector('.dsr-ov-panel')
   assert.ok(dialog, 'the waiting window opens')
   assert.equal(dialog.getAttribute('role'), 'dialog')
   assert.equal(dialog.getAttribute('aria-modal'), 'true')
   assert.equal(dialog.getAttribute('aria-label'), '未读与待决策会话总览')
   assert.deepEqual(
-    [...document.querySelectorAll('.ov-zone-title')].map(node => node.textContent),
+    [...document.querySelectorAll('.dsr-ov-zone-title')].map(node => node.textContent),
     ['待决策 2', '未读 1'],
   )
   // Newest first inside the ask zone; the Session that both waits and is unread
   // appears once, in the ask zone.
   assert.deepEqual(
-    [...document.querySelectorAll('.ov-zone-ask .ov-card-title')].map(node => node.textContent),
+    [...document.querySelectorAll('.dsr-ov-zone-ask .dsr-ov-card-title')].map(node => node.textContent),
     ['提问 B', '审批 A'],
   )
   assert.deepEqual(
-    [...document.querySelectorAll('.ov-zone-ask .ov-tag')].map(node => node.textContent),
+    [...document.querySelectorAll('.dsr-ov-zone-ask .dsr-ov-tag')].map(node => node.textContent),
     ['提问', '审批'],
   )
   assert.deepEqual(
-    [...document.querySelectorAll('.ov-zone-unread .ov-card-title')].map(node => node.textContent),
+    [...document.querySelectorAll('.dsr-ov-zone-unread .dsr-ov-card-title')].map(node => node.textContent),
     ['未读 C'],
   )
   assert.equal(dialog.textContent.includes('安静 D'), false, 'a quiet Session stays out')
   assert.equal(dialog.textContent.includes('归档未读 E'), false, 'an archived Session stays out')
   // The newest ask leads, so it is the card the window starts on.
-  assert.equal(document.querySelector('.ov-card-sel .ov-card-title').textContent, '提问 B')
+  assert.equal(document.querySelector('.dsr-ov-card-sel .dsr-ov-card-title').textContent, '提问 B')
 
   await React.act(async () => {
     document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
   })
   assert.deepEqual(opened, [['open', 'b']], 'Enter opens the selected card')
-  assert.equal(document.querySelector('.ov-panel'), null, 'opening a card closes the window')
+  assert.equal(document.querySelector('.dsr-ov-panel'), null, 'opening a card closes the window')
 
   await view.unmount()
   for (const dispose of [...disposers].reverse()) dispose()
@@ -1206,7 +1206,7 @@ test('the waiting window walks both zones with the arrow keys and closes on Esca
       document.dispatchEvent(new window.KeyboardEvent('keydown', { key: name, bubbles: true }))
     })
   }
-  const selected = () => document.querySelector('.ov-card-sel .ov-card-title').textContent
+  const selected = () => document.querySelector('.dsr-ov-card-sel .dsr-ov-card-title').textContent
 
   await press()
   assert.equal(selected(), '提问 B', 'the window opens on the newest ask')
@@ -1220,21 +1220,21 @@ test('the waiting window walks both zones with the arrow keys and closes on Esca
   assert.equal(selected(), '提问 B', 'left switches back')
 
   await key('Escape')
-  assert.equal(document.querySelector('.ov-panel'), null, 'Escape closes the window')
+  assert.equal(document.querySelector('.dsr-ov-panel'), null, 'Escape closes the window')
   assert.deepEqual(opened, [], 'closing opens nothing')
 
   // The shortcut toggles: a second press while the window is up closes it.
   await press()
-  assert.ok(document.querySelector('.ov-panel'))
+  assert.ok(document.querySelector('.dsr-ov-panel'))
   await press()
-  assert.equal(document.querySelector('.ov-panel'), null, 'the shortcut toggles the window')
+  assert.equal(document.querySelector('.dsr-ov-panel'), null, 'the shortcut toggles the window')
 
   // A press on the veil dismisses the window; a press inside it does not.
   await press()
-  await view.press(document.querySelector('.ov-panel'))
-  assert.ok(document.querySelector('.ov-panel'), 'a press inside the window keeps it open')
-  await view.press(document.querySelector('.ov-veil'))
-  assert.equal(document.querySelector('.ov-panel'), null, 'a press on the veil closes it')
+  await view.press(document.querySelector('.dsr-ov-panel'))
+  assert.ok(document.querySelector('.dsr-ov-panel'), 'a press inside the window keeps it open')
+  await view.press(document.querySelector('.dsr-ov-veil'))
+  assert.equal(document.querySelector('.dsr-ov-panel'), null, 'a press on the veil closes it')
 
   await view.unmount()
   for (const dispose of [...disposers].reverse()) dispose()
@@ -1272,16 +1272,16 @@ test('the K shortcut answers with the empty copy when nothing waits', async () =
   assert.equal(resolution.status, 'handled', 'the window opens with nothing waiting')
   await React.act(async () => { resolution.run() })
 
-  const dialog = document.querySelector('.ov-panel')
+  const dialog = document.querySelector('.dsr-ov-panel')
   assert.ok(dialog, 'the empty window still opens')
-  assert.equal(dialog.querySelectorAll('.ov-card').length, 0, 'no cards to show')
-  assert.equal(dialog.querySelector('.ov-empty').textContent, '没有未读或待决策的会话。')
-  assert.equal(dialog.querySelector('.ov-zone'), null, 'the two zones give way to one line')
+  assert.equal(dialog.querySelectorAll('.dsr-ov-card').length, 0, 'no cards to show')
+  assert.equal(dialog.querySelector('.dsr-ov-empty').textContent, '没有未读或待决策的会话。')
+  assert.equal(dialog.querySelector('.dsr-ov-zone'), null, 'the two zones give way to one line')
 
   await React.act(async () => {
     document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
   })
-  assert.equal(document.querySelector('.ov-panel'), null)
+  assert.equal(document.querySelector('.dsr-ov-panel'), null)
 
   await view.unmount()
   for (const dispose of [...disposers].reverse()) dispose()
@@ -1369,17 +1369,17 @@ async function mountRetry(ids, { running = [], bootAt = BOOT, fresh = true, pare
 test('a fresh boot asks about the interrupted Sessions, everything retryable checked', async () => {
   const h = await mountRetry(['s1', 's2'], { running: ['s2'] })
   try {
-    const panel = document.querySelector('.rt-panel')
+    const panel = document.querySelector('.dsr-rt-panel')
     assert.ok(panel, 'the dialog opens by itself on a boot that has interrupted turns')
-    const rows = [...panel.querySelectorAll('.rt-row')]
-    assert.deepEqual(rows.map((row) => row.querySelector('.rt-title').textContent), ['会话 s1', '会话 s2'])
-    assert.equal(rows[0].querySelector('.rt-check').checked, true, 'a retryable row starts checked')
-    assert.equal(rows[1].querySelector('.rt-check').checked, false, 'a running row is not offered')
-    assert.equal(rows[1].querySelector('.rt-check').disabled, true)
-    assert.equal(rows[1].querySelector('.rt-tag').textContent, '正在跑')
-    assert.equal(panel.querySelector('.rt-send').textContent, '重试选中 1 个')
+    const rows = [...panel.querySelectorAll('.dsr-rt-row')]
+    assert.deepEqual(rows.map((row) => row.querySelector('.dsr-rt-title').textContent), ['会话 s1', '会话 s2'])
+    assert.equal(rows[0].querySelector('.dsr-rt-check').checked, true, 'a retryable row starts checked')
+    assert.equal(rows[1].querySelector('.dsr-rt-check').checked, false, 'a running row is not offered')
+    assert.equal(rows[1].querySelector('.dsr-rt-check').disabled, true)
+    assert.equal(rows[1].querySelector('.dsr-rt-tag').textContent, '正在跑')
+    assert.equal(panel.querySelector('.dsr-rt-send').textContent, '重试选中 1 个')
 
-    await h.view.click(panel.querySelector('.rt-send'))
+    await h.view.click(panel.querySelector('.dsr-rt-send'))
     await React.act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
 
     assert.equal(h.sends.length, 1, 'only the checked Session is prompted')
@@ -1405,7 +1405,7 @@ test('a fresh boot asks about the interrupted Sessions, everything retryable che
       false,
       'the running Session keeps its reminder',
     )
-    assert.equal(document.querySelector('.rt-panel'), null, 'a clean batch closes the dialog')
+    assert.equal(document.querySelector('.dsr-rt-panel'), null, 'a clean batch closes the dialog')
   } finally {
     await h.view.unmount()
     for (const dispose of [...h.disposers].reverse()) dispose()
@@ -1420,17 +1420,17 @@ test('a running subagent puts its top-level Session on the checklist', async () 
     running: ['s2'], parents: { s2: 's1' }, ledgerIds: ['s2'],
   })
   try {
-    const panel = document.querySelector('.rt-panel')
+    const panel = document.querySelector('.dsr-rt-panel')
     assert.ok(panel, 'a subagent still running is a reason to ask about its parent')
-    const rows = [...panel.querySelectorAll('.rt-row')]
+    const rows = [...panel.querySelectorAll('.dsr-rt-row')]
     assert.deepEqual(
-      rows.map((row) => row.querySelector('.rt-title').textContent),
+      rows.map((row) => row.querySelector('.dsr-rt-title').textContent),
       ['会话 s1'],
       'the parent is offered and the subagent is not',
     )
-    assert.equal(rows[0].querySelector('.rt-check').checked, true, 'the idle parent starts checked')
+    assert.equal(rows[0].querySelector('.dsr-rt-check').checked, true, 'the idle parent starts checked')
 
-    await h.view.click(panel.querySelector('.rt-send'))
+    await h.view.click(panel.querySelector('.dsr-rt-send'))
     await React.act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
     assert.equal(h.sends.length, 1, 'only the parent is prompted')
     assert.equal(h.sends[0].payload.args.request.sessionId, 's1')
@@ -1454,14 +1454,14 @@ test('a running subagent puts its top-level Session on the checklist', async () 
 test('leaving a Session unchecked keeps it unread, and the ask happens once per boot', async () => {
   const h = await mountRetry(['s1'])
   try {
-    const panel = document.querySelector('.rt-panel')
-    await h.view.click(panel.querySelector('.rt-check'))
-    assert.equal(panel.querySelector('.rt-send').disabled, true, 'nothing checked means nothing to send')
-    assert.equal(panel.querySelector('.rt-send').textContent, '重试选中 0 个')
+    const panel = document.querySelector('.dsr-rt-panel')
+    await h.view.click(panel.querySelector('.dsr-rt-check'))
+    assert.equal(panel.querySelector('.dsr-rt-send').disabled, true, 'nothing checked means nothing to send')
+    assert.equal(panel.querySelector('.dsr-rt-send').textContent, '重试选中 0 个')
 
-    await h.view.click(panel.querySelector('.rt-foot .rt-mini'))
+    await h.view.click(panel.querySelector('.dsr-rt-foot .dsr-rt-mini'))
     assert.equal(h.sends.length, 0, 'later sends nothing')
-    assert.equal(document.querySelector('.rt-panel'), null)
+    assert.equal(document.querySelector('.dsr-rt-panel'), null)
     assert.equal(
       h.calls.some(call => call.target.endsWith('/session-radar/read')),
       false,
@@ -1478,7 +1478,7 @@ test('leaving a Session unchecked keeps it unread, and the ask happens once per 
   const again = await mountRetry(['s1'], { fresh: false })
   try {
     assert.equal(
-      document.querySelector('.rt-panel') === null,
+      document.querySelector('.dsr-rt-panel') === null,
       true,
       'a reload of the same boot stays quiet',
     )
@@ -1491,7 +1491,7 @@ test('leaving a Session unchecked keeps it unread, and the ask happens once per 
   const restarted = await mountRetry(['s1'], { bootAt: BOOT + 60_000, fresh: false })
   try {
     assert.equal(
-      document.querySelector('.rt-panel') !== null,
+      document.querySelector('.dsr-rt-panel') !== null,
       true,
       'the next process boot asks again',
     )
@@ -1559,27 +1559,27 @@ test('a readout chip runs the bell walk for its own metric', async () => {
 
   // Archived rows are not openable, so that metric never becomes a target.
   assert.equal(
-    document.querySelector('.sw-chip[data-metric="archived"]').tagName,
+    document.querySelector('.dsr-sw-chip[data-metric="archived"]').tagName,
     'SPAN',
     'the archive chip stays a count',
   )
 
-  await view.click(document.querySelector('.sw-chip[data-metric="running"]'))
+  await view.click(document.querySelector('.dsr-sw-chip[data-metric="running"]'))
   assert.deepEqual(opened, [['open', 'run-1']], 'the running chip lands on the running Session')
   assert.deepEqual(revealed, ['run-1'], 'and reveals its sidebar row')
 
-  await view.click(document.querySelector('.sw-chip[data-metric="idle"]'))
-  await view.click(document.querySelector('.sw-chip[data-metric="idle"]'))
+  await view.click(document.querySelector('.dsr-sw-chip[data-metric="idle"]'))
+  await view.click(document.querySelector('.dsr-sw-chip[data-metric="idle"]'))
   assert.deepEqual(
     opened,
     [['open', 'run-1'], ['open', 'idle-new'], ['open', 'idle-old']],
     'each idle press advances through its own walk, newest first',
   )
-  await view.click(document.querySelector('.sw-chip[data-metric="idle"]'))
+  await view.click(document.querySelector('.dsr-sw-chip[data-metric="idle"]'))
   assert.deepEqual(opened.at(-1), ['open', 'idle-new'], 'the idle walk wraps back to its first Session')
 
-  await view.click(document.querySelector('.sw-chip[data-metric="unread"]'))
-  await view.click(document.querySelector('.sw-chip[data-metric="unread"]'))
+  await view.click(document.querySelector('.dsr-sw-chip[data-metric="unread"]'))
+  await view.click(document.querySelector('.dsr-sw-chip[data-metric="unread"]'))
   assert.deepEqual(
     opened.slice(-2),
     [['open', 'unread-a'], ['open', 'unread-b']],
@@ -1595,7 +1595,7 @@ test('a subagent whose parent is gone is never offered', async () => {
   const h = await mountRetry(['s2'], { parents: { s2: 'missing' }, ledgerIds: ['s2'] })
   try {
     assert.equal(
-      document.querySelector('.rt-panel'),
+      document.querySelector('.dsr-rt-panel'),
       null,
       'nothing addressable means no question to ask',
     )

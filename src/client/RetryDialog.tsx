@@ -81,38 +81,38 @@ export function RetryDialog({ candidates, t, onRetry, onClose }: RetryDialogProp
 
   return createPortal(
     <div
-      className="rt-veil"
+      className="dsr-rt-veil"
       onPointerDown={(event) => { if (event.target === event.currentTarget) onClose() }}
     >
-      <div className="rt-panel" role="dialog" aria-modal="true" aria-label={t('retry.aria')}>
-        <div className="rt-head">{t('retry.title')}</div>
-        <p className="rt-intro">{t('retry.intro')}</p>
-        <div className="rt-tools">
+      <div className="dsr-rt-panel" role="dialog" aria-modal="true" aria-label={t('retry.aria')}>
+        <div className="dsr-rt-head">{t('retry.title')}</div>
+        <p className="dsr-rt-intro">{t('retry.intro')}</p>
+        <div className="dsr-rt-tools">
           <button
             type="button"
-            className="rt-mini"
+            className="dsr-rt-mini"
             onClick={() => { setSelection(toggleAll(candidates, selection)) }}
           >
             {t(everything ? 'retry.selectNone' : 'retry.selectAll')}
           </button>
         </div>
-        <ul className="rt-list">
+        <ul className="dsr-rt-list">
           {candidates.map((row) => (
-            <li key={row.id} className={row.running ? 'rt-row rt-row-running' : 'rt-row'}>
+            <li key={row.id} className={row.running ? 'dsr-rt-row dsr-rt-row-running' : 'dsr-rt-row'}>
               <input
-                className="rt-check"
+                className="dsr-rt-check"
                 type="checkbox"
                 checked={row.running ? false : selection.has(row.id)}
                 disabled={row.running}
                 aria-label={row.title}
                 onChange={() => { setSelection(toggleOne(selection, row.id)) }}
               />
-              <span className="rt-title">{row.title}</span>
-              {row.folder === '' ? null : <span className="rt-folder">{row.folder}</span>}
-              {row.running ? <span className="rt-tag">{t('retry.running')}</span> : null}
+              <span className="dsr-rt-title">{row.title}</span>
+              {row.folder === '' ? null : <span className="dsr-rt-folder">{row.folder}</span>}
+              {row.running ? <span className="dsr-rt-tag">{t('retry.running')}</span> : null}
               {failures.has(row.id)
                 ? (
-                  <span className="rt-error" title={failures.get(row.id) ?? ''}>
+                  <span className="dsr-rt-error" title={failures.get(row.id) ?? ''}>
                     {t('retry.failed', { message: failures.get(row.id) ?? '' })}
                   </span>
                 )
@@ -120,11 +120,11 @@ export function RetryDialog({ candidates, t, onRetry, onClose }: RetryDialogProp
             </li>
           ))}
         </ul>
-        <div className="rt-foot">
-          <button type="button" className="rt-mini" onClick={onClose}>{t('retry.later')}</button>
+        <div className="dsr-rt-foot">
+          <button type="button" className="dsr-rt-mini" onClick={onClose}>{t('retry.later')}</button>
           <button
             type="button"
-            className="rt-send"
+            className="dsr-rt-send"
             disabled={sending || selected.length === 0}
             onClick={run}
           >

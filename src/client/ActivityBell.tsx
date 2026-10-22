@@ -202,7 +202,7 @@ function ActivityRowItem({
   // keeps the whole-row target, the keyboard path, and the inner controls.
   return (
     <div
-      className={row.current ? 'ab-row ab-row-current' : 'ab-row'}
+      className={row.current ? 'dsr-ab-row dsr-ab-row-current' : 'dsr-ab-row'}
       role="button"
       tabIndex={0}
       title={label}
@@ -217,29 +217,29 @@ function ActivityRowItem({
         onOpen(row.id)
       }}
     >
-      <span className="ab-row-mark" aria-hidden="true"><RowMark row={row} /></span>
-      <span className="ab-row-body">
-        <span className="ab-row-title" ref={title}>{label}</span>
+      <span className="dsr-ab-row-mark" aria-hidden="true"><RowMark row={row} /></span>
+      <span className="dsr-ab-row-body">
+        <span className="dsr-ab-row-title" ref={title}>{label}</span>
         {row.folder !== '' && (
-          <span className="ab-row-folder">
+          <span className="dsr-ab-row-folder">
             <IconFolderOpenOutlineRegular size={12} />
-            <span className="ab-row-folder-text">{row.folder}</span>
+            <span className="dsr-ab-row-folder-text">{row.folder}</span>
           </span>
         )}
-        {status !== undefined && <span className="ab-sr-only">{status}</span>}
+        {status !== undefined && <span className="dsr-ab-sr-only">{status}</span>}
       </span>
-      <span className="ab-row-tail">
+      <span className="dsr-ab-row-tail">
         {row.pinned && (
-          <span className="ab-pin-mark" role="img" aria-label={t('row.pinned')} title={t('row.pinned')}>
+          <span className="dsr-ab-pin-mark" role="img" aria-label={t('row.pinned')} title={t('row.pinned')}>
             <IconPinFillRegular size={12} />
           </span>
         )}
         {/* The row itself is the open action, so the strip keeps its clicks. */}
-        <span className="ab-row-actions">
+        <span className="dsr-ab-row-actions">
           <Tooltip label={t(row.pinned ? 'action.unpin' : 'action.pin')} side="bottom" align="end" delayMs={500}>
             <button
               type="button"
-              className="ab-icon-button"
+              className="dsr-ab-icon-button"
               aria-label={t(row.pinned ? 'action.unpin' : 'action.pin')}
               onClick={(event) => {
                 event.stopPropagation()
@@ -252,7 +252,7 @@ function ActivityRowItem({
           <Tooltip label={t('action.archive')} side="bottom" align="end" delayMs={500}>
             <button
               type="button"
-              className="ab-icon-button"
+              className="dsr-ab-icon-button"
               aria-label={t('action.archive')}
               onClick={(event) => {
                 event.stopPropagation()
@@ -301,9 +301,9 @@ function WaitingCard({
   readonly onOpen: (sessionId: SessionId) => void
 }) {
   const label = card.title === '' ? t('row.untitled') : card.title
-  const classes = ['ov-card']
-  if (selected) classes.push('ov-card-sel')
-  if (card.current) classes.push('ov-card-current')
+  const classes = ['dsr-ov-card']
+  if (selected) classes.push('dsr-ov-card-sel')
+  if (card.current) classes.push('dsr-ov-card-current')
   return (
     // A card is its own button: the whole surface is the open affordance, and
     // the window renders no inner controls that would nest inside it.
@@ -313,15 +313,15 @@ function WaitingCard({
       title={label}
       onClick={() => { onOpen(card.id) }}
     >
-      <span className="ov-card-title">{label}</span>
+      <span className="dsr-ov-card-title">{label}</span>
       {card.pending !== undefined
-        ? <span className="ov-tag">{attentionLabel(card.pending, t)}</span>
+        ? <span className="dsr-ov-tag">{attentionLabel(card.pending, t)}</span>
         : card.unread
-          ? <span className="ov-tag ov-tag-unread">{t('row.unread')}</span>
+          ? <span className="dsr-ov-tag dsr-ov-tag-unread">{t('row.unread')}</span>
           : null}
-      <span className="ov-card-meta">
-        {card.folder !== '' && <span className="ov-card-folder">{card.folder}</span>}
-        <span className="ov-card-when">{relativeWhen(card.updatedAt, now, t)}</span>
+      <span className="dsr-ov-card-meta">
+        {card.folder !== '' && <span className="dsr-ov-card-folder">{card.folder}</span>}
+        <span className="dsr-ov-card-when">{relativeWhen(card.updatedAt, now, t)}</span>
       </span>
     </button>
   )
@@ -339,15 +339,15 @@ function WaitingZone({
   readonly onOpen: (sessionId: SessionId) => void
 }) {
   return (
-    <section className={'ov-zone ov-zone-' + zone}>
-      <div className="ov-zone-title">
+    <section className={'dsr-ov-zone dsr-ov-zone-' + zone}>
+      <div className="dsr-ov-zone-title">
         {t(zone === 'ask' ? 'overview.zone.ask' : 'overview.zone.unread')}{' '}
-        <span className="ov-zone-count">{cards.length}</span>
+        <span className="dsr-ov-zone-count">{cards.length}</span>
       </div>
       {cards.length === 0
-        ? <div className="ov-zone-empty">{t('overview.zoneEmpty')}</div>
+        ? <div className="dsr-ov-zone-empty">{t('overview.zoneEmpty')}</div>
         : (
-          <div className="ov-grid">
+          <div className="dsr-ov-grid">
             {cards.map(card => (
               <WaitingCard
                 key={card.id}
@@ -381,30 +381,30 @@ function WaitingWindow({
 }) {
   return (
     <div
-      className="ov-veil"
+      className="dsr-ov-veil"
       // A press on the veil dismisses the window; a press inside it belongs to
       // the card under the pointer.
       onPointerDown={(event) => {
         if (event.target === event.currentTarget) onClose()
       }}
     >
-      <div className="ov-panel" role="dialog" aria-modal="true" aria-label={t('overview.aria')}>
-        <div className="ov-head">
-          <span className="ov-title">{t('overview.title')}</span>
-          <span className="ov-counts">
+      <div className="dsr-ov-panel" role="dialog" aria-modal="true" aria-label={t('overview.aria')}>
+        <div className="dsr-ov-head">
+          <span className="dsr-ov-title">{t('overview.title')}</span>
+          <span className="dsr-ov-counts">
             {t('overview.counts', {
               unread: waiting.unread.length,
               ask: waiting.ask.length,
             })}
           </span>
-          <span className="ov-grow" />
-          <span className="ov-hint">{t('overview.hint')}</span>
-          <button type="button" className="ov-close" onClick={onClose}>{t('overview.close')}</button>
-          <span className="ov-kbd">Esc</span>
+          <span className="dsr-ov-grow" />
+          <span className="dsr-ov-hint">{t('overview.hint')}</span>
+          <button type="button" className="dsr-ov-close" onClick={onClose}>{t('overview.close')}</button>
+          <span className="dsr-ov-kbd">Esc</span>
         </div>
-        <div className="ov-body">
+        <div className="dsr-ov-body">
           {waiting.ask.length === 0 && waiting.unread.length === 0
-            ? <div className="ov-empty">{t('overview.empty')}</div>
+            ? <div className="dsr-ov-empty">{t('overview.empty')}</div>
             : (
               <>
                 <WaitingZone
@@ -493,7 +493,7 @@ function useHosts(anchors: SidebarAnchors | undefined, wide: boolean, active: bo
       setHosts(current => (current.bell === null ? current : { bell: null, panel: current.panel }))
       return
     }
-    const bell = mountContainer(anchors.header, anchors.actions, 'ab-bell-host')
+    const bell = mountContainer(anchors.header, anchors.actions, 'dsr-ab-bell-host')
     setHosts(current => ({ bell, panel: current.panel }))
     return () => {
       bell.remove()
@@ -506,7 +506,7 @@ function useHosts(anchors: SidebarAnchors | undefined, wide: boolean, active: bo
     }
     const listArea = anchors.listArea
     const restorePosition = ensurePositioned(listArea)
-    const panel = mountContainer(listArea, null, 'ab-panel-host')
+    const panel = mountContainer(listArea, null, 'dsr-ab-panel-host')
     applyRowInset(panel, measureRowInset(listArea))
     setHosts(current => ({ bell: current.bell, panel }))
     return () => {
@@ -1002,7 +1002,7 @@ export function ActivityBell({
     >
       <button
         type="button"
-        className={active ? 'ab-bell ab-bell-active' : 'ab-bell'}
+        className={active ? 'dsr-ab-bell dsr-ab-bell-active' : 'dsr-ab-bell'}
         aria-label={label}
         aria-pressed={active}
         onClick={jumpNextUnread}
@@ -1013,10 +1013,10 @@ export function ActivityBell({
       >
         <BellIcon size={16} />
         {unread > 0 && (
-          <span className="ab-badge" aria-hidden="true">{unread > 99 ? '99+' : String(unread)}</span>
+          <span className="dsr-ab-badge" aria-hidden="true">{unread > 99 ? '99+' : String(unread)}</span>
         )}
         {pendingCount > 0 && (
-          <span className="ab-badge ab-badge-ask" aria-hidden="true">
+          <span className="dsr-ab-badge dsr-ab-badge-ask" aria-hidden="true">
             {pendingCount > 99 ? '99+' : String(pendingCount)}
           </span>
         )}
@@ -1025,14 +1025,14 @@ export function ActivityBell({
   )
 
   const panel = (
-    <div className="ab-panel" role="region" aria-label={t('panel.aria')}>
-      {notice !== null && <div className="ab-panel-notice" role="status">{notice}</div>}
-      <div className="ab-panel-scroll">
+    <div className="dsr-ab-panel" role="region" aria-label={t('panel.aria')}>
+      {notice !== null && <div className="dsr-ab-panel-notice" role="status">{notice}</div>}
+      <div className="dsr-ab-panel-scroll">
         {groups.length === 0
-          ? <div className="ab-empty">{t('panel.empty')}</div>
+          ? <div className="dsr-ab-empty">{t('panel.empty')}</div>
           : groups.map(group => (
-            <section key={group.key} className="ab-group">
-              <div className="ab-group-label">{dayLabel(group.bucket, t, now)}</div>
+            <section key={group.key} className="dsr-ab-group">
+              <div className="dsr-ab-group-label">{dayLabel(group.bucket, t, now)}</div>
               {group.rows.map(row => (
                 <ActivityRowItem
                   key={row.id}

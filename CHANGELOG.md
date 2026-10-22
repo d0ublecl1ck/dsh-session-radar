@@ -3,6 +3,12 @@
 本项目的版本变更记录。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。每次发布对应一个 git tag 与一条 npm 版本。
 
+## [未发布]
+
+### 修复
+
+- **续跑弹窗的清单行被同页另一个注入方的样式压扁，并拖出一条横向滚动条**：`rt-*` 这类两三个字母的裸前缀与同页 `data-dsh-purge-drill` 的样式表撞车——对方把 `.rt-row` 定义成五列 `display:grid`（`150px 74px 104px 1.15fr 1fr`）、`.rt-list` 固定 `width:210px`，于是清单行被塞进 210px 的 grid 单元格、内容溢出成横向滚动条（真实页面实测：行 `scrollWidth` 292 > `clientWidth` 210，列表 `scrollWidth` 300 > `clientWidth` 226）。四个界面的类名统一收进 `dsr-` 命名空间（`dsr-ab-*` / `dsr-ov-*` / `dsr-sw-*` / `dsr-rt-*`），同页复测行宽回到 582px、`scrollWidth === clientWidth`。新增 `test/css-namespace.test.mjs`，断言样式表里每个类名都带 `dsr-` 前缀、源码里不再出现裸短前缀，防止回退。
+
 ## [1.5.0] - 2026-10-13
 
 ### 新增

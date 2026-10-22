@@ -14,13 +14,13 @@
 
 const CSS = `
 /* The bell's seat inside the section header row. */
-.ab-bell-host {
+.dsr-ab-bell-host {
   display: inline-flex;
   align-items: center;
   flex: none;
 }
 
-.ab-bell {
+.dsr-ab-bell {
   position: relative;
   flex: none;
   display: inline-flex;
@@ -38,9 +38,9 @@ const CSS = `
   transition: background-color 120ms var(--ds-ease-in-out, ease-out), color 120ms var(--ds-ease-in-out, ease-out);
 }
 
-.ab-bell:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.dsr-ab-bell:hover { background: var(--dsw-alias-interactive-bg-hover); }
 
-.ab-bell:focus-visible {
+.dsr-ab-bell:focus-visible {
   outline: 2px solid var(--dsw-alias-brand-primary, currentColor);
   outline-offset: -2px;
 }
@@ -49,13 +49,13 @@ const CSS = `
    stays label-primary: the sidebar's own selected nav rows pair their active
    fill with exactly that token, while the active-accent token is a fill (a
    pale blue in the light palette) and would all but vanish here. */
-.ab-bell-active,
-.ab-bell-active:hover {
+.dsr-ab-bell-active,
+.dsr-ab-bell-active:hover {
   color: var(--dsw-alias-label-primary);
   background: var(--dsw-specific-sidebar-nav-item-active, var(--dsw-alias-interactive-bg-active));
 }
 
-.ab-badge {
+.dsr-ab-badge {
   position: absolute;
   top: -2px;
   inset-inline-end: -3px;
@@ -81,7 +81,7 @@ const CSS = `
 /* The pending-ask chip: the same seat on the opposite corner, filled with the
    shared warning colour so a Session waiting for an answer never reads as an
    unread completion. It sits beside the red unread badge when both apply. */
-.ab-badge-ask {
+.dsr-ab-badge-ask {
   inset-inline-end: auto;
   inset-inline-start: -3px;
   background: var(--dsw-alias-state-warn-primary, #f5a623);
@@ -89,7 +89,7 @@ const CSS = `
 
 /* The panel seat: an opaque cover over the list so the workspace rows never
    bleed through, sized to the seat's own box. */
-.ab-panel-host {
+.dsr-ab-panel-host {
   position: absolute;
   inset: 0;
   z-index: 6;
@@ -103,7 +103,7 @@ const CSS = `
      rows are tight — 4px padding, a 12px dot column, 4px gap — which puts the
      title column well left of the shipped rows' own titles. Only the trailing
      inset follows the shipped rows (./anchors measures it when the list opens),
-     and it is declared here rather than on .ab-panel so the inline measurement
+     and it is declared here rather than on .dsr-ab-panel so the inline measurement
      on this host wins. */
   --ab-panel-pad-left: 4px;
   --ab-panel-pad-right: 12px;
@@ -115,7 +115,7 @@ const CSS = `
   pointer-events: none;
 }
 
-.ab-panel {
+.dsr-ab-panel {
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -131,7 +131,7 @@ const CSS = `
   pointer-events: auto;
 }
 
-.ab-panel-notice {
+.dsr-ab-panel-notice {
   flex: none;
   padding: 2px 0 6px calc(var(--ab-row-pad) + var(--ab-mark) + var(--ab-gap));
   font-size: 12px;
@@ -139,7 +139,7 @@ const CSS = `
   color: var(--dsw-alias-state-error-primary, #e5484d);
 }
 
-.ab-panel-scroll {
+.dsr-ab-panel-scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -147,14 +147,14 @@ const CSS = `
   padding-bottom: 12px;
 }
 
-.ab-group {
+.dsr-ab-group {
   display: flex;
   flex-direction: column;
   gap: 1px;
   margin-bottom: 10px;
 }
 
-.ab-group-label {
+.dsr-ab-group-label {
   position: sticky;
   top: 0;
   z-index: 1;
@@ -166,7 +166,7 @@ const CSS = `
   background: var(--dsw-specific-sidebar-fill, Canvas);
 }
 
-.ab-row {
+.dsr-ab-row {
   display: flex;
   align-items: flex-start;
   gap: var(--ab-gap);
@@ -181,21 +181,21 @@ const CSS = `
   cursor: pointer;
 }
 
-.ab-row:hover { background: var(--dsw-specific-sidebar-nav-item-hover, var(--dsw-alias-interactive-bg-hover)); }
+.dsr-ab-row:hover { background: var(--dsw-specific-sidebar-nav-item-hover, var(--dsw-alias-interactive-bg-hover)); }
 
 /* The Session the conversation column is showing keeps the shipped selected-row
    fill, so the activity list says where you are without a second look. */
-.ab-row-current,
-.ab-row-current:hover {
+.dsr-ab-row-current,
+.dsr-ab-row-current:hover {
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
-.ab-row:focus-visible {
+.dsr-ab-row:focus-visible {
   outline: 2px solid var(--dsw-alias-brand-primary, currentColor);
   outline-offset: -2px;
 }
 
-.ab-row-mark {
+.dsr-ab-row-mark {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -204,7 +204,7 @@ const CSS = `
   height: 18px;
 }
 
-.ab-row-body {
+.dsr-ab-row-body {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -212,7 +212,7 @@ const CSS = `
   min-width: 0;
 }
 
-.ab-row-title {
+.dsr-ab-row-title {
   display: block;
   font-size: 13.5px;
   line-height: 1.35;
@@ -224,28 +224,28 @@ const CSS = `
 
 /* Marquee masks: the left fade appears once the title has left its start, the
    right one while text still remains beyond the cell (see ./marquee). */
-.ab-row-title[data-scrolled] {
+.dsr-ab-row-title[data-scrolled] {
   mask-image: linear-gradient(to right, transparent, #000 12px);
 }
 
-.ab-row-title[data-clipped] {
+.dsr-ab-row-title[data-clipped] {
   mask-image: linear-gradient(to left, transparent, #000 12px);
 }
 
-.ab-row-title[data-scrolled][data-clipped] {
+.dsr-ab-row-title[data-scrolled][data-clipped] {
   mask-image: linear-gradient(to right, transparent, #000 12px, #000 calc(100% - 12px), transparent);
 }
 
 /* The unclipped hover state drops the ellipsis, which would otherwise sit on
    top of the characters the marquee revealed. */
 @media (hover: hover) {
-  .ab-row:hover .ab-row-title,
-  .ab-row:focus-within .ab-row-title {
+  .dsr-ab-row:hover .dsr-ab-row-title,
+  .dsr-ab-row:focus-within .dsr-ab-row-title {
     text-overflow: clip;
   }
 }
 
-.ab-row-folder {
+.dsr-ab-row-folder {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -254,13 +254,13 @@ const CSS = `
   color: var(--dsw-alias-label-tertiary);
 }
 
-.ab-row-folder-text {
+.dsr-ab-row-folder-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.ab-empty {
+.dsr-ab-empty {
   padding: 18px 8px;
   font-size: 12.5px;
   color: var(--dsw-alias-label-tertiary);
@@ -268,7 +268,7 @@ const CSS = `
 
 /* Trailing row cell: the pinned marker at rest, the pin/archive affordances on
    hover or keyboard focus. */
-.ab-row-tail {
+.dsr-ab-row-tail {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -276,29 +276,29 @@ const CSS = `
   height: 18px;
 }
 
-.ab-pin-mark {
+.dsr-ab-pin-mark {
   display: inline-flex;
   align-items: center;
   color: var(--dsw-alias-label-tertiary);
 }
 
-.ab-row-actions {
+.dsr-ab-row-actions {
   display: none;
   align-items: center;
   gap: 2px;
 }
 
-.ab-row:hover .ab-row-actions,
-.ab-row:focus-within .ab-row-actions {
+.dsr-ab-row:hover .dsr-ab-row-actions,
+.dsr-ab-row:focus-within .dsr-ab-row-actions {
   display: inline-flex;
 }
 
-.ab-row:hover .ab-pin-mark,
-.ab-row:focus-within .ab-pin-mark {
+.dsr-ab-row:hover .dsr-ab-pin-mark,
+.dsr-ab-row:focus-within .dsr-ab-pin-mark {
   display: none;
 }
 
-.ab-icon-button {
+.dsr-ab-icon-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -312,18 +312,18 @@ const CSS = `
   cursor: pointer;
 }
 
-.ab-icon-button:hover {
+.dsr-ab-icon-button:hover {
   background: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-primary);
 }
 
-.ab-icon-button:focus-visible {
+.dsr-ab-icon-button:focus-visible {
   outline: 2px solid var(--dsw-alias-brand-primary, currentColor);
   outline-offset: -1px;
 }
 
 /* Status copy for assistive tech: the dots themselves are decorative. */
-.ab-sr-only {
+.dsr-ab-sr-only {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -333,10 +333,10 @@ const CSS = `
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .ab-panel { animation: ab-panel-in 120ms var(--ds-ease-in-out, ease-out); }
+  .dsr-ab-panel { animation: dsr-ab-panel-in 120ms var(--ds-ease-in-out, ease-out); }
 }
 
-@keyframes ab-panel-in {
+@keyframes dsr-ab-panel-in {
   from { opacity: 0; }
   to { opacity: 1; }
 }
@@ -346,7 +346,7 @@ const CSS = `
    ledger knows which turns were cut off, and this asks once per process boot
    which of them to continue. A veil + panel like the waiting window, but the
    list is a checklist rather than a cursor grid. */
-.rt-veil {
+.dsr-rt-veil {
   position: fixed;
   inset: 0;
   z-index: 70;
@@ -358,7 +358,7 @@ const CSS = `
   background: rgba(0, 0, 0, 0.45);
 }
 
-.rt-panel {
+.dsr-rt-panel {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -375,17 +375,17 @@ const CSS = `
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
 }
 
-.rt-head { font-weight: 560; }
-.rt-intro {
+.dsr-rt-head { font-weight: 560; }
+.dsr-rt-intro {
   margin: 0;
   font-size: 12px;
   line-height: 1.6;
   color: var(--dsw-alias-label-tertiary, #adb2b8);
 }
 
-.rt-tools { display: flex; gap: 8px; }
+.dsr-rt-tools { display: flex; gap: 8px; }
 
-.rt-list {
+.dsr-rt-list {
   flex: 1;
   min-height: 0;
   margin: 0;
@@ -397,7 +397,7 @@ const CSS = `
   gap: 4px;
 }
 
-.rt-row {
+.dsr-rt-row {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -410,11 +410,11 @@ const CSS = `
 
 /* A turn is already running: it is listed so the operator sees why it is not
    offered, but it cannot be picked. */
-.rt-row-running { opacity: 0.6; }
+.dsr-rt-row-running { opacity: 0.6; }
 
-.rt-check { flex: none; margin: 0; }
+.dsr-rt-check { flex: none; margin: 0; }
 
-.rt-title {
+.dsr-rt-title {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -422,7 +422,7 @@ const CSS = `
   white-space: nowrap;
 }
 
-.rt-folder {
+.dsr-rt-folder {
   flex: none;
   max-width: 40%;
   overflow: hidden;
@@ -432,7 +432,7 @@ const CSS = `
   color: var(--dsw-alias-label-tertiary, #adb2b8);
 }
 
-.rt-tag {
+.dsr-rt-tag {
   flex: none;
   padding: 1px 7px;
   border-radius: 999px;
@@ -441,7 +441,7 @@ const CSS = `
   font-size: 11px;
 }
 
-.rt-error {
+.dsr-rt-error {
   flex: none;
   max-width: 45%;
   overflow: hidden;
@@ -451,13 +451,13 @@ const CSS = `
   color: var(--dsw-alias-state-error-primary, #e5484d);
 }
 
-.rt-foot {
+.dsr-rt-foot {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
 }
 
-.rt-mini, .rt-send {
+.dsr-rt-mini, .dsr-rt-send {
   padding: 4px 12px;
   border: 1px solid var(--dsw-alias-border-l2, #ffffff1f);
   border-radius: 999px;
@@ -468,24 +468,24 @@ const CSS = `
   cursor: pointer;
 }
 
-.rt-mini:hover:enabled, .rt-send:hover:enabled { background: var(--dsw-alias-interactive-bg-hover, #ffffff14); }
-.rt-mini:disabled, .rt-send:disabled { opacity: 0.5; cursor: default; }
+.dsr-rt-mini:hover:enabled, .dsr-rt-send:hover:enabled { background: var(--dsw-alias-interactive-bg-hover, #ffffff14); }
+.dsr-rt-mini:disabled, .dsr-rt-send:disabled { opacity: 0.5; cursor: default; }
 
-.rt-send {
+.dsr-rt-send {
   border-color: transparent;
   background: var(--dsw-alias-brand-primary, #7aaaff);
   color: #10131a;
   font-weight: 560;
 }
 
-.rt-send:hover:enabled { background: var(--dsw-alias-brand-primary, #7aaaff); filter: brightness(1.08); }
+.dsr-rt-send:hover:enabled { background: var(--dsw-alias-brand-primary, #7aaaff); filter: brightness(1.08); }
 
 /* ── waiting window (the K overview) ─────────────────────────────────────
    A page overlay instead of a sidebar cover: the two zones need more width
    than the sidebar ever has, so this is the one surface that portals into the
    document body. The ask zone keeps a fixed column and the unread zone takes
    the rest, so "answer first" survives every window width. */
-.ov-veil {
+.dsr-ov-veil {
   position: fixed;
   inset: 0;
   z-index: 60;
@@ -497,7 +497,7 @@ const CSS = `
   background: rgba(0, 0, 0, 0.45);
 }
 
-.ov-panel {
+.dsr-ov-panel {
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -512,7 +512,7 @@ const CSS = `
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
 }
 
-.ov-head {
+.dsr-ov-head {
   flex: none;
   display: flex;
   align-items: center;
@@ -522,11 +522,11 @@ const CSS = `
   font-size: 13.5px;
 }
 
-.ov-title { font-weight: 560; color: var(--dsw-alias-label-primary, #f9fafb); }
-.ov-counts, .ov-hint { font-size: 12px; color: var(--dsw-alias-label-tertiary, #adb2b8); }
-.ov-grow { flex: 1; }
+.dsr-ov-title { font-weight: 560; color: var(--dsw-alias-label-primary, #f9fafb); }
+.dsr-ov-counts, .dsr-ov-hint { font-size: 12px; color: var(--dsw-alias-label-tertiary, #adb2b8); }
+.dsr-ov-grow { flex: 1; }
 
-.ov-close {
+.dsr-ov-close {
   flex: none;
   padding: 3px 10px;
   border: 1px solid var(--dsw-alias-border-l2, #ffffff1f);
@@ -539,14 +539,14 @@ const CSS = `
   cursor: pointer;
 }
 
-.ov-close:hover {
+.dsr-ov-close:hover {
   background: var(--dsw-alias-interactive-bg-hover, #ffffff14);
   color: var(--dsw-alias-label-primary, #f9fafb);
 }
 
-.ov-close:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary, currentColor); outline-offset: 1px; }
+.dsr-ov-close:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary, currentColor); outline-offset: 1px; }
 
-.ov-kbd {
+.dsr-ov-kbd {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -561,7 +561,7 @@ const CSS = `
   font-size: 11px;
 }
 
-.ov-body {
+.dsr-ov-body {
   flex: 1;
   min-height: 0;
   display: flex;
@@ -571,13 +571,13 @@ const CSS = `
   overscroll-behavior: contain;
 }
 
-.ov-zone { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.ov-zone-ask { flex: none; width: 268px; }
-.ov-zone-unread { flex: 1; }
+.dsr-ov-zone { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.dsr-ov-zone-ask { flex: none; width: 268px; }
+.dsr-ov-zone-unread { flex: 1; }
 
 /* Nothing waiting: the press still answers, with one line instead of two
    empty columns. */
-.ov-empty {
+.dsr-ov-empty {
   flex: 1;
   display: flex;
   align-items: center;
@@ -587,7 +587,7 @@ const CSS = `
   color: var(--dsw-alias-label-tertiary, #adb2b8);
 }
 
-.ov-zone-title {
+.dsr-ov-zone-title {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -596,7 +596,7 @@ const CSS = `
 }
 
 /* The zone's priority mark: warning for an ask, unread red for a completion. */
-.ov-zone-title::before {
+.dsr-ov-zone-title::before {
   content: '';
   width: 3px;
   height: 12px;
@@ -604,21 +604,21 @@ const CSS = `
   background: var(--dsw-alias-state-warn-primary, #f5a623);
 }
 
-.ov-zone-unread .ov-zone-title::before { background: var(--dsw-alias-state-error-primary, #e5484d); }
+.dsr-ov-zone-unread .dsr-ov-zone-title::before { background: var(--dsw-alias-state-error-primary, #e5484d); }
 
-.ov-zone-count { color: var(--dsw-alias-label-secondary, #cfd3d6); font-weight: 620; }
-.ov-zone-empty { font-size: 12px; color: var(--dsw-alias-label-tertiary, #adb2b8); }
+.dsr-ov-zone-count { color: var(--dsw-alias-label-secondary, #cfd3d6); font-weight: 620; }
+.dsr-ov-zone-empty { font-size: 12px; color: var(--dsw-alias-label-tertiary, #adb2b8); }
 
-.ov-grid {
+.dsr-ov-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 10px;
   align-content: start;
 }
 
-.ov-zone-ask .ov-grid { grid-template-columns: 1fr; }
+.dsr-ov-zone-ask .dsr-ov-grid { grid-template-columns: 1fr; }
 
-.ov-card {
+.dsr-ov-card {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -633,19 +633,19 @@ const CSS = `
   cursor: pointer;
 }
 
-.ov-card:hover { border-color: var(--dsw-alias-border-l2, #ffffff1f); }
-.ov-card:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary, currentColor); outline-offset: -2px; }
+.dsr-ov-card:hover { border-color: var(--dsw-alias-border-l2, #ffffff1f); }
+.dsr-ov-card:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary, currentColor); outline-offset: -2px; }
 
-.ov-card-sel {
+.dsr-ov-card-sel {
   border-color: var(--dsw-alias-brand-primary, #7aaaff);
   box-shadow: inset 0 0 0 1px var(--dsw-alias-brand-primary, #7aaaff);
 }
 
 /* The Session the conversation column already shows, so the window says where
    the operator is standing. */
-.ov-card-current { background: var(--dsw-alias-interactive-bg-hover, #ffffff14); }
+.dsr-ov-card-current { background: var(--dsw-alias-interactive-bg-hover, #ffffff14); }
 
-.ov-card-title {
+.dsr-ov-card-title {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -655,7 +655,7 @@ const CSS = `
   color: var(--dsw-alias-label-primary, #f9fafb);
 }
 
-.ov-tag {
+.dsr-ov-tag {
   align-self: flex-start;
   padding: 1px 7px;
   border-radius: 999px;
@@ -665,9 +665,9 @@ const CSS = `
   font-weight: 600;
 }
 
-.ov-tag-unread { background: rgba(72, 199, 142, 0.16); color: #48c78e; }
+.dsr-ov-tag-unread { background: rgba(72, 199, 142, 0.16); color: #48c78e; }
 
-.ov-card-meta {
+.dsr-ov-card-meta {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -676,11 +676,11 @@ const CSS = `
   color: var(--dsw-alias-label-tertiary, #adb2b8);
 }
 
-.ov-card-folder { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ov-card-when { flex: none; margin-inline-start: auto; }
+.dsr-ov-card-folder { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dsr-ov-card-when { flex: none; margin-inline-start: auto; }
 
 @media (prefers-reduced-motion: no-preference) {
-  .ov-panel { animation: ab-panel-in 120ms var(--ds-ease-in-out, ease-out); }
+  .dsr-ov-panel { animation: dsr-ab-panel-in 120ms var(--ds-ease-in-out, ease-out); }
 }
 
 /* ── status readout (merged from dsh-session-watch) ───────────────────────
@@ -689,17 +689,17 @@ const CSS = `
    whole merged client half. Metric colors: one family per state, taken from
    the shell's semantic tokens where the shell has one, and reusing the
    sidebar's own label ramp for the archive metrics so they stay quiet. */
-.sw-chip[data-metric="running"], .sw-legend[data-metric="running"], .sw-toggle[data-metric="running"] { --sw-ink: var(--dsw-alias-state-business-primary, #4d6bfe); }
-.sw-chip[data-metric="unread"], .sw-legend[data-metric="unread"], .sw-toggle[data-metric="unread"] { --sw-ink: var(--dsw-alias-state-error-primary, #e5484d); }
-.sw-chip[data-metric="pending"], .sw-legend[data-metric="pending"], .sw-toggle[data-metric="pending"] { --sw-ink: var(--dsw-alias-state-warn-primary, #f5a623); }
-.sw-chip[data-metric="idle"], .sw-legend[data-metric="idle"], .sw-toggle[data-metric="idle"] { --sw-ink: var(--dsw-alias-label-tertiary, #98a2b3); }
-.sw-chip[data-metric="unarchived"], .sw-legend[data-metric="unarchived"], .sw-toggle[data-metric="unarchived"] { --sw-ink: var(--dsw-alias-label-secondary, #667085); }
-.sw-chip[data-metric="archived"], .sw-legend[data-metric="archived"], .sw-toggle[data-metric="archived"] { --sw-ink: var(--dsw-alias-label-tertiary, #98a2b3); }
+.dsr-sw-chip[data-metric="running"], .dsr-sw-legend[data-metric="running"], .dsr-sw-toggle[data-metric="running"] { --sw-ink: var(--dsw-alias-state-business-primary, #4d6bfe); }
+.dsr-sw-chip[data-metric="unread"], .dsr-sw-legend[data-metric="unread"], .dsr-sw-toggle[data-metric="unread"] { --sw-ink: var(--dsw-alias-state-error-primary, #e5484d); }
+.dsr-sw-chip[data-metric="pending"], .dsr-sw-legend[data-metric="pending"], .dsr-sw-toggle[data-metric="pending"] { --sw-ink: var(--dsw-alias-state-warn-primary, #f5a623); }
+.dsr-sw-chip[data-metric="idle"], .dsr-sw-legend[data-metric="idle"], .dsr-sw-toggle[data-metric="idle"] { --sw-ink: var(--dsw-alias-label-tertiary, #98a2b3); }
+.dsr-sw-chip[data-metric="unarchived"], .dsr-sw-legend[data-metric="unarchived"], .dsr-sw-toggle[data-metric="unarchived"] { --sw-ink: var(--dsw-alias-label-secondary, #667085); }
+.dsr-sw-chip[data-metric="archived"], .dsr-sw-legend[data-metric="archived"], .dsr-sw-toggle[data-metric="archived"] { --sw-ink: var(--dsw-alias-label-tertiary, #98a2b3); }
 
 /* The warning state is the one accent the unarchived metric can borrow. */
-.sw-chip[data-warn="true"], .sw-legend[data-warn="true"] { --sw-ink: var(--dsw-alias-state-warn-primary, #f5a623); }
+.dsr-sw-chip[data-warn="true"], .dsr-sw-legend[data-warn="true"] { --sw-ink: var(--dsw-alias-state-warn-primary, #f5a623); }
 
-.sw-watch, .sw-meter, .sw-rail {
+.dsr-sw-watch, .dsr-sw-meter, .dsr-sw-rail {
   display: inline-flex;
   align-items: center;
   flex: none;
@@ -708,9 +708,9 @@ const CSS = `
 }
 
 /* Layout A: colored icon + number pills. */
-.sw-watch { gap: 3px; }
+.dsr-sw-watch { gap: 3px; }
 
-.sw-chip {
+.dsr-sw-chip {
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -721,21 +721,21 @@ const CSS = `
   color: var(--sw-ink, var(--dsw-alias-label-secondary, #667085));
 }
 
-.sw-chip svg, .sw-legend svg, .sw-toggle-swatch svg { display: block; }
+.dsr-sw-chip svg, .dsr-sw-legend svg, .dsr-sw-toggle-swatch svg { display: block; }
 
-.sw-chip-count {
+.dsr-sw-chip-count {
   font-size: 11px;
   font-weight: 620;
   line-height: 1;
   color: var(--sw-ink, inherit);
 }
 
-.sw-chip[data-warn="true"] { background: var(--dsw-alias-state-warn-tertiary, rgba(245, 166, 35, 0.16)); }
+.dsr-sw-chip[data-warn="true"] { background: var(--dsw-alias-state-warn-tertiary, rgba(245, 166, 35, 0.16)); }
 
 /* Layout B: a thick stacked meter with a compact legend. */
-.sw-meter { flex-direction: column; align-items: stretch; gap: 4px; min-width: 148px; }
+.dsr-sw-meter { flex-direction: column; align-items: stretch; gap: 4px; min-width: 148px; }
 
-.sw-meter-bar {
+.dsr-sw-meter-bar {
   display: flex;
   width: 100%;
   height: 6px;
@@ -744,20 +744,20 @@ const CSS = `
   background: var(--dsw-alias-bg-layer-2, rgba(127, 127, 127, 0.12));
 }
 
-.sw-meter-seg { min-width: 0; transition: flex-grow 160ms var(--ds-ease-in-out, ease-out); }
-.sw-meter-seg[data-metric="running"] { background: var(--dsw-alias-state-business-primary, #4d6bfe); }
-.sw-meter-seg[data-metric="unread"] { background: var(--dsw-alias-state-error-primary, #e5484d); }
-.sw-meter-seg[data-metric="pending"] { background: var(--dsw-alias-state-warn-primary, #f5a623); }
-.sw-meter-seg[data-metric="idle"] { background: var(--dsw-alias-state-idle-primary, #d0d5dd); }
-.sw-meter-seg[data-empty="true"] { flex: 1 1 auto; }
+.dsr-sw-meter-seg { min-width: 0; transition: flex-grow 160ms var(--ds-ease-in-out, ease-out); }
+.dsr-sw-meter-seg[data-metric="running"] { background: var(--dsw-alias-state-business-primary, #4d6bfe); }
+.dsr-sw-meter-seg[data-metric="unread"] { background: var(--dsw-alias-state-error-primary, #e5484d); }
+.dsr-sw-meter-seg[data-metric="pending"] { background: var(--dsw-alias-state-warn-primary, #f5a623); }
+.dsr-sw-meter-seg[data-metric="idle"] { background: var(--dsw-alias-state-idle-primary, #d0d5dd); }
+.dsr-sw-meter-seg[data-empty="true"] { flex: 1 1 auto; }
 
-.sw-meter-legend { display: flex; align-items: center; gap: 8px; }
-.sw-legend { display: inline-flex; align-items: center; gap: 3px; color: var(--sw-ink); }
+.dsr-sw-meter-legend { display: flex; align-items: center; gap: 8px; }
+.dsr-sw-legend { display: inline-flex; align-items: center; gap: 3px; color: var(--sw-ink); }
 
 /* A jumpable metric is a button now; the chip/legend box is unchanged, so only
    the affordances move. The archived metric never becomes one, because the
    shell refuses to open an archived Session. */
-button.sw-chip, button.sw-legend {
+button.dsr-sw-chip, button.dsr-sw-legend {
   appearance: none;
   border: 0;
   font: inherit;
@@ -765,34 +765,34 @@ button.sw-chip, button.sw-legend {
   transition: background-color 120ms var(--ds-ease-in-out, ease-out);
 }
 
-button.sw-chip { margin: 0; }
-button.sw-chip:hover { background: var(--dsw-alias-bg-layer-3, rgba(127, 127, 127, 0.2)); }
-button.sw-chip[data-warn="true"]:hover { background: var(--dsw-alias-state-warn-tertiary, rgba(245, 166, 35, 0.16)); }
+button.dsr-sw-chip { margin: 0; }
+button.dsr-sw-chip:hover { background: var(--dsw-alias-bg-layer-3, rgba(127, 127, 127, 0.2)); }
+button.dsr-sw-chip[data-warn="true"]:hover { background: var(--dsw-alias-state-warn-tertiary, rgba(245, 166, 35, 0.16)); }
 
 /* The legend is inline text: the pill is drawn with padding the negative margin
    takes back, so hovering highlights it without moving the row. */
-button.sw-legend {
+button.dsr-sw-legend {
   margin: -2px -3px;
   padding: 2px 3px;
   border-radius: 6px;
   background: transparent;
 }
 
-button.sw-legend:hover { background: var(--dsw-alias-bg-layer-2, rgba(127, 127, 127, 0.12)); }
+button.dsr-sw-legend:hover { background: var(--dsw-alias-bg-layer-2, rgba(127, 127, 127, 0.12)); }
 
-button.sw-chip:focus-visible, button.sw-legend:focus-visible {
+button.dsr-sw-chip:focus-visible, button.dsr-sw-legend:focus-visible {
   outline: 2px solid var(--dsw-alias-state-business-primary, #4d6bfe);
   outline-offset: 1px;
 }
 
-button.sw-chip:active, button.sw-legend:active { transform: translateY(0.5px); }
+button.dsr-sw-chip:active, button.dsr-sw-legend:active { transform: translateY(0.5px); }
 
 @media (prefers-reduced-motion: reduce) {
-  button.sw-chip, button.sw-legend { transition: none; }
+  button.dsr-sw-chip, button.dsr-sw-legend { transition: none; }
 }
 
 /* The collapsed rail: one mark plus the unarchived count. */
-.sw-rail {
+.dsr-sw-rail {
   position: relative;
   justify-content: center;
   width: 28px;
@@ -800,7 +800,7 @@ button.sw-chip:active, button.sw-legend:active { transform: translateY(0.5px); }
   color: var(--dsw-alias-label-secondary, #667085);
 }
 
-.sw-rail-count {
+.dsr-sw-rail-count {
   position: absolute;
   top: -2px;
   inset-inline-end: -4px;
@@ -820,26 +820,26 @@ button.sw-chip:active, button.sw-legend:active { transform: translateY(0.5px); }
   line-height: 1;
 }
 
-.sw-rail[data-warn="true"] { color: var(--dsw-alias-state-warn-primary, #f5a623); }
-.sw-rail[data-warn="true"] .sw-rail-count { background: var(--dsw-alias-state-warn-primary, #f5a623); }
+.dsr-sw-rail[data-warn="true"] { color: var(--dsw-alias-state-warn-primary, #f5a623); }
+.dsr-sw-rail[data-warn="true"] .dsr-sw-rail-count { background: var(--dsw-alias-state-warn-primary, #f5a623); }
 
 /* The Settings row. */
-.sw-row {
+.dsr-sw-row {
   display: flex;
   flex-direction: column;
   gap: 10px;
   padding: 10px 0;
 }
 
-.sw-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.sw-row-title { font-size: 13px; line-height: 18px; color: var(--dsw-alias-label-primary, inherit); }
-.sw-row-desc { font-size: 12px; line-height: 16px; color: var(--dsw-alias-label-tertiary, GrayText); }
-.sw-row-error { font-size: 12px; line-height: 16px; color: var(--dsw-alias-state-error-primary, #e5484d); }
+.dsr-sw-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dsr-sw-row-title { font-size: 13px; line-height: 18px; color: var(--dsw-alias-label-primary, inherit); }
+.dsr-sw-row-desc { font-size: 12px; line-height: 16px; color: var(--dsw-alias-label-tertiary, GrayText); }
+.dsr-sw-row-error { font-size: 12px; line-height: 16px; color: var(--dsw-alias-state-error-primary, #e5484d); }
 
-.sw-row-controls { display: flex; flex-direction: column; gap: 12px; }
+.dsr-sw-row-controls { display: flex; flex-direction: column; gap: 12px; }
 
-.sw-variants { display: inline-flex; gap: 4px; }
-.sw-variant {
+.dsr-sw-variants { display: inline-flex; gap: 4px; }
+.dsr-sw-variant {
   padding: 3px 10px;
   border: 1px solid var(--dsw-alias-border-l2, currentColor);
   border-radius: 999px;
@@ -850,15 +850,15 @@ button.sw-chip:active, button.sw-legend:active { transform: translateY(0.5px); }
   line-height: 16px;
   cursor: pointer;
 }
-.sw-variant:hover { background: var(--dsw-alias-interactive-bg-hover, rgba(127, 127, 127, 0.1)); }
-.sw-variant-on {
+.dsr-sw-variant:hover { background: var(--dsw-alias-interactive-bg-hover, rgba(127, 127, 127, 0.1)); }
+.dsr-sw-variant-on {
   border-color: transparent;
   background: var(--dsw-alias-state-business-primary, #4d6bfe);
   color: var(--dsw-alias-label-primary-inverted, #fff);
 }
-.sw-variant:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary, currentColor); outline-offset: 1px; }
+.dsr-sw-variant:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary, currentColor); outline-offset: 1px; }
 
-.sw-toggles {
+.dsr-sw-toggles {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 4px 12px;
@@ -867,11 +867,11 @@ button.sw-chip:active, button.sw-legend:active { transform: translateY(0.5px); }
   border: 0;
 }
 
-.sw-field-label { font-size: 12px; line-height: 16px; color: var(--dsw-alias-label-tertiary, GrayText); padding: 0; }
-.sw-field-hint { font-size: 11px; line-height: 14px; color: var(--dsw-alias-label-tertiary, GrayText); }
-.sw-field { display: flex; flex-direction: column; gap: 2px; }
+.dsr-sw-field-label { font-size: 12px; line-height: 16px; color: var(--dsw-alias-label-tertiary, GrayText); padding: 0; }
+.dsr-sw-field-hint { font-size: 11px; line-height: 14px; color: var(--dsw-alias-label-tertiary, GrayText); }
+.dsr-sw-field { display: flex; flex-direction: column; gap: 2px; }
 
-.sw-toggle {
+.dsr-sw-toggle {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -881,19 +881,19 @@ button.sw-chip:active, button.sw-legend:active { transform: translateY(0.5px); }
   color: var(--dsw-alias-label-primary, inherit);
   cursor: pointer;
 }
-.sw-toggle input { accent-color: var(--dsw-alias-state-business-primary, #4d6bfe); margin: 0; }
-.sw-toggle-swatch { display: inline-flex; color: var(--sw-ink, inherit); }
-.sw-toggle-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sw-toggle-count {
+.dsr-sw-toggle input { accent-color: var(--dsw-alias-state-business-primary, #4d6bfe); margin: 0; }
+.dsr-sw-toggle-swatch { display: inline-flex; color: var(--sw-ink, inherit); }
+.dsr-sw-toggle-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dsr-sw-toggle-count {
   margin-inline-start: auto;
   padding-inline-start: 6px;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   color: var(--sw-ink, inherit);
 }
-.sw-toggle-count[data-warn="true"] { color: var(--dsw-alias-state-warn-primary, #f5a623); }
+.dsr-sw-toggle-count[data-warn="true"] { color: var(--dsw-alias-state-warn-primary, #f5a623); }
 
-.sw-input {
+.dsr-sw-input {
   width: 84px;
   box-sizing: border-box;
   padding: 4px 8px;
@@ -908,9 +908,9 @@ button.sw-chip:active, button.sw-legend:active { transform: translateY(0.5px); }
   font-variant-numeric: tabular-nums;
 }
 
-.sw-input:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary, currentColor); outline-offset: -1px; }
+.dsr-sw-input:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary, currentColor); outline-offset: -1px; }
 
-.sw-sr-only {
+.dsr-sw-sr-only {
   position: absolute;
   width: 1px;
   height: 1px;
